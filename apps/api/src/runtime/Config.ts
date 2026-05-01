@@ -28,6 +28,13 @@ type AppConfigShape = {
     readonly provider: string | undefined;
     readonly model: string | undefined;
   };
+  readonly auth: {
+    readonly googleClientId: string;
+    readonly googleClientSecret: string;
+    readonly secret: string;
+    readonly baseUrl: string;
+    readonly trustedOrigins: readonly string[];
+  };
 };
 
 export class AppConfig extends Context.Service<AppConfig, AppConfigShape>()(
@@ -66,6 +73,21 @@ export class AppConfig extends Context.Service<AppConfig, AppConfigShape>()(
 
       const aiProvider = yield* Config.option(Config.string("AI_PROVIDER"));
       const aiModel = yield* Config.option(Config.string("AI_MODEL"));
+      const googleClientId = yield* Config.string("GOOGLE_CLIENT_ID").pipe(
+        Config.withDefault(""),
+      );
+      const googleClientSecret = yield* Config.string("GOOGLE_CLIENT_SECRET").pipe(
+        Config.withDefault(""),
+      );
+      const authSecret = yield* Config.string("BETTER_AUTH_SECRET").pipe(
+        Config.withDefault("development-only-better-auth-secret"),
+      );
+      const authBaseUrl = yield* Config.string("BETTER_AUTH_URL").pipe(
+        Config.withDefault("http://localhost:3002"),
+      );
+      const trustedOrigins = yield* Config.string("BETTER_AUTH_TRUSTED_ORIGINS").pipe(
+        Config.withDefault("http://localhost:3000"),
+      );
 
       return {
         database: {
@@ -85,6 +107,16 @@ export class AppConfig extends Context.Service<AppConfig, AppConfigShape>()(
           enabled: aiEnabled,
           provider: Option.isSome(aiProvider) ? aiProvider.value : undefined,
           model: Option.isSome(aiModel) ? aiModel.value : undefined,
+        },
+        auth: {
+          googleClientId,
+          googleClientSecret,
+          secret: authSecret,
+          baseUrl: authBaseUrl,
+          trustedOrigins: trustedOrigins
+            .split(",")
+            .map((origin) => origin.trim())
+            .filter((origin) => origin.length > 0),
         },
       };
     }),

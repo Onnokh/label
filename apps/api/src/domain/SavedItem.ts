@@ -3,8 +3,8 @@ import { Schema } from "effect";
 export const SavedItemId = Schema.String.pipe(Schema.brand("SavedItemId"));
 export type SavedItemId = typeof SavedItemId.Type;
 
-export const AccountId = Schema.String.pipe(Schema.brand("AccountId"));
-export type AccountId = typeof AccountId.Type;
+export const UserId = Schema.String.pipe(Schema.brand("UserId"));
+export type UserId = typeof UserId.Type;
 
 export const EnrichmentStatus = Schema.Literals(["pending", "enriched", "failed"]);
 export type EnrichmentStatus = typeof EnrichmentStatus.Type;
@@ -20,7 +20,7 @@ export type GeneratedType = typeof GeneratedType.Type;
 
 export class SavedItem extends Schema.Class<SavedItem>("SavedItem")({
   id: SavedItemId,
-  accountId: AccountId,
+  userId: UserId,
   originalUrl: Schema.String,
   normalizedUrl: Schema.String,
   host: Schema.String,

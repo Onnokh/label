@@ -8,12 +8,12 @@ import {
   HttpApiSecurity,
 } from "effect/unstable/httpapi"
 
-import { AccountId, GeneratedType, SavedItemId } from "../domain/SavedItem.js"
+import { GeneratedType, SavedItemId, UserId } from "../domain/SavedItem.js"
 import type { SavedItem } from "../domain/SavedItem.js"
 
 export class SavedItemDto extends Schema.Class<SavedItemDto>("SavedItemDto")({
   id: SavedItemId,
-  accountId: AccountId,
+  userId: UserId,
   originalUrl: Schema.String,
   normalizedUrl: Schema.String,
   host: Schema.String,
@@ -52,20 +52,6 @@ export class SavedItemsResponse extends Schema.Class<SavedItemsResponse>("SavedI
   savedItems: Schema.Array(SavedItemDto),
 }) {}
 
-export class CreateCaptureTokenPayload extends Schema.Class<CreateCaptureTokenPayload>(
-  "CreateCaptureTokenPayload",
-)({
-  googleSubject: Schema.String,
-  email: Schema.String,
-}) {}
-
-export class CreateCaptureTokenResponse extends Schema.Class<CreateCaptureTokenResponse>(
-  "CreateCaptureTokenResponse",
-)({
-  accountId: AccountId,
-  captureToken: Schema.String,
-}, { httpApiStatus: 201 }) {}
-
 export class Unauthorized extends Schema.ErrorClass<Unauthorized>("Unauthorized")({
   _tag: Schema.tag("Unauthorized"),
   message: Schema.String,
@@ -83,32 +69,16 @@ export class SavedItemNotFoundError extends Schema.ErrorClass<SavedItemNotFoundE
   savedItemId: SavedItemId,
 }, { httpApiStatus: 404 }) {}
 
-export class CurrentAccount extends Context.Service<CurrentAccount, AccountId>()(
-  "@app/api/CurrentAccount",
+export class CurrentUser extends Context.Service<CurrentUser, UserId>()(
+  "@app/api/CurrentUser",
 ) {}
 
-export class CaptureTokenAuth extends HttpApiMiddleware.Service<CaptureTokenAuth, {
-  provides: CurrentAccount
-}>()("@app/api/CaptureTokenAuth", {
+export class SessionOrApiKeyAuth extends HttpApiMiddleware.Service<SessionOrApiKeyAuth, {
+  provides: CurrentUser
+}>()("@app/api/SessionOrApiKeyAuth", {
   security: { bearer: HttpApiSecurity.bearer },
   error: Unauthorized,
 }) {}
-
-export class TrustedAccountAuth extends HttpApiMiddleware.Service<TrustedAccountAuth, {
-  provides: CurrentAccount
-}>()("@app/api/TrustedAccountAuth", {
-  security: {
-    accountId: HttpApiSecurity.apiKey({ key: "x-label-account-id", in: "header" }),
-  },
-  error: Unauthorized,
-}) {}
-
-const captureTokensGroup = HttpApiGroup.make("capture-tokens").add(
-  HttpApiEndpoint.post("create", "/v1/capture-tokens", {
-    payload: CreateCaptureTokenPayload,
-    success: CreateCaptureTokenResponse,
-  }),
-)
 
 const capturesGroup = HttpApiGroup.make("captures")
   .add(
@@ -118,7 +88,7 @@ const capturesGroup = HttpApiGroup.make("captures")
       error: InvalidUrlError,
     }),
   )
-  .middleware(CaptureTokenAuth)
+  .middleware(SessionOrApiKeyAuth)
 
 const savedItemsGroup = HttpApiGroup.make("saved-items")
   .add(
@@ -139,9 +109,8 @@ const savedItemsGroup = HttpApiGroup.make("saved-items")
       success: HttpApiSchema.NoContent,
     }),
   )
-  .middleware(TrustedAccountAuth)
+  .middleware(SessionOrApiKeyAuth)
 
 export const labelApi = HttpApi.make("LabelApi")
-  .add(captureTokensGroup)
   .add(capturesGroup)
   .add(savedItemsGroup)

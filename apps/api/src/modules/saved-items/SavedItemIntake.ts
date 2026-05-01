@@ -4,7 +4,7 @@ import { and, desc, eq } from "drizzle-orm"
 import { Context, Effect, Layer } from "effect"
 
 import { EnrichmentJob, type EnrichmentJobId } from "../../domain/EnrichmentJob.js"
-import { SavedItem, type AccountId } from "../../domain/SavedItem.js"
+import { SavedItem, type UserId } from "../../domain/SavedItem.js"
 import { InvalidUrl } from "../capture/CaptureError.js"
 import { SavedItemNotFound } from "../enrichment/SavedItemNotFound.js"
 import { PostgresClient } from "../persistence/PostgresClient.js"
@@ -78,7 +78,7 @@ export class SavedItemIntake extends Context.Service<SavedItemIntake>()(
       const { db } = yield* PostgresClient
 
       return {
-        capture: (accountId: AccountId, inputUrl: string) =>
+        capture: (userId: UserId, inputUrl: string) =>
           Effect.gen(function* () {
             const url = yield* normalizeUrl(inputUrl)
 
@@ -88,7 +88,7 @@ export class SavedItemIntake extends Context.Service<SavedItemIntake>()(
                     .select()
                     .from(savedItemsTable)
                     .where(and(
-                      eq(savedItemsTable.accountId, accountId),
+                      eq(savedItemsTable.userId, userId),
                       eq(savedItemsTable.normalizedUrl, url.normalizedUrl),
                     ))
                     .limit(1)
@@ -117,7 +117,7 @@ export class SavedItemIntake extends Context.Service<SavedItemIntake>()(
                   const [created] = yield* tx
                     .insert(savedItemsTable)
                     .values({
-                      accountId,
+                      userId,
                       originalUrl: url.originalUrl,
                       normalizedUrl: url.normalizedUrl,
                       host: url.host,

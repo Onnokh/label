@@ -1,85 +1,67 @@
-import { Effect, Layer, Option, Redacted } from "effect"
+import { Effect, Layer, Redacted } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 
 import { SavedItem } from "../domain/SavedItem.js"
-import { AuthService, Unauthorized as AuthUnauthorized } from "../modules/auth/AuthService.js"
+import { BetterAuth } from "../modules/auth/BetterAuth.js"
 import { CaptureService } from "../modules/capture/CaptureService.js"
 import { SavedItemRepository } from "../modules/saved-items/SavedItemRepository.js"
 import {
   CaptureCreated,
-  CaptureTokenAuth,
   CaptureUpdated,
-  CreateCaptureTokenResponse,
-  CurrentAccount,
+  CurrentUser,
   InvalidUrlError,
   SavedItemNotFoundError,
   SavedItemsResponse,
-  TrustedAccountAuth,
+  SessionOrApiKeyAuth,
   Unauthorized,
   labelApi,
   savedItemToDto,
 } from "./ApiContract.js"
 
-const toApiUnauthorized = (error: AuthUnauthorized) =>
-  Effect.fail(new Unauthorized({ message: error.message }))
+const bearerToken = (credential: Redacted.Redacted<string>) =>
+  Redacted.value(credential).replace(/^Bearer\s+/i, "")
 
-export const CaptureTokenAuthLive = Layer.effect(CaptureTokenAuth)(
+export const SessionOrApiKeyAuthLive = Layer.effect(SessionOrApiKeyAuth)(
   Effect.gen(function* () {
-    const auth = yield* AuthService
-    return CaptureTokenAuth.of({
+    const { auth } = yield* BetterAuth
+
+    return SessionOrApiKeyAuth.of({
       bearer: (handler, { credential }) =>
-        auth
-          .authenticateCaptureToken(`Bearer ${Redacted.value(credential)}`)
-          .pipe(
-            Effect.catchTag("Unauthorized", toApiUnauthorized),
-            Effect.orDie,
-            Effect.flatMap((accountId) =>
-              Effect.provideService(handler, CurrentAccount, accountId),
-            ),
-          ),
-    })
-  }),
-)
+        Effect.tryPromise({
+          try: async () => {
+            const headers = new Headers({ authorization: `Bearer ${bearerToken(credential)}` })
+            const session = await auth.api.getSession({ headers })
 
-export const TrustedAccountAuthLive = Layer.effect(TrustedAccountAuth)(
-  Effect.gen(function* () {
-    const auth = yield* AuthService
-    return TrustedAccountAuth.of({
-      accountId: (handler, { credential }) =>
-        auth.accountIdFromTrustedHeader(Redacted.value(credential)).pipe(
-          Effect.catchTag("Unauthorized", toApiUnauthorized),
-          Effect.flatMap((accountId) =>
-            Effect.provideService(handler, CurrentAccount, accountId),
+            if (session?.user?.id) {
+              return session.user.id
+            }
+
+            const verified = await (auth.api as any).verifyApiKey({
+              body: { key: bearerToken(credential) },
+            })
+
+            const userId = verified.key?.userId ?? verified.key?.referenceId
+            if (!userId) {
+              throw new Error("Missing or invalid credentials.")
+            }
+            return userId
+          },
+          catch: () => new Unauthorized({ message: "Missing or invalid credentials." }),
+        }).pipe(
+          Effect.flatMap((userId) =>
+            Effect.provideService(handler, CurrentUser, userId),
           ),
         ),
     })
   }),
 )
 
-const captureTokensGroupLive = HttpApiBuilder.group(labelApi, "capture-tokens", (handlers) =>
-  handlers.handle("create", ({ payload }) =>
-    Effect.gen(function* () {
-      const auth = yield* AuthService
-      const result = yield* auth
-        .issueCaptureTokenForGoogleAccount({
-          googleSubject: payload.googleSubject,
-          email: payload.email,
-        })
-        .pipe(Effect.orDie)
-      return new CreateCaptureTokenResponse({
-        accountId: result.account.id,
-        captureToken: result.rawToken,
-      })
-    }),
-  ),
-)
-
 const capturesGroupLive = HttpApiBuilder.group(labelApi, "captures", (handlers) =>
   handlers.handle("capture", ({ payload }) =>
     Effect.gen(function* () {
       const capture = yield* CaptureService
-      const accountId = yield* CurrentAccount
-      const result = yield* capture.capture(accountId, payload.url).pipe(
+      const userId = yield* CurrentUser
+      const result = yield* capture.capture(userId, payload.url).pipe(
         Effect.catchTag("InvalidUrl", (error) =>
           Effect.fail(new InvalidUrlError({ url: error.url })),
         ),
@@ -98,8 +80,8 @@ const savedItemsGroupLive = HttpApiBuilder.group(labelApi, "saved-items", (handl
     .handle("list", () =>
       Effect.gen(function* () {
         const repo = yield* SavedItemRepository
-        const accountId = yield* CurrentAccount
-        const items = yield* repo.listByAccount(accountId).pipe(Effect.orDie)
+        const userId = yield* CurrentUser
+        const items = yield* repo.listByUser(userId).pipe(Effect.orDie)
         return new SavedItemsResponse({ savedItems: items.map(savedItemToDto) })
       }),
     )
@@ -107,7 +89,7 @@ const savedItemsGroupLive = HttpApiBuilder.group(labelApi, "saved-items", (handl
       Effect.gen(function* () {
         const repo = yield* SavedItemRepository
         const item = yield* repo.findById(params.id).pipe(Effect.orDie)
-        if (Option.isNone(item)) {
+        if (item._tag === "None") {
           return yield* new SavedItemNotFoundError({ savedItemId: params.id })
         }
         const updated = yield* repo
@@ -131,14 +113,11 @@ const savedItemsGroupLive = HttpApiBuilder.group(labelApi, "saved-items", (handl
 )
 
 const groupLives = Layer.mergeAll(
-  captureTokensGroupLive,
   capturesGroupLive,
   savedItemsGroupLive,
 )
 
-const authLives = Layer.mergeAll(CaptureTokenAuthLive, TrustedAccountAuthLive)
-
-export const labelApiHandlers = groupLives.pipe(Layer.provide(authLives))
+export const labelApiHandlers = groupLives.pipe(Layer.provide(SessionOrApiKeyAuthLive))
 
 export const labelApiLive = HttpApiBuilder.layer(labelApi, {
   openapiPath: "/openapi.json",

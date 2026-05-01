@@ -1,20 +1,20 @@
 import { and, desc, eq, type InferInsertModel, type InferSelectModel } from "drizzle-orm"
 import { Context, Effect, Layer, Option } from "effect"
 
-import { SavedItem, type AccountId } from "../../domain/SavedItem.js"
+import { SavedItem, type UserId } from "../../domain/SavedItem.js"
 import { PostgresClient } from "../persistence/PostgresClient.js"
 import { savedItemsTable } from "../persistence/schema.js"
 
 type SavedItemRecord = InferSelectModel<typeof savedItemsTable>
 type NewSavedItemInput = Pick<
   InferInsertModel<typeof savedItemsTable>,
-  "accountId" | "originalUrl" | "normalizedUrl" | "host" | "isRead"
+  "userId" | "originalUrl" | "normalizedUrl" | "host" | "isRead"
 >
 
 export const toSavedItem = (record: SavedItemRecord) =>
   new SavedItem({
     id: record.id,
-    accountId: record.accountId,
+    userId: record.userId,
     originalUrl: record.originalUrl,
     normalizedUrl: record.normalizedUrl,
     host: record.host,
@@ -34,7 +34,7 @@ export const toSavedItem = (record: SavedItemRecord) =>
   })
 
 const toSavedItemUpdate = (savedItem: SavedItem): Partial<InferInsertModel<typeof savedItemsTable>> => ({
-  accountId: savedItem.accountId,
+  userId: savedItem.userId,
   originalUrl: savedItem.originalUrl,
   normalizedUrl: savedItem.normalizedUrl,
   host: savedItem.host,
@@ -72,13 +72,13 @@ export class SavedItemRepository extends Context.Service<SavedItemRepository>()(
             return row ? Option.some(toSavedItem(row)) : Option.none<SavedItem>()
           }),
 
-        findByAccountAndNormalizedUrl: (accountId: AccountId, normalizedUrl: string) =>
+        findByUserAndNormalizedUrl: (userId: UserId, normalizedUrl: string) =>
           Effect.gen(function* () {
             const rows = yield* db
               .select()
               .from(savedItemsTable)
               .where(and(
-                eq(savedItemsTable.accountId, accountId),
+                eq(savedItemsTable.userId, userId),
                 eq(savedItemsTable.normalizedUrl, normalizedUrl),
               ))
               .limit(1)
@@ -87,12 +87,12 @@ export class SavedItemRepository extends Context.Service<SavedItemRepository>()(
             return row ? Option.some(toSavedItem(row)) : Option.none<SavedItem>()
           }),
 
-        listByAccount: (accountId: AccountId) =>
+        listByUser: (userId: UserId) =>
           Effect.gen(function* () {
             const rows = yield* db
               .select()
               .from(savedItemsTable)
-              .where(eq(savedItemsTable.accountId, accountId))
+              .where(eq(savedItemsTable.userId, userId))
               .orderBy(desc(savedItemsTable.lastSavedAt))
 
             return rows.map(toSavedItem)
@@ -121,9 +121,7 @@ export class SavedItemRepository extends Context.Service<SavedItemRepository>()(
           }),
 
         delete: (id: SavedItem["id"]) =>
-          Effect.gen(function* () {
-            yield* db.delete(savedItemsTable).where(eq(savedItemsTable.id, id))
-          }),
+          db.delete(savedItemsTable).where(eq(savedItemsTable.id, id)),
       }
     }),
   },
