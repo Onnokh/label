@@ -20,4 +20,4 @@ COPY apps/api ./
 
 USER bun
 EXPOSE 3002
-CMD ["sh", "-c", "bunx drizzle-kit migrate && bun src/index.ts"]
+CMD ["sh", "-c", "bun src/migrate.ts && bun src/index.ts"]
