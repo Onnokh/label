@@ -1,0 +1,5 @@
+#include "Shared.xcconfig"
+
+APPLICATION_EXTENSION_API_ONLY = YES
+CODE_SIGN_ENTITLEMENTS = Support/LabelShareExtension.entitlements
+INFOPLIST_FILE = Support/ShareExtensionInfo.plist

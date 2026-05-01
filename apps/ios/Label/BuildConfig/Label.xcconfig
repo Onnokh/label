@@ -1,0 +1,4 @@
+#include "Shared.xcconfig"
+
+CODE_SIGN_ENTITLEMENTS = Support/Label.entitlements
+INFOPLIST_FILE = Support/Info.plist

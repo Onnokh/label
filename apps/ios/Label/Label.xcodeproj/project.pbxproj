@@ -1,0 +1,748 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		98E5A58B2FA54E3100C9251A /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 98E5A58D2FA54E3100C9251A /* GoogleSignIn */; };
+		98E5A58E2FA54E3200C9251A /* LabelShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 98E5A5902FA54E3200C9251A /* LabelShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		98E5A56F2FA54E3000C9251A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 98E5A5592FA54E2E00C9251A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 98E5A5602FA54E2E00C9251A;
+			remoteInfo = Label;
+		};
+		98E5A5792FA54E3000C9251A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 98E5A5592FA54E2E00C9251A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 98E5A5602FA54E2E00C9251A;
+			remoteInfo = Label;
+		};
+		98E5A58F2FA54E3200C9251A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 98E5A5592FA54E2E00C9251A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 98E5A5932FA54E3200C9251A;
+			remoteInfo = LabelShareExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		98E5A5922FA54E3200C9251A /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				98E5A58E2FA54E3200C9251A /* LabelShareExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		98E5A59B2FA54E3300C9251A /* Label.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Label.xcconfig; sourceTree = "<group>"; };
+		98E5A59C2FA54E3300C9251A /* LabelShareExtension.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = LabelShareExtension.xcconfig; sourceTree = "<group>"; };
+		98E5A59D2FA54E3300C9251A /* Local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig.example; sourceTree = "<group>"; };
+		98E5A59E2FA54E3300C9251A /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
+		98E5A5612FA54E2E00C9251A /* Label.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Label.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		98E5A56E2FA54E3000C9251A /* LabelTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LabelTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		98E5A5782FA54E3000C9251A /* LabelUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LabelUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		98E5A5902FA54E3200C9251A /* LabelShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LabelShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		98E5A5632FA54E2E00C9251A /* Label */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Label;
+			sourceTree = "<group>";
+		};
+		98E5A5712FA54E3000C9251A /* LabelTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = LabelTests;
+			sourceTree = "<group>";
+		};
+		98E5A57B2FA54E3000C9251A /* LabelUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = LabelUITests;
+			sourceTree = "<group>";
+		};
+		98E5A5912FA54E3200C9251A /* LabelShareExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = LabelShareExtension;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		98E5A55E2FA54E2E00C9251A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				98E5A58B2FA54E3100C9251A /* GoogleSignIn in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		98E5A56B2FA54E3000C9251A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		98E5A5752FA54E3000C9251A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		98E5A5982FA54E3200C9251A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		98E5A59F2FA54E3300C9251A /* BuildConfig */ = {
+			isa = PBXGroup;
+			children = (
+				98E5A59B2FA54E3300C9251A /* Label.xcconfig */,
+				98E5A59C2FA54E3300C9251A /* LabelShareExtension.xcconfig */,
+				98E5A59D2FA54E3300C9251A /* Local.xcconfig.example */,
+				98E5A59E2FA54E3300C9251A /* Shared.xcconfig */,
+			);
+			path = BuildConfig;
+			sourceTree = "<group>";
+		};
+		98E5A5582FA54E2E00C9251A = {
+			isa = PBXGroup;
+			children = (
+				98E5A59F2FA54E3300C9251A /* BuildConfig */,
+				98E5A5632FA54E2E00C9251A /* Label */,
+				98E5A5712FA54E3000C9251A /* LabelTests */,
+				98E5A57B2FA54E3000C9251A /* LabelUITests */,
+				98E5A5912FA54E3200C9251A /* LabelShareExtension */,
+				98E5A5622FA54E2E00C9251A /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		98E5A5622FA54E2E00C9251A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				98E5A5612FA54E2E00C9251A /* Label.app */,
+				98E5A56E2FA54E3000C9251A /* LabelTests.xctest */,
+				98E5A5782FA54E3000C9251A /* LabelUITests.xctest */,
+				98E5A5902FA54E3200C9251A /* LabelShareExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		98E5A5602FA54E2E00C9251A /* Label */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 98E5A5822FA54E3000C9251A /* Build configuration list for PBXNativeTarget "Label" */;
+			buildPhases = (
+				98E5A55D2FA54E2E00C9251A /* Sources */,
+				98E5A55E2FA54E2E00C9251A /* Frameworks */,
+				98E5A55F2FA54E2E00C9251A /* Resources */,
+				98E5A5922FA54E3200C9251A /* Embed App Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				98E5A5942FA54E3200C9251A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				98E5A5632FA54E2E00C9251A /* Label */,
+			);
+			name = Label;
+			packageProductDependencies = (
+				98E5A58D2FA54E3100C9251A /* GoogleSignIn */,
+			);
+			productName = Label;
+			productReference = 98E5A5612FA54E2E00C9251A /* Label.app */;
+			productType = "com.apple.product-type.application";
+		};
+		98E5A56D2FA54E3000C9251A /* LabelTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 98E5A5852FA54E3000C9251A /* Build configuration list for PBXNativeTarget "LabelTests" */;
+			buildPhases = (
+				98E5A56A2FA54E3000C9251A /* Sources */,
+				98E5A56B2FA54E3000C9251A /* Frameworks */,
+				98E5A56C2FA54E3000C9251A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				98E5A5702FA54E3000C9251A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				98E5A5712FA54E3000C9251A /* LabelTests */,
+			);
+			name = LabelTests;
+			packageProductDependencies = (
+			);
+			productName = LabelTests;
+			productReference = 98E5A56E2FA54E3000C9251A /* LabelTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		98E5A5772FA54E3000C9251A /* LabelUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 98E5A5882FA54E3000C9251A /* Build configuration list for PBXNativeTarget "LabelUITests" */;
+			buildPhases = (
+				98E5A5742FA54E3000C9251A /* Sources */,
+				98E5A5752FA54E3000C9251A /* Frameworks */,
+				98E5A5762FA54E3000C9251A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				98E5A57A2FA54E3000C9251A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				98E5A57B2FA54E3000C9251A /* LabelUITests */,
+			);
+			name = LabelUITests;
+			packageProductDependencies = (
+			);
+			productName = LabelUITests;
+			productReference = 98E5A5782FA54E3000C9251A /* LabelUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		98E5A5932FA54E3200C9251A /* LabelShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 98E5A5972FA54E3200C9251A /* Build configuration list for PBXNativeTarget "LabelShareExtension" */;
+			buildPhases = (
+				98E5A5992FA54E3200C9251A /* Sources */,
+				98E5A5982FA54E3200C9251A /* Frameworks */,
+				98E5A59A2FA54E3200C9251A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				98E5A5912FA54E3200C9251A /* LabelShareExtension */,
+			);
+			name = LabelShareExtension;
+			packageProductDependencies = (
+			);
+			productName = LabelShareExtension;
+			productReference = 98E5A5902FA54E3200C9251A /* LabelShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		98E5A5592FA54E2E00C9251A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2620;
+				LastUpgradeCheck = 2620;
+				TargetAttributes = {
+					98E5A5602FA54E2E00C9251A = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					98E5A56D2FA54E3000C9251A = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 98E5A5602FA54E2E00C9251A;
+					};
+					98E5A5772FA54E3000C9251A = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 98E5A5602FA54E2E00C9251A;
+					};
+					98E5A5932FA54E3200C9251A = {
+						CreatedOnToolsVersion = 26.2;
+					};
+				};
+			};
+			buildConfigurationList = 98E5A55C2FA54E2E00C9251A /* Build configuration list for PBXProject "Label" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 98E5A5582FA54E2E00C9251A;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				98E5A58C2FA54E3100C9251A /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 98E5A5622FA54E2E00C9251A /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				98E5A5602FA54E2E00C9251A /* Label */,
+				98E5A56D2FA54E3000C9251A /* LabelTests */,
+				98E5A5772FA54E3000C9251A /* LabelUITests */,
+				98E5A5932FA54E3200C9251A /* LabelShareExtension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		98E5A55F2FA54E2E00C9251A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		98E5A56C2FA54E3000C9251A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		98E5A5762FA54E3000C9251A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		98E5A59A2FA54E3200C9251A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		98E5A55D2FA54E2E00C9251A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		98E5A56A2FA54E3000C9251A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		98E5A5742FA54E3000C9251A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		98E5A5992FA54E3200C9251A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		98E5A5702FA54E3000C9251A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 98E5A5602FA54E2E00C9251A /* Label */;
+			targetProxy = 98E5A56F2FA54E3000C9251A /* PBXContainerItemProxy */;
+		};
+		98E5A57A2FA54E3000C9251A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 98E5A5602FA54E2E00C9251A /* Label */;
+			targetProxy = 98E5A5792FA54E3000C9251A /* PBXContainerItemProxy */;
+		};
+		98E5A5942FA54E3200C9251A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 98E5A5932FA54E3200C9251A /* LabelShareExtension */;
+			targetProxy = 98E5A58F2FA54E3200C9251A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		98E5A5802FA54E3000C9251A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		98E5A5812FA54E3000C9251A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		98E5A5832FA54E3000C9251A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 98E5A59B2FA54E3300C9251A /* Label.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = plowplow.Label;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		98E5A5842FA54E3000C9251A /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 98E5A59B2FA54E3300C9251A /* Label.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = plowplow.Label;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		98E5A5862FA54E3000C9251A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = plowplow.LabelTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Label.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Label";
+			};
+			name = Debug;
+		};
+		98E5A5872FA54E3000C9251A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = plowplow.LabelTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Label.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Label";
+			};
+			name = Release;
+		};
+		98E5A5892FA54E3000C9251A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = plowplow.LabelUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Label;
+			};
+			name = Debug;
+		};
+		98E5A58A2FA54E3000C9251A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = plowplow.LabelUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Label;
+			};
+			name = Release;
+		};
+		98E5A5952FA54E3200C9251A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 98E5A59C2FA54E3300C9251A /* LabelShareExtension.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = plowplow.Label.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		98E5A5962FA54E3200C9251A /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 98E5A59C2FA54E3300C9251A /* LabelShareExtension.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = plowplow.Label.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		98E5A55C2FA54E2E00C9251A /* Build configuration list for PBXProject "Label" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				98E5A5802FA54E3000C9251A /* Debug */,
+				98E5A5812FA54E3000C9251A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		98E5A5822FA54E3000C9251A /* Build configuration list for PBXNativeTarget "Label" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				98E5A5832FA54E3000C9251A /* Debug */,
+				98E5A5842FA54E3000C9251A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		98E5A5852FA54E3000C9251A /* Build configuration list for PBXNativeTarget "LabelTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				98E5A5862FA54E3000C9251A /* Debug */,
+				98E5A5872FA54E3000C9251A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		98E5A5882FA54E3000C9251A /* Build configuration list for PBXNativeTarget "LabelUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				98E5A5892FA54E3000C9251A /* Debug */,
+				98E5A58A2FA54E3000C9251A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		98E5A5972FA54E3200C9251A /* Build configuration list for PBXNativeTarget "LabelShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				98E5A5952FA54E3200C9251A /* Debug */,
+				98E5A5962FA54E3200C9251A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		98E5A58C2FA54E3100C9251A /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		98E5A58D2FA54E3100C9251A /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 98E5A58C2FA54E3100C9251A /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 98E5A5592FA54E2E00C9251A /* Project object */;
+}
