@@ -83,10 +83,10 @@ export class AppConfig extends Context.Service<AppConfig, AppConfigShape>()(
         Config.withDefault("development-only-better-auth-secret"),
       );
       const authBaseUrl = yield* Config.string("BETTER_AUTH_URL").pipe(
-        Config.withDefault("http://localhost:3002"),
+        Config.withDefault(process.env.PORTLESS_URL ?? "https://api.label.localhost"),
       );
       const trustedOrigins = yield* Config.string("BETTER_AUTH_TRUSTED_ORIGINS").pipe(
-        Config.withDefault("http://localhost:3000"),
+        Config.withDefault("https://web.label.localhost"),
       );
 
       return {

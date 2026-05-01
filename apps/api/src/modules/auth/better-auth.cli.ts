@@ -10,7 +10,7 @@ export const auth = betterAuth({
     provider: "pg",
   }),
   secret: "development-only-better-auth-cli-secret",
-  baseURL: "http://localhost:3002",
+  baseURL: "https://api.label.localhost",
   socialProviders: {
     google: {
       clientId: "GOOGLE_CLIENT_ID",
