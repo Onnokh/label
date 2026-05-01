@@ -1,0 +1,72 @@
+# Coolify-friendly compose file for the Label monorepo.
+#
+# Coolify resolves SERVICE_FQDN_* variables to the public URL it assigns to a
+# service and exposes a container by matching its internal port. Set the per-
+# service domains in Coolify; defaults below let `docker compose up` work
+# locally too.
+#
+# Required env (set in Coolify "Environment Variables"):
+#   POSTGRES_PASSWORD            - Postgres superuser password
+#   BETTER_AUTH_SECRET           - 32+ char random string
+#   GOOGLE_CLIENT_ID / SECRET    - OAuth credentials
+#   SERVICE_FQDN_API_3002        - public API URL (e.g. https://api.example.com)
+#   SERVICE_FQDN_WEB_80          - public web URL  (e.g. https://app.example.com)
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: label
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-label}
+      POSTGRES_DB: label
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U label -d label"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 3002
+      DATABASE_URL: postgres://label:${POSTGRES_PASSWORD:-label}@postgres:5432/label
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${SERVICE_FQDN_API_3002:-http://localhost:3002}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${SERVICE_FQDN_WEB_80:-http://localhost:8080}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_PROVIDER: ${AI_PROVIDER:-}
+      AI_MODEL: ${AI_MODEL:-}
+      FETCH_BROWSER_HEADLESS: "true"
+    expose:
+      - "3002"
+    ports:
+      - "3002:3002"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${SERVICE_FQDN_API_3002:-http://localhost:3002}
+        VITE_WEB_BASE_URL: ${SERVICE_FQDN_WEB_80:-http://localhost:8080}
+    restart: unless-stopped
+    depends_on:
+      - api
+    expose:
+      - "80"
+    ports:
+      - "8080:80"
+
+volumes:
+  postgres-data:
