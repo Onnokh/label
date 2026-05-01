@@ -1,4 +1,4 @@
-import { Effect, Either, Option, Schema } from "effect"
+import { Context, Data, Effect, Layer, Option, Result, Schema } from "effect"
 import { chromium } from "playwright"
 
 import { AppConfig } from "../../runtime/Config.js"
@@ -11,14 +11,11 @@ export class PageDocument extends Schema.Class<PageDocument>("PageDocument")({
   fetchedAt: Schema.Date,
 }) {}
 
-export class PageFetcherError extends Schema.TaggedError<PageFetcherError>()(
-  "PageFetcherError",
-  {
-    operation: Schema.String,
-    url: Schema.String,
-    cause: Schema.Defect,
-  },
-) {}
+export class PageFetcherError extends Data.TaggedError("PageFetcherError")<{
+  readonly operation: string
+  readonly url: string
+  readonly cause: unknown
+}> {}
 
 const isBlockedFetchError = (error: PageFetcherError) => {
   const message =
@@ -151,39 +148,41 @@ const fetchViaBrowser = (
       }),
   })
 
-export class PageFetcher extends Effect.Service<PageFetcher>()(
+export class PageFetcher extends Context.Service<PageFetcher>()(
   "@app/modules/fetch/PageFetcher",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const config = yield* AppConfig
 
       return {
         fetch: (url: string) =>
           Effect.gen(function* () {
-            const httpResult = yield* fetchViaHttp(url, config.fetch).pipe(Effect.either)
+            const httpResult = yield* Effect.all([fetchViaHttp(url, config.fetch)], {
+              mode: "result",
+            }).pipe(Effect.map(([result]) => result))
 
             if (!config.fetch.browserFallbackEnabled) {
-              if (Either.isRight(httpResult)) {
-                return httpResult.right
+              if (Result.isSuccess(httpResult)) {
+                return httpResult.success
               }
 
-              return yield* httpResult.left
+              return yield* httpResult.failure
             }
 
-            if (Either.isRight(httpResult)) {
-              return httpResult.right
+            if (Result.isSuccess(httpResult)) {
+              return httpResult.success
             }
 
-            if (!isBlockedFetchError(httpResult.left)) {
-              return yield* httpResult.left
+            if (!isBlockedFetchError(httpResult.failure)) {
+              return yield* httpResult.failure
             }
 
             const browserResult = yield* fetchViaBrowser(url, config.fetch).pipe(
-              Effect.either,
+              (effect) => Effect.all([effect], { mode: "result" }).pipe(Effect.map(([result]) => result)),
             )
 
-            if (Either.isRight(browserResult)) {
-              return browserResult.right
+            if (Result.isSuccess(browserResult)) {
+              return browserResult.success
             }
 
             return yield* new PageFetcherError({
@@ -191,8 +190,8 @@ export class PageFetcher extends Effect.Service<PageFetcher>()(
               url,
               cause: new Error(
                 [
-                  `HTTP fetch failed: ${String(httpResult.left.cause)}`,
-                  `Browser fallback failed: ${String(browserResult.left.cause)}`,
+                  `HTTP fetch failed: ${String(httpResult.failure.cause)}`,
+                  `Browser fallback failed: ${String(browserResult.failure.cause)}`,
                 ].join(" | "),
               ),
             })
@@ -200,6 +199,6 @@ export class PageFetcher extends Effect.Service<PageFetcher>()(
       }
     }),
   },
-) {}
-
-export const pageFetcherLayer = PageFetcher.Default
+) {
+  static readonly layer = Layer.effect(PageFetcher, PageFetcher.make)
+}

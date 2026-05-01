@@ -1,0 +1,51 @@
+info:
+  name: capture-tokens.create
+  type: http
+  seq: 1
+  tags:
+    - capture-tokens
+
+http:
+  method: POST
+  url: "{{baseUrl}}/v1/capture-tokens"
+  body:
+    type: json
+    data: |-
+      {
+        "googleSubject": "",
+        "email": ""
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+examples:
+  - name: 201 Response
+    description: CreateCaptureTokenResponse
+    request:
+      url: "{{baseUrl}}/v1/capture-tokens"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "googleSubject": "",
+            "email": ""
+          }
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "accountId": "",
+            "captureToken": ""
+          }

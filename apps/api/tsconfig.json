@@ -14,7 +14,7 @@
     "incremental": true,
     "sourceMap": true,
     "skipLibCheck": true,
-    "types": ["node"],
+    "types": ["node", "bun"],
     "plugins": [
       {
         "name": "@effect/language-service"

@@ -1,17 +1,14 @@
-import { Effect, Option, Schema } from "effect"
+import { Context, Data, Effect, Layer, Option } from "effect"
 
 import type { SavedItem } from "../../domain/SavedItem.js"
 import type { ContentExtraction } from "../content/ContentExtractor.js"
 import type { Metadata } from "../metadata/MetadataFetcher.js"
 import { AppConfig } from "../../runtime/Config.js"
 
-export class AiEnricherError extends Schema.TaggedError<AiEnricherError>()(
-  "AiEnricherError",
-  {
-    operation: Schema.String,
-    cause: Schema.Defect,
-  },
-) { }
+export class AiEnricherError extends Data.TaggedError("AiEnricherError")<{
+  readonly operation: string
+  readonly cause: unknown
+}> {}
 
 export type AiEnrichmentInput = {
   readonly savedItem: SavedItem
@@ -19,37 +16,37 @@ export type AiEnrichmentInput = {
   readonly content: Option.Option<ContentExtraction>
 }
 
-export class AiEnricher extends Effect.Service<AiEnricher>()(
+export class AiEnricher extends Context.Service<AiEnricher>()(
   "@app/modules/ai/AiEnricher",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const config = yield* AppConfig
 
       return {
-        categorize: (input: AiEnrichmentInput) =>
+        classify: (input: AiEnrichmentInput) =>
           Effect.succeed(
-            config.ai.enabled
-              ? inferCategories(input)
-              : Option.none<readonly string[]>(),
+            config.ai.enabled ? inferClassification(input) : inferHeuristicClassification(input),
           ),
 
-        summarize: (input: AiEnrichmentInput) =>
+        preview: (input: AiEnrichmentInput) =>
           Effect.succeed(
             config.ai.enabled ? inferSummary(input) : Option.none<string>(),
           ),
       }
     }),
   },
-) { }
+) {
+  static readonly layer = Layer.effect(AiEnricher, AiEnricher.make)
+}
 
-const categoryMatchers: ReadonlyArray<readonly [string, readonly string[]]> = [
-  ["development", ["typescript", "javascript", "react", "node", "coding", "code", "software"]],
+const topicMatchers: ReadonlyArray<readonly [string, readonly string[]]> = [
+  ["TypeScript", ["typescript", "javascript", "react", "node"]],
   ["ai", ["artificial intelligence", "machine learning", "llm", "model", "prompt", "openai"]],
-  ["design", ["design", "ui", "ux", "visual", "typography", "figma"]],
-  ["product", ["product", "roadmap", "strategy", "startup", "management"]],
-  ["business", ["business", "market", "company", "revenue", "sales"]],
-  ["science", ["research", "study", "science", "paper"]],
-  ["writing", ["essay", "writing", "blog", "article", "newsletter"]],
+  ["Design", ["design", "ui", "ux", "visual", "typography", "figma"]],
+  ["Product", ["product", "roadmap", "strategy", "startup", "management"]],
+  ["Business", ["business", "market", "company", "revenue", "sales"]],
+  ["ML", ["machine learning", "neural", "training", "dataset"]],
+  ["Library", ["library", "framework", "package", "sdk"]],
 ]
 
 const summarizeText = (value: string) => {
@@ -80,18 +77,45 @@ const sourceText = (input: AiEnrichmentInput) => {
     onSome: (content) => content.content,
   })
 
-  return [input.savedItem.host, metadataText, contentText].join(" ").toLowerCase()
+  return [input.savedItem.host, input.savedItem.originalUrl, metadataText, contentText].join(" ").toLowerCase()
 }
 
-const inferCategories = (input: AiEnrichmentInput) => {
+const inferGeneratedType = (input: AiEnrichmentInput) => {
   const text = sourceText(input)
-  const categories = categoryMatchers
+
+  if (/\b(youtube\.com|youtu\.be|vimeo\.com|video)\b/.test(text)) {
+    return "video" as const
+  }
+
+  if (/\b(github\.com|gitlab\.com|repository|repo)\b/.test(text)) {
+    return "repository" as const
+  }
+
+  if (/\b(article|essay|newsletter|blog|post)\b/.test(text)) {
+    return "article" as const
+  }
+
+  return "website" as const
+}
+
+const inferClassification = (input: AiEnrichmentInput) => {
+  const text = sourceText(input)
+  const generatedTopics = topicMatchers
     .filter(([, keywords]) => keywords.some((keyword) => text.includes(keyword)))
-    .map(([category]) => category)
+    .map(([topic]) => topic)
     .slice(0, 3)
 
-  return categories.length > 0 ? Option.some(categories) : Option.none<readonly string[]>()
+  return Option.some({
+    generatedType: inferGeneratedType(input),
+    generatedTopics,
+  })
 }
+
+const inferHeuristicClassification = (input: AiEnrichmentInput) =>
+  Option.some({
+    generatedType: inferGeneratedType(input),
+    generatedTopics: [] as readonly string[],
+  })
 
 const inferSummary = (input: AiEnrichmentInput) => {
   const extractedSummary = Option.match(input.content, {
@@ -115,5 +139,3 @@ const inferSummary = (input: AiEnrichmentInput) => {
 
   return metadataSummary ? Option.some(metadataSummary) : Option.none<string>()
 }
-
-export const aiEnricherLayer = AiEnricher.Default

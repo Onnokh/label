@@ -1,10 +1,7 @@
-import { Schema } from "effect"
+import { Data } from "effect"
 
-import { SavedItemId } from "../../domain/SavedItem.js"
+import type { SavedItemId } from "../../domain/SavedItem.js"
 
-export class SavedItemNotFound extends Schema.TaggedError<SavedItemNotFound>()(
-  "SavedItemNotFound",
-  {
-    savedItemId: SavedItemId,
-  },
-) { }
+export class SavedItemNotFound extends Data.TaggedError("SavedItemNotFound")<{
+  readonly savedItemId: SavedItemId
+}> {}

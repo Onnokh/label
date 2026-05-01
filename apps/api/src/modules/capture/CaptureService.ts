@@ -1,28 +1,29 @@
-import { Effect } from "effect"
+import { Context, Effect, Layer } from "effect"
 
 import type { SavedItem } from "../../domain/SavedItem.js"
-import type { CapturedLink } from "../../domain/CapturedLink.js"
+import type { AccountId } from "../../domain/SavedItem.js"
 import { SavedItemIntake } from "../saved-items/SavedItemIntake.js"
-import type { AlreadyCaptured, InvalidUrl } from "./CaptureError.js"
+import type { InvalidUrl } from "./CaptureError.js"
 
-export type CaptureServiceError = InvalidUrl | AlreadyCaptured
+export type CaptureServiceError = InvalidUrl
 
 export type CaptureResult = {
   readonly savedItem: SavedItem
-  readonly capturedLink: CapturedLink
+  readonly captureResult: "created" | "updated"
 }
 
-export class CaptureService extends Effect.Service<CaptureService>()(
+export class CaptureService extends Context.Service<CaptureService>()(
   "@app/modules/capture/CaptureService",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const intake = yield* SavedItemIntake
 
       return {
-        capture: (inputUrl: string) => intake.capture(inputUrl),
+        capture: (accountId: AccountId, inputUrl: string) =>
+          intake.capture(accountId, inputUrl),
       }
     }),
   },
-) { }
-
-export const captureServiceLayer = CaptureService.Default
+) {
+  static readonly layer = Layer.effect(CaptureService, CaptureService.make)
+}

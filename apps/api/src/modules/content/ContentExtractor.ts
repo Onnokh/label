@@ -1,4 +1,4 @@
-import { Effect, Option, Schema } from "effect"
+import { Context, Data, Effect, Layer, Option, Schema } from "effect"
 
 import { PageDocument } from "../fetch/PageFetcher.js"
 
@@ -12,19 +12,16 @@ export class ContentExtraction extends Schema.Class<ContentExtraction>(
   extractedAt: Schema.Date,
 }) { }
 
-export class ContentExtractorError extends Schema.TaggedError<ContentExtractorError>()(
-  "ContentExtractorError",
-  {
-    operation: Schema.String,
-    url: Schema.String,
-    cause: Schema.Defect,
-  },
-) { }
+export class ContentExtractorError extends Data.TaggedError("ContentExtractorError")<{
+  readonly operation: string
+  readonly url: string
+  readonly cause: unknown
+}> {}
 
-export class ContentExtractor extends Effect.Service<ContentExtractor>()(
+export class ContentExtractor extends Context.Service<ContentExtractor>()(
   "@app/modules/content/ContentExtractor",
   {
-    effect: Effect.succeed({
+    make: Effect.succeed({
       extract: (page: PageDocument) =>
         Effect.try({
           try: () => buildContentExtraction(page),
@@ -37,7 +34,9 @@ export class ContentExtractor extends Effect.Service<ContentExtractor>()(
         }),
     }),
   },
-) { }
+) {
+  static readonly layer = Layer.effect(ContentExtractor, ContentExtractor.make)
+}
 
 const decodeHtmlEntities = (value: string) =>
   value
@@ -110,5 +109,3 @@ const buildContentExtraction = (page: PageDocument) => {
     }),
   )
 }
-
-export const contentExtractorLayer = ContentExtractor.Default

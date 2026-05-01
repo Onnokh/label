@@ -1,11 +1,11 @@
 import { desc, eq, type InferSelectModel } from "drizzle-orm"
-import { Effect, Option } from "effect"
+import { Context, Effect, Layer, Option } from "effect"
 
 import {
   EnrichmentJob,
   EnrichmentStageResult,
 } from "../../domain/EnrichmentJob.js"
-import { SqliteClient } from "../persistence/SqliteClient.js"
+import { PostgresClient } from "../persistence/PostgresClient.js"
 import { enrichmentJobsTable } from "../persistence/schema.js"
 
 type EnrichmentJobRecord = InferSelectModel<typeof enrichmentJobsTable>
@@ -18,10 +18,8 @@ type PersistedStage = {
   readonly completedAt: number
 }
 
-const decodeStages = (value: string) => {
-  const parsed = JSON.parse(value) as ReadonlyArray<PersistedStage>
-
-  return parsed.map(
+const decodeStages = (value: unknown) =>
+  (Array.isArray(value) ? value as ReadonlyArray<PersistedStage> : []).map(
     (stage) =>
       new EnrichmentStageResult({
         stage: stage.stage,
@@ -31,18 +29,15 @@ const decodeStages = (value: string) => {
         completedAt: new Date(stage.completedAt),
       }),
   )
-}
 
 const encodeStages = (stages: ReadonlyArray<EnrichmentStageResult>) =>
-  JSON.stringify(
-    stages.map((stage) => ({
-      stage: stage.stage,
-      status: stage.status,
-      message: stage.message,
-      startedAt: stage.startedAt.getTime(),
-      completedAt: stage.completedAt.getTime(),
-    })),
-  )
+  stages.map((stage) => ({
+    stage: stage.stage,
+    status: stage.status,
+    message: stage.message,
+    startedAt: stage.startedAt.getTime(),
+    completedAt: stage.completedAt.getTime(),
+  }))
 
 const toEnrichmentJob = (record: EnrichmentJobRecord) =>
   new EnrichmentJob({
@@ -56,26 +51,29 @@ const toEnrichmentJob = (record: EnrichmentJobRecord) =>
     completedAt: record.completedAt ?? undefined,
   })
 
-export class EnrichmentJobRepository extends Effect.Service<EnrichmentJobRepository>()(
+export class EnrichmentJobRepository extends Context.Service<EnrichmentJobRepository>()(
   "@app/modules/enrichment/EnrichmentJobRepository",
   {
-    effect: Effect.gen(function* () {
-      const { db } = yield* SqliteClient
+    make: Effect.gen(function* () {
+      const { db } = yield* PostgresClient
 
       return {
         findLatestBySavedItemId: (savedItemId: EnrichmentJob["savedItemId"]) =>
-          Effect.sync(() => {
-            const row = db.query.enrichmentJobsTable.findFirst({
-              where: eq(enrichmentJobsTable.savedItemId, savedItemId),
-              orderBy: [desc(enrichmentJobsTable.attempt)],
-            }).sync()
+          Effect.gen(function* () {
+            const rows = yield* db
+              .select()
+              .from(enrichmentJobsTable)
+              .where(eq(enrichmentJobsTable.savedItemId, savedItemId))
+              .orderBy(desc(enrichmentJobsTable.attempt))
+              .limit(1)
+            const row = rows[0]
 
-            return Option.map(Option.fromNullable(row), toEnrichmentJob)
+            return row ? Option.some(toEnrichmentJob(row)) : Option.none<EnrichmentJob>()
           }),
 
         insert: (job: EnrichmentJob) =>
-          Effect.sync(() => {
-            db.insert(enrichmentJobsTable).values({
+          Effect.gen(function* () {
+            yield* db.insert(enrichmentJobsTable).values({
               id: job.id,
               savedItemId: job.savedItemId,
               attempt: job.attempt,
@@ -84,14 +82,14 @@ export class EnrichmentJobRepository extends Effect.Service<EnrichmentJobReposit
               queuedAt: job.queuedAt,
               startedAt: job.startedAt,
               completedAt: job.completedAt,
-            }).run()
+            })
 
             return job
           }),
 
         update: (job: EnrichmentJob) =>
-          Effect.sync(() => {
-            db
+          Effect.gen(function* () {
+            yield* db
               .update(enrichmentJobsTable)
               .set({
                 attempt: job.attempt,
@@ -102,13 +100,12 @@ export class EnrichmentJobRepository extends Effect.Service<EnrichmentJobReposit
                 completedAt: job.completedAt,
               })
               .where(eq(enrichmentJobsTable.id, job.id))
-              .run()
 
             return job
           }),
       }
     }),
   },
-) { }
-
-export const enrichmentJobRepositoryLayer = EnrichmentJobRepository.Default
+) {
+  static readonly layer = Layer.effect(EnrichmentJobRepository, EnrichmentJobRepository.make)
+}

@@ -1,29 +1,15 @@
 import { randomUUID } from "node:crypto"
 
-import { desc, eq, type InferSelectModel } from "drizzle-orm"
-import { Data, Effect } from "effect"
+import { and, desc, eq } from "drizzle-orm"
+import { Context, Effect, Layer } from "effect"
 
-import { SavedItem } from "../../domain/SavedItem.js"
-import {
-  CapturedLink,
-  type CapturedLinkId,
-} from "../../domain/CapturedLink.js"
-import {
-  EnrichmentJob,
-  type EnrichmentJobId,
-} from "../../domain/EnrichmentJob.js"
-import { AlreadyCaptured, InvalidUrl } from "../capture/CaptureError.js"
+import { EnrichmentJob, type EnrichmentJobId } from "../../domain/EnrichmentJob.js"
+import { SavedItem, type AccountId } from "../../domain/SavedItem.js"
+import { InvalidUrl } from "../capture/CaptureError.js"
 import { SavedItemNotFound } from "../enrichment/SavedItemNotFound.js"
-import { SqliteClient } from "../persistence/SqliteClient.js"
-import {
-  savedItemsTable,
-  capturedLinksTable,
-  enrichmentJobsTable,
-} from "../persistence/schema.js"
-
-type SavedItemRecord = InferSelectModel<typeof savedItemsTable>
-
-type SavedItemUpdate = Omit<typeof savedItemsTable.$inferInsert, "id">
+import { PostgresClient } from "../persistence/PostgresClient.js"
+import { enrichmentJobsTable, savedItemsTable } from "../persistence/schema.js"
+import { toSavedItem } from "./SavedItemRepository.js"
 
 type PersistedStage = {
   readonly stage: EnrichmentJob["stages"][number]["stage"]
@@ -33,14 +19,15 @@ type PersistedStage = {
   readonly completedAt: number
 }
 
-type CanonicalUrl = {
-  readonly url: string
+type NormalizedUrl = {
+  readonly originalUrl: string
+  readonly normalizedUrl: string
   readonly host: string
 }
 
 export type CaptureSavedItemResult = {
   readonly savedItem: SavedItem
-  readonly capturedLink: CapturedLink
+  readonly captureResult: "created" | "updated"
 }
 
 export type StartEnrichmentResult = {
@@ -48,168 +35,130 @@ export type StartEnrichmentResult = {
   readonly job: EnrichmentJob
 }
 
-class SavedItemIntakeDefect extends Data.TaggedError("SavedItemIntakeDefect")<{
-  readonly cause: unknown
-}> { }
-
-const decodeCategories = (value: string): readonly string[] => {
-  const parsed = JSON.parse(value)
-  return Array.isArray(parsed)
-    ? parsed.filter((entry): entry is string => typeof entry === "string")
-    : []
-}
-
-const toSavedItem = (record: SavedItemRecord) =>
-  new SavedItem({
-    id: record.id,
-    url: record.url,
-    host: record.host,
-    title: record.title ?? undefined,
-    description: record.description ?? undefined,
-    siteName: record.siteName ?? undefined,
-    imageUrl: record.imageUrl ?? undefined,
-    canonicalUrl: record.canonicalUrl ?? undefined,
-    summary: record.summary ?? undefined,
-    extractedContent: record.extractedContent ?? undefined,
-    excerpt: record.excerpt ?? undefined,
-    wordCount: record.wordCount ?? undefined,
-    extractedAt: record.extractedAt ?? undefined,
-    categories: decodeCategories(record.categoriesJson),
-    isRead: record.isRead,
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt,
-  })
-
-const toSavedItemUpdate = (savedItem: SavedItem): SavedItemUpdate => ({
-  url: savedItem.url,
-  host: savedItem.host,
-  title: savedItem.title,
-  description: savedItem.description,
-  siteName: savedItem.siteName,
-  imageUrl: savedItem.imageUrl,
-  canonicalUrl: savedItem.canonicalUrl,
-  summary: savedItem.summary,
-  extractedContent: savedItem.extractedContent,
-  excerpt: savedItem.excerpt,
-  wordCount: savedItem.wordCount,
-  extractedAt: savedItem.extractedAt,
-  categoriesJson: JSON.stringify(savedItem.categories),
-  isRead: savedItem.isRead,
-  createdAt: savedItem.createdAt,
-  updatedAt: savedItem.updatedAt,
-})
-
-const encodeStages = (stages: ReadonlyArray<EnrichmentJob["stages"][number]>) =>
-  JSON.stringify(
-    stages.map((stage): PersistedStage => ({
-      stage: stage.stage,
-      status: stage.status,
-      ...(stage.message ? { message: stage.message } : {}),
-      startedAt: stage.startedAt.getTime(),
-      completedAt: stage.completedAt.getTime(),
-    })),
-  )
-
-const normalizeUrl = (input: string): Effect.Effect<CanonicalUrl, InvalidUrl> =>
+const normalizeUrl = (input: string): Effect.Effect<NormalizedUrl, InvalidUrl> =>
   Effect.try({
     try: () => {
-      const normalized = input.trim().toLowerCase()
-      const url = new URL(normalized)
+      const original = new URL(input.trim())
+      const normalized = new URL(original)
+      normalized.hash = ""
+      normalized.protocol = normalized.protocol.toLowerCase()
+      normalized.hostname = normalized.hostname.toLowerCase()
+
+      if (
+        (normalized.protocol === "https:" && normalized.port === "443") ||
+        (normalized.protocol === "http:" && normalized.port === "80")
+      ) {
+        normalized.port = ""
+      }
+
+      normalized.searchParams.sort()
+
       return {
-        url: url.toString(),
-        host: url.host,
+        originalUrl: original.toString(),
+        normalizedUrl: normalized.toString(),
+        host: normalized.host,
       }
     },
     catch: () => new InvalidUrl({ url: input }),
   })
 
-export class SavedItemIntake extends Effect.Service<SavedItemIntake>()(
+const encodeStages = (stages: ReadonlyArray<EnrichmentJob["stages"][number]>) =>
+  stages.map((stage): PersistedStage => ({
+    stage: stage.stage,
+    status: stage.status,
+    ...(stage.message ? { message: stage.message } : {}),
+    startedAt: stage.startedAt.getTime(),
+    completedAt: stage.completedAt.getTime(),
+  }))
+
+export class SavedItemIntake extends Context.Service<SavedItemIntake>()(
   "@app/modules/saved-items/SavedItemIntake",
   {
-    effect: Effect.gen(function* () {
-      const { db } = yield* SqliteClient
+    make: Effect.gen(function* () {
+      const { db } = yield* PostgresClient
 
       return {
-        capture: (inputUrl: string) =>
+        capture: (accountId: AccountId, inputUrl: string) =>
           Effect.gen(function* () {
-            const { url, host } = yield* normalizeUrl(inputUrl)
+            const url = yield* normalizeUrl(inputUrl)
 
-            return yield* Effect.try({
-              try: () =>
-                db.transaction((tx) => {
-                  const existingCapturedLink = tx.query.capturedLinksTable.findFirst({
-                    where: eq(capturedLinksTable.url, url),
-                  }).sync()
+            return yield* db.transaction((tx) =>
+              Effect.gen(function* () {
+                  const existingRows = yield* tx
+                    .select()
+                    .from(savedItemsTable)
+                    .where(and(
+                      eq(savedItemsTable.accountId, accountId),
+                      eq(savedItemsTable.normalizedUrl, url.normalizedUrl),
+                    ))
+                    .limit(1)
+                  const existing = existingRows[0]
 
-                  if (existingCapturedLink) {
-                    throw new AlreadyCaptured({ url })
+                  if (existing) {
+                    const now = new Date()
+                    const [updated] = yield* tx
+                      .update(savedItemsTable)
+                      .set({
+                        originalUrl: url.originalUrl,
+                        host: url.host,
+                        isRead: false,
+                        lastSavedAt: now,
+                        updatedAt: now,
+                      })
+                      .where(eq(savedItemsTable.id, existing.id))
+                      .returning()
+
+                    return {
+                      savedItem: toSavedItem(updated ?? existing),
+                      captureResult: "updated" as const,
+                    }
                   }
 
-                  const savedItemRow =
-                    tx.query.savedItemsTable.findFirst({
-                      where: eq(savedItemsTable.url, url),
-                    }).sync()
-                    ?? tx.insert(savedItemsTable)
-                      .values({ url, host, isRead: false })
-                      .onConflictDoNothing({ target: savedItemsTable.url })
-                      .returning()
-                      .get()
-                    ?? tx.query.savedItemsTable.findFirst({
-                      where: eq(savedItemsTable.url, url),
-                    }).sync()
+                  const [created] = yield* tx
+                    .insert(savedItemsTable)
+                    .values({
+                      accountId,
+                      originalUrl: url.originalUrl,
+                      normalizedUrl: url.normalizedUrl,
+                      host: url.host,
+                      isRead: false,
+                      enrichmentStatus: "pending",
+                    })
+                    .returning()
 
-                  if (!savedItemRow) {
+                  if (!created) {
                     throw new Error("SavedItem insert did not return a row.")
                   }
 
-                  const capturedLinkRow = tx.insert(capturedLinksTable)
-                    .values({
-                      id: randomUUID() as CapturedLinkId,
-                      savedItemId: savedItemRow.id,
-                      url,
-                      capturedAt: new Date(),
-                    })
-                    .onConflictDoNothing({ target: capturedLinksTable.url })
-                    .returning()
-                    .get()
-
-                  if (!capturedLinkRow) {
-                    throw new AlreadyCaptured({ url })
-                  }
-
                   return {
-                    savedItem: toSavedItem(savedItemRow),
-                    capturedLink: new CapturedLink(capturedLinkRow),
+                    savedItem: toSavedItem(created),
+                    captureResult: "created" as const,
                   }
                 }),
-              catch: (cause) =>
-                cause instanceof AlreadyCaptured
-                  ? cause
-                  : new SavedItemIntakeDefect({ cause }),
-            }).pipe(
-              Effect.catchTag("SavedItemIntakeDefect", (error) => Effect.die(error.cause)),
-              Effect.catchAll((cause) =>
-                cause instanceof AlreadyCaptured ? Effect.fail(cause) : Effect.die(cause)
-              ),
             )
           }),
 
         startEnrichment: (savedItemId: SavedItem["id"]) =>
-          Effect.try({
-            try: () =>
-              db.transaction((tx) => {
-                const savedItemRow = tx.query.savedItemsTable.findFirst({
-                  where: eq(savedItemsTable.id, savedItemId),
-                }).sync()
+          db.transaction((tx) =>
+            Effect.gen(function* () {
+                const savedItemRows = yield* tx
+                  .select()
+                  .from(savedItemsTable)
+                  .where(eq(savedItemsTable.id, savedItemId))
+                  .limit(1)
+                const savedItemRow = savedItemRows[0]
 
                 if (!savedItemRow) {
-                  throw new SavedItemNotFound({ savedItemId })
+                  return yield* new SavedItemNotFound({ savedItemId })
                 }
 
-                const latestJob = tx.query.enrichmentJobsTable.findFirst({
-                  where: eq(enrichmentJobsTable.savedItemId, savedItemId),
-                  orderBy: [desc(enrichmentJobsTable.attempt)],
-                }).sync()
+                const latestJobs = yield* tx
+                  .select()
+                  .from(enrichmentJobsTable)
+                  .where(eq(enrichmentJobsTable.savedItemId, savedItemId))
+                  .orderBy(desc(enrichmentJobsTable.attempt))
+                  .limit(1)
+                const latestJob = latestJobs[0]
 
                 const now = new Date()
                 const job = new EnrichmentJob({
@@ -222,40 +171,55 @@ export class SavedItemIntake extends Effect.Service<SavedItemIntake>()(
                   startedAt: now,
                 })
 
-                tx.insert(enrichmentJobsTable).values({
+                yield* tx.insert(enrichmentJobsTable).values({
                   id: job.id,
                   savedItemId: job.savedItemId,
                   attempt: job.attempt,
                   status: job.status,
-                  stagesJson: "[]",
+                  stagesJson: [],
                   queuedAt: job.queuedAt,
                   startedAt: job.startedAt,
                   completedAt: job.completedAt,
-                }).run()
+                })
+
+                yield* tx
+                  .update(savedItemsTable)
+                  .set({ enrichmentStatus: "pending", updatedAt: now })
+                  .where(eq(savedItemsTable.id, savedItemId))
 
                 return {
                   savedItem: toSavedItem(savedItemRow),
                   job,
                 }
               }),
-            catch: (cause) =>
-              cause instanceof SavedItemNotFound
-                ? cause
-                : new SavedItemIntakeDefect({ cause }),
-          }).pipe(
-            Effect.catchTag("SavedItemIntakeDefect", (error) => Effect.die(error.cause)),
           ),
 
         finishEnrichment: (savedItem: SavedItem, job: EnrichmentJob) =>
-          Effect.sync(() =>
-            db.transaction((tx) => {
-              tx
+          db.transaction((tx) =>
+            Effect.gen(function* () {
+              const [savedItemRow] = yield* tx
                 .update(savedItemsTable)
-                .set(toSavedItemUpdate(savedItem))
+                .set({
+                  originalUrl: savedItem.originalUrl,
+                  normalizedUrl: savedItem.normalizedUrl,
+                  host: savedItem.host,
+                  title: savedItem.title,
+                  description: savedItem.description,
+                  siteName: savedItem.siteName,
+                  imageUrl: savedItem.imageUrl,
+                  canonicalUrl: savedItem.canonicalUrl,
+                  previewSummary: savedItem.previewSummary,
+                  generatedType: savedItem.generatedType,
+                  generatedTopics: savedItem.generatedTopics,
+                  enrichmentStatus: savedItem.enrichmentStatus,
+                  isRead: savedItem.isRead,
+                  lastSavedAt: savedItem.lastSavedAt,
+                  updatedAt: savedItem.updatedAt,
+                })
                 .where(eq(savedItemsTable.id, savedItem.id))
-                .run()
+                .returning()
 
-              tx
+              yield* tx
                 .update(enrichmentJobsTable)
                 .set({
                   attempt: job.attempt,
@@ -266,14 +230,13 @@ export class SavedItemIntake extends Effect.Service<SavedItemIntake>()(
                   completedAt: job.completedAt,
                 })
                 .where(eq(enrichmentJobsTable.id, job.id))
-                .run()
 
-              return { savedItem, job }
-            })
+              return { savedItem: toSavedItem(savedItemRow ?? savedItem), job }
+            }),
           ),
       }
     }),
   },
-) { }
-
-export const SavedItemIntakeLayer = SavedItemIntake.Default
+) {
+  static readonly layer = Layer.effect(SavedItemIntake, SavedItemIntake.make)
+}

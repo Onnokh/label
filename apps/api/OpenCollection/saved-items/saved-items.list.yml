@@ -1,0 +1,88 @@
+info:
+  name: saved-items.list
+  type: http
+  seq: 1
+  tags:
+    - saved-items
+
+http:
+  method: GET
+  url: "{{baseUrl}}/v1/saved-items"
+  headers:
+    - name: x-label-account-id
+      value: "{{apiKey}}"
+  auth:
+    type: apikey
+    key: x-label-account-id
+    value: "{{apiKey}}"
+    placement: header
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+examples:
+  - name: 200 Response
+    description: SavedItemsResponse
+    request:
+      url: "{{baseUrl}}/v1/saved-items"
+      method: GET
+      headers:
+        - name: x-label-account-id
+          value: "{{apiKey}}"
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "savedItems": [
+              {
+                "id": "",
+                "accountId": "",
+                "originalUrl": "",
+                "normalizedUrl": "",
+                "host": "",
+                "title": "",
+                "description": "",
+                "siteName": "",
+                "imageUrl": "",
+                "canonicalUrl": "",
+                "previewSummary": "",
+                "generatedType": "",
+                "generatedTopics": [],
+                "enrichmentStatus": "pending",
+                "isRead": false,
+                "lastSavedAt": "",
+                "createdAt": "",
+                "updatedAt": ""
+              }
+            ]
+          }
+  - name: 401 Response
+    description: Unauthorized
+    request:
+      url: "{{baseUrl}}/v1/saved-items"
+      method: GET
+      headers:
+        - name: x-label-account-id
+          value: "{{apiKey}}"
+    response:
+      status: 401
+      statusText: Unauthorized
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "_tag": "Unauthorized",
+            "message": ""
+          }

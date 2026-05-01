@@ -1,4 +1,4 @@
-import { Effect, Either, Option } from "effect"
+import { Context, Effect, Layer, Option, Result } from "effect"
 
 import { SavedItem } from "../../domain/SavedItem.js"
 import {
@@ -29,10 +29,10 @@ type StageResult<A> =
     readonly message: string
   }
 
-export class EnrichmentWorkflow extends Effect.Service<EnrichmentWorkflow>()(
+export class EnrichmentWorkflow extends Context.Service<EnrichmentWorkflow>()(
   "@app/modules/enrichment/EnrichmentWorkflow",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const metadataFetcher = yield* MetadataFetcher
       const contentExtractor = yield* ContentExtractor
       const aiEnricher = yield* AiEnricher
@@ -45,7 +45,10 @@ export class EnrichmentWorkflow extends Effect.Service<EnrichmentWorkflow>()(
             let { savedItem, job } = yield* intake.startEnrichment(savedItemId)
             let metadata = Option.none<Metadata>()
             let content = Option.none<ContentExtraction>()
-            const pageResult = yield* pageFetcher.fetch(savedItem.url).pipe(Effect.either)
+            const pageResult = yield* Effect.all(
+              [pageFetcher.fetch(savedItem.originalUrl)],
+              { mode: "result" },
+            ).pipe(Effect.map(([result]) => result))
 
             const stages: Array<EnrichmentStageResult> = []
 
@@ -134,16 +137,16 @@ export class EnrichmentWorkflow extends Effect.Service<EnrichmentWorkflow>()(
             {
               const result = yield* runStage(
                 "categorization",
-                aiEnricher.categorize(aiInput).pipe(
-                  Effect.map((categoriesOption) =>
-                    Option.match(categoriesOption, {
+                aiEnricher.classify(aiInput).pipe(
+                  Effect.map((classificationOption) =>
+                    Option.match(classificationOption, {
                       onNone: (): StageResult<readonly string[]> => ({
                         _tag: "skip",
-                        message: "AI categorization is disabled or lacked enough signal.",
+                        message: "AI classification lacked enough signal.",
                       }),
                       onSome: (value): StageResult<readonly string[]> => ({
                         _tag: "success",
-                        value,
+                        value: [value.generatedType, ...value.generatedTopics],
                       }),
                     }),
                   ),
@@ -152,19 +155,20 @@ export class EnrichmentWorkflow extends Effect.Service<EnrichmentWorkflow>()(
               )
 
               if (Option.isSome(result)) {
-                savedItem = applyCategories(savedItem, result.value)
+                const [generatedType, ...generatedTopics] = result.value
+                savedItem = applyClassification(savedItem, generatedType, generatedTopics)
               }
             }
 
             {
               const result = yield* runStage(
-                "summary",
-                aiEnricher.summarize(aiInput).pipe(
+                "preview-summary",
+                aiEnricher.preview(aiInput).pipe(
                   Effect.map((summaryOption) =>
                     Option.match(summaryOption, {
                       onNone: (): StageResult<string> => ({
                         _tag: "skip",
-                        message: "AI summary is disabled or no summary input was available.",
+                        message: "AI preview summary is disabled or no input was available.",
                       }),
                       onSome: (value): StageResult<string> => ({
                         _tag: "success",
@@ -177,7 +181,7 @@ export class EnrichmentWorkflow extends Effect.Service<EnrichmentWorkflow>()(
               )
 
               if (Option.isSome(result)) {
-                savedItem = applySummary(savedItem, result.value)
+                savedItem = applyPreviewSummary(savedItem, result.value)
               }
             }
 
@@ -195,16 +199,18 @@ export class EnrichmentWorkflow extends Effect.Service<EnrichmentWorkflow>()(
       }
     }),
   },
-) { }
+) {
+  static readonly layer = Layer.effect(EnrichmentWorkflow, EnrichmentWorkflow.make)
+}
 
 const pageResultToOption = <A>(
-  result: Either.Either<Option.Option<A>, unknown>,
+  result: Result.Result<Option.Option<A>, unknown>,
 ): Effect.Effect<Option.Option<A>, unknown> => {
-  if (Either.isLeft(result)) {
-    return Effect.fail(result.left)
+  if (Result.isFailure(result)) {
+    return Effect.fail(result.failure)
   }
 
-  return Effect.succeed(result.right)
+  return Effect.succeed(result.success)
 }
 
 const runStage = <A>(
@@ -214,15 +220,17 @@ const runStage = <A>(
 ) =>
   Effect.gen(function* () {
     const startedAt = new Date()
-    const result = yield* effect.pipe(Effect.either)
+    const result = yield* Effect.all([effect], { mode: "result" }).pipe(
+      Effect.map(([value]) => value),
+    )
     const completedAt = new Date()
 
-    if (Either.isLeft(result)) {
+    if (Result.isFailure(result)) {
       stages.push(
         new EnrichmentStageResult({
           stage,
           status: "failed",
-          message: renderError(result.left),
+          message: renderError(result.failure),
           startedAt,
           completedAt,
         }),
@@ -231,12 +239,12 @@ const runStage = <A>(
       return Option.none<A>()
     }
 
-    if (result.right._tag === "skip") {
+    if (result.success._tag === "skip") {
       stages.push(
         new EnrichmentStageResult({
           stage,
           status: "skipped",
-          message: result.right.message,
+        message: result.success.message,
           startedAt,
           completedAt,
         }),
@@ -254,7 +262,7 @@ const runStage = <A>(
       }),
     )
 
-    return Option.some(result.right.value)
+    return Option.some(result.success.value)
   })
 
 const renderError = (error: unknown) => {
@@ -289,31 +297,39 @@ const applyMetadata = (
 
 const applyContent = (
   savedItem: SavedItem,
-  extraction: ContentExtraction,
+  _extraction: ContentExtraction,
 ) =>
   new SavedItem({
     ...savedItem,
-    extractedContent: extraction.content,
-    excerpt: extraction.excerpt,
-    wordCount: extraction.wordCount,
-    extractedAt: extraction.extractedAt,
   })
 
-const applyCategories = (savedItem: SavedItem, categories: readonly string[]) =>
+const applyClassification = (
+  savedItem: SavedItem,
+  generatedType: string | undefined,
+  generatedTopics: readonly string[],
+) =>
   new SavedItem({
     ...savedItem,
-    categories,
+    generatedType: generatedType === "video" ||
+      generatedType === "website" ||
+      generatedType === "article" ||
+      generatedType === "repository" ||
+      generatedType === "unknown"
+      ? generatedType
+      : "unknown",
+    generatedTopics,
   })
 
-const applySummary = (savedItem: SavedItem, summary: string) =>
+const applyPreviewSummary = (savedItem: SavedItem, previewSummary: string) =>
   new SavedItem({
     ...savedItem,
-    summary,
+    previewSummary,
   })
 
 const withUpdatedAt = (savedItem: SavedItem) =>
   new SavedItem({
     ...savedItem,
+    enrichmentStatus: savedItem.generatedType ? "enriched" : "failed",
     updatedAt: new Date(),
   })
 
@@ -331,5 +347,3 @@ const summarizeJobStatus = (stages: ReadonlyArray<EnrichmentStageResult>) => {
 
   return "failed" as const
 }
-
-export const enrichmentWorkflowLayer = EnrichmentWorkflow.Default

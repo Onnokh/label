@@ -1,4 +1,4 @@
-import { Effect, Option, Schema } from "effect"
+import { Context, Data, Effect, Layer, Option, Schema } from "effect"
 
 import { PageDocument } from "../fetch/PageFetcher.js"
 
@@ -11,19 +11,16 @@ export class Metadata extends Schema.Class<Metadata>("Metadata")({
   canonicalUrl: Schema.optional(Schema.String),
 }) { }
 
-export class MetadataFetcherError extends Schema.TaggedError<MetadataFetcherError>()(
-  "MetadataFetcherError",
-  {
-    operation: Schema.String,
-    url: Schema.String,
-    cause: Schema.Defect,
-  },
-) { }
+export class MetadataFetcherError extends Data.TaggedError("MetadataFetcherError")<{
+  readonly operation: string
+  readonly url: string
+  readonly cause: unknown
+}> {}
 
-export class MetadataFetcher extends Effect.Service<MetadataFetcher>()(
+export class MetadataFetcher extends Context.Service<MetadataFetcher>()(
   "@app/modules/metadata/MetadataFetcher",
   {
-    effect: Effect.succeed({
+    make: Effect.succeed({
       parse: (page: PageDocument) =>
         Effect.try({
           try: () => buildMetadata(page),
@@ -36,7 +33,9 @@ export class MetadataFetcher extends Effect.Service<MetadataFetcher>()(
         }),
     }),
   },
-) { }
+) {
+  static readonly layer = Layer.effect(MetadataFetcher, MetadataFetcher.make)
+}
 
 const decodeHtmlEntities = (value: string) =>
   value
@@ -146,5 +145,3 @@ const buildMetadata = (page: PageDocument) => {
     }),
   )
 }
-
-export const metadataFetcherLayer = MetadataFetcher.Default

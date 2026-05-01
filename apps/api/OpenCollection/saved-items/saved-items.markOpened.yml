@@ -1,0 +1,121 @@
+info:
+  name: saved-items.markOpened
+  type: http
+  seq: 2
+  tags:
+    - saved-items
+
+http:
+  method: POST
+  url: "{{baseUrl}}/v1/saved-items/:id/open"
+  headers:
+    - name: x-label-account-id
+      value: "{{apiKey}}"
+  params:
+    - name: id
+      value: ""
+      type: path
+  auth:
+    type: apikey
+    key: x-label-account-id
+    value: "{{apiKey}}"
+    placement: header
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+examples:
+  - name: 200 Response
+    description: SavedItemDto
+    request:
+      url: "{{baseUrl}}/v1/saved-items/:id/open"
+      method: POST
+      headers:
+        - name: x-label-account-id
+          value: "{{apiKey}}"
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "accountId": "",
+            "originalUrl": "",
+            "normalizedUrl": "",
+            "host": "",
+            "title": "",
+            "description": "",
+            "siteName": "",
+            "imageUrl": "",
+            "canonicalUrl": "",
+            "previewSummary": "",
+            "generatedType": "",
+            "generatedTopics": [],
+            "enrichmentStatus": "pending",
+            "isRead": false,
+            "lastSavedAt": "",
+            "createdAt": "",
+            "updatedAt": ""
+          }
+  - name: 401 Response
+    description: Unauthorized
+    request:
+      url: "{{baseUrl}}/v1/saved-items/:id/open"
+      method: POST
+      headers:
+        - name: x-label-account-id
+          value: "{{apiKey}}"
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 401
+      statusText: Unauthorized
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "_tag": "Unauthorized",
+            "message": ""
+          }
+  - name: 404 Response
+    description: SavedItemNotFoundError
+    request:
+      url: "{{baseUrl}}/v1/saved-items/:id/open"
+      method: POST
+      headers:
+        - name: x-label-account-id
+          value: "{{apiKey}}"
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "_tag": "SavedItemNotFoundError",
+            "savedItemId": ""
+          }

@@ -1,0 +1,73 @@
+info:
+  name: saved-items.remove
+  type: http
+  seq: 3
+  tags:
+    - saved-items
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/v1/saved-items/:id"
+  headers:
+    - name: x-label-account-id
+      value: "{{apiKey}}"
+  params:
+    - name: id
+      value: ""
+      type: path
+  auth:
+    type: apikey
+    key: x-label-account-id
+    value: "{{apiKey}}"
+    placement: header
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+examples:
+  - name: 204 Response
+    description: <No Content>
+    request:
+      url: "{{baseUrl}}/v1/saved-items/:id"
+      method: DELETE
+      headers:
+        - name: x-label-account-id
+          value: "{{apiKey}}"
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 204
+      statusText: No Content
+      body:
+        type: text
+        data: ""
+  - name: 401 Response
+    description: Unauthorized
+    request:
+      url: "{{baseUrl}}/v1/saved-items/:id"
+      method: DELETE
+      headers:
+        - name: x-label-account-id
+          value: "{{apiKey}}"
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 401
+      statusText: Unauthorized
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "_tag": "Unauthorized",
+            "message": ""
+          }

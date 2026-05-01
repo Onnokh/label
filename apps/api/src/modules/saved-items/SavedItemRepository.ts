@@ -1,109 +1,132 @@
-import { eq, type InferInsertModel, type InferSelectModel } from "drizzle-orm"
-import { Effect, Option } from "effect"
+import { and, desc, eq, type InferInsertModel, type InferSelectModel } from "drizzle-orm"
+import { Context, Effect, Layer, Option } from "effect"
 
-import { SavedItem } from "../../domain/SavedItem.js"
-import { SqliteClient } from "../persistence/SqliteClient.js"
+import { SavedItem, type AccountId } from "../../domain/SavedItem.js"
+import { PostgresClient } from "../persistence/PostgresClient.js"
 import { savedItemsTable } from "../persistence/schema.js"
 
 type SavedItemRecord = InferSelectModel<typeof savedItemsTable>
-type SavedItemUpdate = Omit<InferInsertModel<typeof savedItemsTable>, "id">
 type NewSavedItemInput = Pick<
   InferInsertModel<typeof savedItemsTable>,
-  "url" | "host" | "isRead"
+  "accountId" | "originalUrl" | "normalizedUrl" | "host" | "isRead"
 >
 
-const decodeCategories = (value: string): readonly string[] => {
-  const parsed = JSON.parse(value)
-  return Array.isArray(parsed)
-    ? parsed.filter((entry): entry is string => typeof entry === "string")
-    : []
-}
-
-const toSavedItem = (record: SavedItemRecord) =>
+export const toSavedItem = (record: SavedItemRecord) =>
   new SavedItem({
     id: record.id,
-    url: record.url,
+    accountId: record.accountId,
+    originalUrl: record.originalUrl,
+    normalizedUrl: record.normalizedUrl,
     host: record.host,
     title: record.title ?? undefined,
     description: record.description ?? undefined,
     siteName: record.siteName ?? undefined,
     imageUrl: record.imageUrl ?? undefined,
     canonicalUrl: record.canonicalUrl ?? undefined,
-    summary: record.summary ?? undefined,
-    extractedContent: record.extractedContent ?? undefined,
-    excerpt: record.excerpt ?? undefined,
-    wordCount: record.wordCount ?? undefined,
-    extractedAt: record.extractedAt ?? undefined,
-    categories: decodeCategories(record.categoriesJson),
+    previewSummary: record.previewSummary ?? undefined,
+    generatedType: record.generatedType ?? undefined,
+    generatedTopics: record.generatedTopics,
+    enrichmentStatus: record.enrichmentStatus,
     isRead: record.isRead,
+    lastSavedAt: record.lastSavedAt,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   })
 
-const toSavedItemUpdate = (savedItem: SavedItem): SavedItemUpdate => ({
-  url: savedItem.url,
+const toSavedItemUpdate = (savedItem: SavedItem): Partial<InferInsertModel<typeof savedItemsTable>> => ({
+  accountId: savedItem.accountId,
+  originalUrl: savedItem.originalUrl,
+  normalizedUrl: savedItem.normalizedUrl,
   host: savedItem.host,
   title: savedItem.title,
   description: savedItem.description,
   siteName: savedItem.siteName,
   imageUrl: savedItem.imageUrl,
   canonicalUrl: savedItem.canonicalUrl,
-  summary: savedItem.summary,
-  extractedContent: savedItem.extractedContent,
-  excerpt: savedItem.excerpt,
-  wordCount: savedItem.wordCount,
-  extractedAt: savedItem.extractedAt,
-  categoriesJson: JSON.stringify(savedItem.categories),
+  previewSummary: savedItem.previewSummary,
+  generatedType: savedItem.generatedType,
+  generatedTopics: savedItem.generatedTopics,
+  enrichmentStatus: savedItem.enrichmentStatus,
   isRead: savedItem.isRead,
+  lastSavedAt: savedItem.lastSavedAt,
   createdAt: savedItem.createdAt,
   updatedAt: savedItem.updatedAt,
 })
 
-export class SavedItemRepository extends Effect.Service<SavedItemRepository>()(
+export class SavedItemRepository extends Context.Service<SavedItemRepository>()(
   "@app/modules/saved-items/SavedItemRepository",
   {
-    effect: Effect.gen(function* () {
-      const { db } = yield* SqliteClient
+    make: Effect.gen(function* () {
+      const { db } = yield* PostgresClient
 
       return {
         findById: (id: SavedItem["id"]) =>
-          Effect.sync(() => {
-            const row = db.query.savedItemsTable.findFirst({
-              where: eq(savedItemsTable.id, id),
-            }).sync()
+          Effect.gen(function* () {
+            const rows = yield* db
+              .select()
+              .from(savedItemsTable)
+              .where(eq(savedItemsTable.id, id))
+              .limit(1)
+            const row = rows[0]
 
-            return Option.map(Option.fromNullable(row), toSavedItem)
+            return row ? Option.some(toSavedItem(row)) : Option.none<SavedItem>()
           }),
 
-        findByUrl: (url: string) =>
-          Effect.sync(() => {
-            const row = db.query.savedItemsTable.findFirst({
-              where: eq(savedItemsTable.url, url),
-            }).sync()
+        findByAccountAndNormalizedUrl: (accountId: AccountId, normalizedUrl: string) =>
+          Effect.gen(function* () {
+            const rows = yield* db
+              .select()
+              .from(savedItemsTable)
+              .where(and(
+                eq(savedItemsTable.accountId, accountId),
+                eq(savedItemsTable.normalizedUrl, normalizedUrl),
+              ))
+              .limit(1)
+            const row = rows[0]
 
-            return Option.map(Option.fromNullable(row), toSavedItem)
+            return row ? Option.some(toSavedItem(row)) : Option.none<SavedItem>()
+          }),
+
+        listByAccount: (accountId: AccountId) =>
+          Effect.gen(function* () {
+            const rows = yield* db
+              .select()
+              .from(savedItemsTable)
+              .where(eq(savedItemsTable.accountId, accountId))
+              .orderBy(desc(savedItemsTable.lastSavedAt))
+
+            return rows.map(toSavedItem)
           }),
 
         insert: (input: NewSavedItemInput) =>
-          Effect.sync(() => {
-            const row = db.insert(savedItemsTable).values(input).returning().get()
+          Effect.gen(function* () {
+            const [row] = yield* db.insert(savedItemsTable).values(input).returning()
+
+            if (!row) {
+              throw new Error("SavedItem insert did not return a row.")
+            }
 
             return toSavedItem(row)
           }),
 
         update: (savedItem: SavedItem) =>
-          Effect.sync(() => {
-            db
+          Effect.gen(function* () {
+            const [row] = yield* db
               .update(savedItemsTable)
               .set(toSavedItemUpdate(savedItem))
               .where(eq(savedItemsTable.id, savedItem.id))
-              .run()
+              .returning()
 
-            return savedItem
+            return toSavedItem(row ?? savedItem)
+          }),
+
+        delete: (id: SavedItem["id"]) =>
+          Effect.gen(function* () {
+            yield* db.delete(savedItemsTable).where(eq(savedItemsTable.id, id))
           }),
       }
     }),
   },
-) {}
-
-export const SavedItemRepositoryLayer = SavedItemRepository.Default
+) {
+  static readonly layer = Layer.effect(SavedItemRepository, SavedItemRepository.make)
+}

@@ -7,28 +7,28 @@ export const EnrichmentJobId = Schema.String.pipe(
 );
 export type EnrichmentJobId = typeof EnrichmentJobId.Type;
 
-export const EnrichmentJobStatus = Schema.Literal(
+export const EnrichmentJobStatus = Schema.Literals([
   "queued",
   "running",
   "succeeded",
   "partial",
   "failed",
-);
+]);
 export type EnrichmentJobStatus = typeof EnrichmentJobStatus.Type;
 
-export const EnrichmentStageName = Schema.Literal(
+export const EnrichmentStageName = Schema.Literals([
   "metadata",
   "content",
   "categorization",
-  "summary",
-);
+  "preview-summary",
+]);
 export type EnrichmentStageName = typeof EnrichmentStageName.Type;
 
-export const EnrichmentStageStatus = Schema.Literal(
+export const EnrichmentStageStatus = Schema.Literals([
   "succeeded",
   "failed",
   "skipped",
-);
+]);
 export type EnrichmentStageStatus = typeof EnrichmentStageStatus.Type;
 
 export class EnrichmentStageResult extends Schema.Class<EnrichmentStageResult>(
