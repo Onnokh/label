@@ -1,0 +1,30 @@
+{
+  "name": "@label/api",
+  "version": "0.0.0",
+  "description": "Label backend API.",
+  "type": "module",
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:push": "node -e \"require('node:fs').mkdirSync('./data', { recursive: true })\" && drizzle-kit push",
+    "dev": "tsx watch src/index.ts",
+    "prepare": "effect-language-service patch",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "better-sqlite3": "^12.9.0",
+    "drizzle-orm": "^0.45.2",
+    "effect": "^3.21.1",
+    "playwright": "^1.59.1"
+  },
+  "devDependencies": {
+    "@effect/language-service": "^0.85.1",
+    "@types/node": "^25.6.0",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  }
+}
