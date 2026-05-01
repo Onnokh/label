@@ -1,11 +1,9 @@
 import {
-  Link,
   Outlet,
   RouterProvider,
   createRootRouteWithContext,
   createRoute,
   createRouter,
-  redirect,
 } from "@tanstack/react-router"
 import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { StrictMode, type FormEvent, useState } from "react"
@@ -56,18 +54,7 @@ const indexRoute = createRoute({
   component: HomePage,
 })
 
-const dashboardRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/dashboard",
-  beforeLoad: ({ context }) => {
-    if (!context.session) {
-      throw redirect({ to: "/" })
-    }
-  },
-  component: DashboardPage,
-})
-
-const routeTree = rootRoute.addChildren([indexRoute, dashboardRoute])
+const routeTree = rootRoute.addChildren([indexRoute])
 
 const router = createRouter({
   routeTree,
@@ -105,21 +92,17 @@ function RootLayout() {
   return (
     <main className="page">
       <div className="container">
-        <nav className="nav">
-          <Link to="/" className="brand">
-            Label
-          </Link>
-          <div className="navLinks">
-            <Link to="/dashboard" disabled={!session}>
-              Dashboard
-            </Link>
-            {session ? (
+        {session ? (
+          <nav className="nav">
+            <span className="brand">Label</span>
+            <div className="navLinks">
+              <span className="meta">{session.user.email}</span>
               <button type="button" className="ghostButton" onClick={() => void signOut()}>
                 Sign out
               </button>
-            ) : null}
-          </div>
-        </nav>
+            </div>
+          </nav>
+        ) : null}
         <Outlet />
       </div>
     </main>
@@ -128,6 +111,10 @@ function RootLayout() {
 
 function HomePage() {
   const session = indexRoute.useRouteContext().session
+  return session ? <ReadingList /> : <SignedOutHero />
+}
+
+function SignedOutHero() {
   const [error, setError] = useState<string | null>(null)
   const [isSigningIn, setIsSigningIn] = useState(false)
 
@@ -143,31 +130,23 @@ function HomePage() {
   }
 
   return (
-    <section className="heroPanel">
-      <p className="eyebrow">Web companion</p>
-      <h1 className="title">Sign in and save a URL fast</h1>
-      <p className="subtitle">
-        A tiny capture surface for pasting a link, saving it, and seeing the newest items right away.
-      </p>
-      {session ? (
-        <div className="heroActions">
-          <Link to="/dashboard" className="primaryButton">
-            Open ingest
-          </Link>
-          <p className="meta">Signed in as {session.user.email}</p>
-        </div>
-      ) : (
+    <section className="signInCard">
+      <div className="signInCardSide signInCardBrand">
+        <p className="eyebrow">Label</p>
+      </div>
+      <div className="signInCardSide signInCardAction">
+        <h1 className="title">Sign in</h1>
+        <p className="subtitle">Continue with your Google account.</p>
         <button type="button" className="primaryButton" disabled={isSigningIn} onClick={() => void startSignIn()}>
-          {isSigningIn ? "Opening Google..." : "Sign in with Google"}
+          {isSigningIn ? "Opening Google..." : "Continue with Google"}
         </button>
-      )}
-      {error ? <pre className="error">{error}</pre> : null}
+        {error ? <pre className="error">{error}</pre> : null}
+      </div>
     </section>
   )
 }
 
-function DashboardPage() {
-  const session = dashboardRoute.useRouteContext().session
+function ReadingList() {
   const queryClient = useQueryClient()
   const [url, setUrl] = useState("")
   const [formError, setFormError] = useState<string | null>(null)
@@ -175,7 +154,6 @@ function DashboardPage() {
   const savedItemsQuery = useQuery({
     queryKey: ["saved-items"],
     queryFn: () => apiFetch<SavedItemsResponse>("/v1/saved-items"),
-    enabled: Boolean(session),
     staleTime: 30_000,
   })
 

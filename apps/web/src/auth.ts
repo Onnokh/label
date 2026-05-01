@@ -41,7 +41,7 @@ export const signInWithGoogle = async () => {
     },
     body: JSON.stringify({
       provider: "google",
-      callbackURL: `${webBaseUrl}/dashboard`,
+      callbackURL: `${webBaseUrl}/`,
     }),
   })
 
