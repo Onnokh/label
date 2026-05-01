@@ -42,7 +42,13 @@ export class EnrichmentWorkflow extends Context.Service<EnrichmentWorkflow>()(
       return {
         enrich: (savedItemId: SavedItem["id"]) =>
           Effect.gen(function* () {
+            yield* Effect.logInfo("enrichment started")
             let { savedItem, job } = yield* intake.startEnrichment(savedItemId)
+            yield* Effect.logDebug("enrichment job created", {
+              jobId: job.id,
+              attempt: job.attempt,
+              url: savedItem.originalUrl,
+            })
             let metadata = Option.none<Metadata>()
             let content = Option.none<ContentExtraction>()
             const pageResult = yield* Effect.all(
@@ -194,6 +200,12 @@ export class EnrichmentWorkflow extends Context.Service<EnrichmentWorkflow>()(
               completedAt: new Date(),
             })
 
+            yield* Effect.logInfo("enrichment finished", {
+              jobStatus: job.status,
+              enrichmentStatus: savedItem.enrichmentStatus,
+              stages: stages.map((s) => `${s.stage}:${s.status}`),
+            })
+
             return yield* intake.finishEnrichment(savedItem, job)
           }),
       }
@@ -226,15 +238,17 @@ const runStage = <A>(
     const completedAt = new Date()
 
     if (Result.isFailure(result)) {
+      const message = renderError(result.failure)
       stages.push(
         new EnrichmentStageResult({
           stage,
           status: "failed",
-          message: renderError(result.failure),
+          message,
           startedAt,
           completedAt,
         }),
       )
+      yield* Effect.logWarning("enrichment stage failed", { stage, message })
 
       return Option.none<A>()
     }
@@ -249,6 +263,10 @@ const runStage = <A>(
           completedAt,
         }),
       )
+      yield* Effect.logDebug("enrichment stage skipped", {
+        stage,
+        message: result.success.message,
+      })
 
       return Option.none<A>()
     }
@@ -261,6 +279,10 @@ const runStage = <A>(
         completedAt,
       }),
     )
+    yield* Effect.logDebug("enrichment stage succeeded", {
+      stage,
+      durationMs: completedAt.getTime() - startedAt.getTime(),
+    })
 
     return Option.some(result.success.value)
   })

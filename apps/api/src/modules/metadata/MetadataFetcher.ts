@@ -37,14 +37,50 @@ export class MetadataFetcher extends Context.Service<MetadataFetcher>()(
   static readonly layer = Layer.effect(MetadataFetcher, MetadataFetcher.make)
 }
 
+const namedHtmlEntities: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: "\"",
+  apos: "'",
+  nbsp: " ",
+  lsquo: "‘",
+  rsquo: "’",
+  ldquo: "“",
+  rdquo: "”",
+  sbquo: "‚",
+  bdquo: "„",
+  mdash: "—",
+  ndash: "–",
+  hellip: "…",
+  copy: "©",
+  reg: "®",
+  trade: "™",
+  laquo: "«",
+  raquo: "»",
+  middot: "·",
+  bull: "•",
+}
+
 const decodeHtmlEntities = (value: string) =>
-  value
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, "\"")
-    .replace(/&#39;/gi, "'")
-    .replace(/&nbsp;/gi, " ")
+  value.replace(
+    /&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]*);/gi,
+    (match, body: string) => {
+      const lower = body.toLowerCase()
+
+      if (lower.startsWith("#x")) {
+        const code = Number.parseInt(lower.slice(2), 16)
+        return Number.isFinite(code) ? String.fromCodePoint(code) : match
+      }
+
+      if (lower.startsWith("#")) {
+        const code = Number.parseInt(lower.slice(1), 10)
+        return Number.isFinite(code) ? String.fromCodePoint(code) : match
+      }
+
+      return namedHtmlEntities[lower] ?? match
+    },
+  )
 
 const normalizeText = (value: string) =>
   decodeHtmlEntities(value).replace(/\s+/g, " ").trim()

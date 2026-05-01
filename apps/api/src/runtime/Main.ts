@@ -5,6 +5,7 @@ import { labelApiLive } from "../api/ApiHandlers.js"
 import { AuthHandler } from "../modules/auth/AuthHandler.js"
 import { BetterAuth } from "../modules/auth/BetterAuth.js"
 import { CaptureService } from "../modules/capture/CaptureService.js"
+import { EnrichmentWorkflow } from "../modules/enrichment/EnrichmentWorkflow.js"
 import { SavedItemRepository } from "../modules/saved-items/SavedItemRepository.js"
 import { AppConfig } from "./Config.js"
 import { appLayer } from "./AppLayer.js"
@@ -83,7 +84,7 @@ const withSessionBearer = async (
 const program = Effect.gen(function* () {
   const config = yield* AppConfig
   const context = yield* Effect.context<
-    AuthHandler | BetterAuth | CaptureService | SavedItemRepository
+    AuthHandler | BetterAuth | CaptureService | EnrichmentWorkflow | SavedItemRepository
   >()
   const authHandler = yield* AuthHandler
   const { auth } = yield* BetterAuth

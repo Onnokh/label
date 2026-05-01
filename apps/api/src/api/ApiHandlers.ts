@@ -5,6 +5,7 @@ import { HttpServerRequest } from "effect/unstable/http"
 import { SavedItem, type UserId } from "../domain/SavedItem.js"
 import { BetterAuth } from "../modules/auth/BetterAuth.js"
 import { CaptureService } from "../modules/capture/CaptureService.js"
+import { EnrichmentWorkflow } from "../modules/enrichment/EnrichmentWorkflow.js"
 import { SavedItemRepository } from "../modules/saved-items/SavedItemRepository.js"
 import {
   CaptureCreated,
@@ -64,6 +65,7 @@ const capturesGroupLive = HttpApiBuilder.group(labelApi, "captures", (handlers) 
   handlers.handle("capture", ({ payload }) =>
     Effect.gen(function* () {
       const capture = yield* CaptureService
+      const enrichment = yield* EnrichmentWorkflow
       const userId = yield* CurrentUser
       const result = yield* capture.capture(userId, payload.url).pipe(
         Effect.catchTags({
@@ -72,6 +74,18 @@ const capturesGroupLive = HttpApiBuilder.group(labelApi, "captures", (handlers) 
           SqlError: Effect.die,
         }),
       )
+      yield* Effect.logInfo("capture handled", {
+        savedItemId: result.savedItem.id,
+        captureResult: result.captureResult,
+        host: result.savedItem.host,
+      })
+      yield* enrichment
+        .enrich(result.savedItem.id)
+        .pipe(
+          Effect.annotateLogs({ savedItemId: result.savedItem.id }),
+          Effect.ignore({ log: true }),
+          Effect.forkDetach,
+        )
       const savedItem = savedItemToDto(result.savedItem)
       return result.captureResult === "created"
         ? new CaptureCreated({ savedItem, captureResult: "created" })

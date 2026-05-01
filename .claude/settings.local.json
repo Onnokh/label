@@ -10,7 +10,10 @@
       "Bash(timeout 8 bun apps/api/src/index.ts)",
       "Bash(xargs grep *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(pnpm typecheck *)",
+      "Read(//tmp/**)"
     ]
   }
 }
