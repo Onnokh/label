@@ -12,6 +12,7 @@ import { StrictMode, type FormEvent, useState } from "react"
 import { createRoot } from "react-dom/client"
 
 import { getSession, signInWithGoogle, signOut, type AuthSession } from "./auth"
+import { SavedCard } from "./SavedCard"
 import "./styles.css"
 
 type RouterContext = {
@@ -25,6 +26,7 @@ type SavedItem = {
   readonly title?: string
   readonly description?: string
   readonly siteName?: string
+  readonly imageUrl?: string
   readonly previewSummary?: string
   readonly enrichmentStatus: "pending" | "enriched" | "failed"
   readonly isRead: boolean
@@ -101,23 +103,25 @@ function RootLayout() {
   const session = rootRoute.useRouteContext().session
 
   return (
-    <main className="shell">
-      <nav className="nav">
-        <Link to="/" className="brand">
-          Label
-        </Link>
-        <div className="navLinks">
-          <Link to="/dashboard" disabled={!session}>
-            Dashboard
+    <main className="page">
+      <div className="container">
+        <nav className="nav">
+          <Link to="/" className="brand">
+            Label
           </Link>
-          {session ? (
-            <button type="button" onClick={() => void signOut()}>
-              Sign out
-            </button>
-          ) : null}
-        </div>
-      </nav>
-      <Outlet />
+          <div className="navLinks">
+            <Link to="/dashboard" disabled={!session}>
+              Dashboard
+            </Link>
+            {session ? (
+              <button type="button" className="ghostButton" onClick={() => void signOut()}>
+                Sign out
+              </button>
+            ) : null}
+          </div>
+        </nav>
+        <Outlet />
+      </div>
     </main>
   )
 }
@@ -139,15 +143,15 @@ function HomePage() {
   }
 
   return (
-    <section className="panel heroPanel">
+    <section className="heroPanel">
       <p className="eyebrow">Web companion</p>
-      <h1>Sign in and save a URL fast</h1>
-      <p className="lede">
+      <h1 className="title">Sign in and save a URL fast</h1>
+      <p className="subtitle">
         A tiny capture surface for pasting a link, saving it, and seeing the newest items right away.
       </p>
       {session ? (
         <div className="heroActions">
-          <Link to="/dashboard" className="primaryLink">
+          <Link to="/dashboard" className="primaryButton">
             Open ingest
           </Link>
           <p className="meta">Signed in as {session.user.email}</p>
@@ -191,6 +195,32 @@ function DashboardPage() {
     },
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`${apiBaseUrl}/v1/saved-items/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      }).then((response) => {
+        if (!response.ok) throw new Error("Delete failed")
+      }),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["saved-items"] })
+      const previous = queryClient.getQueryData<SavedItemsResponse>(["saved-items"])
+      if (previous) {
+        queryClient.setQueryData<SavedItemsResponse>(["saved-items"], {
+          savedItems: previous.savedItems.filter((item) => item.id !== id),
+        })
+      }
+      return { previous }
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["saved-items"], context.previous)
+      }
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["saved-items"] }),
+  })
+
   const submitCapture = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const trimmed = url.trim()
@@ -204,73 +234,54 @@ function DashboardPage() {
     captureMutation.mutate(trimmed)
   }
 
+  const items = savedItemsQuery.data?.savedItems ?? []
+
   return (
-    <section className="dashboardGrid">
-      <article className="panel ingestPanel">
-        <p className="eyebrow">Manual ingest</p>
-        <h1>Save a URL</h1>
-        <form className="ingestForm" onSubmit={submitCapture}>
-          <label className="fieldLabel" htmlFor="capture-url">
-            URL
-          </label>
-          <div className="formRow">
-            <input
-              id="capture-url"
-              className="textInput"
-              type="url"
-              inputMode="url"
-              placeholder="https://example.com/story"
-              value={url}
-              onChange={(event) => setUrl(event.target.value)}
-            />
-            <button type="submit" className="primaryButton" disabled={captureMutation.isPending}>
-              {captureMutation.isPending ? "Saving..." : "Save"}
-            </button>
+    <section>
+      <div className="header">
+        <h1 className="title">Saved</h1>
+        <div className="stats">
+          <div className="stat">
+            <span className="statValue">{items.length}</span>
+            <div className="statLabel">SAVED</div>
           </div>
-        </form>
-        <p className="lede subtle">
-          Drop in any link, hit save, and the newest saved items list refreshes immediately.
-        </p>
-        {formError ? <pre className="error">{formError}</pre> : null}
-      </article>
-
-      <article className="panel listPanel">
-        <div className="listHeader">
-          <div>
-            <p className="eyebrow">Saved items</p>
-            <h2>Newest first</h2>
-          </div>
-          <span className="countBadge">
-            {savedItemsQuery.data?.savedItems.length ?? 0} items
-          </span>
         </div>
+      </div>
 
-        {savedItemsQuery.isLoading ? <p className="lede">Loading saved items...</p> : null}
-        {savedItemsQuery.isError ? <p className="lede">Could not load saved items.</p> : null}
+      <form className="form" onSubmit={submitCapture}>
+        <input
+          id="capture-url"
+          className="input"
+          type="url"
+          inputMode="url"
+          placeholder="https://example.com/article"
+          value={url}
+          onChange={(event) => setUrl(event.target.value)}
+        />
+        <button type="submit" className="primaryButton" disabled={captureMutation.isPending || !url.trim()}>
+          {captureMutation.isPending ? "Saving..." : "Save"}
+        </button>
+      </form>
+      {formError ? <pre className="error">{formError}</pre> : null}
 
-        <ul className="savedList">
-          {savedItemsQuery.data?.savedItems.map((item) => (
-            <li key={item.id} className="savedItem">
-              <div className="savedItemTop">
-                <div>
-                  <h3>{item.title ?? item.host}</h3>
-                  <p className="itemUrl">{item.originalUrl}</p>
-                </div>
-                <span className={`status ${item.enrichmentStatus}`}>{item.enrichmentStatus}</span>
-              </div>
-              {item.description ? <p className="itemDescription">{item.description}</p> : null}
-              <div className="itemMeta">
-                <span>{item.host}</span>
-                <span>{item.isRead ? "Read" : "Unread"}</span>
-                <span>{new Date(item.lastSavedAt).toLocaleString()}</span>
-              </div>
-            </li>
-          ))}
-          {!savedItemsQuery.isLoading && !savedItemsQuery.data?.savedItems.length ? (
-            <li className="emptyState">No saved items yet. Try the form above.</li>
-          ) : null}
-        </ul>
-      </article>
+      {savedItemsQuery.isLoading ? <div className="message">Loading...</div> : null}
+      {savedItemsQuery.isError ? (
+        <div className="message errorMessage">Could not load saved items.</div>
+      ) : null}
+
+      {!savedItemsQuery.isLoading && !savedItemsQuery.isError ? (
+        items.length === 0 ? (
+          <div className="message">No saved items yet. Save one above.</div>
+        ) : (
+          <ul className="grid">
+            {items.map((item) => (
+              <li key={item.id}>
+                <SavedCard item={item} onDelete={(id) => deleteMutation.mutate(id)} />
+              </li>
+            ))}
+          </ul>
+        )
+      ) : null}
     </section>
   )
 }
