@@ -9,8 +9,10 @@
 #   POSTGRES_PASSWORD            - Postgres superuser password
 #   BETTER_AUTH_SECRET           - 32+ char random string
 #   GOOGLE_CLIENT_ID / SECRET    - OAuth credentials
-#   SERVICE_FQDN_API_3002        - public API URL (e.g. https://api.example.com)
-#   SERVICE_FQDN_WEB_80          - public web URL  (e.g. https://app.example.com)
+#
+# Auto-injected by Coolify from the domains you set on each service:
+#   SERVICE_URL_API              - public API URL (e.g. https://api.example.com)
+#   SERVICE_URL_WEB              - public web URL (e.g. https://app.example.com)
 
 services:
   postgres:
@@ -40,8 +42,8 @@ services:
       PORT: 3002
       DATABASE_URL: postgres://label:${POSTGRES_PASSWORD:-label}@postgres:5432/label
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
-      BETTER_AUTH_URL: ${SERVICE_FQDN_API_3002:-http://localhost:3002}
-      BETTER_AUTH_TRUSTED_ORIGINS: ${SERVICE_FQDN_WEB_80:-http://localhost:8080}
+      BETTER_AUTH_URL: ${SERVICE_URL_API:-http://localhost:3002}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${SERVICE_URL_WEB:-http://localhost:8080}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       AI_ENABLED: ${AI_ENABLED:-false}
@@ -58,8 +60,8 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        VITE_API_BASE_URL: ${SERVICE_FQDN_API_3002:-http://localhost:3002}
-        VITE_WEB_BASE_URL: ${SERVICE_FQDN_WEB_80:-http://localhost:8080}
+        VITE_API_BASE_URL: ${SERVICE_URL_API:-http://localhost:3002}
+        VITE_WEB_BASE_URL: ${SERVICE_URL_WEB:-http://localhost:8080}
     restart: unless-stopped
     depends_on:
       - api
