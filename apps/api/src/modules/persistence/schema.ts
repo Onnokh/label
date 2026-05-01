@@ -12,7 +12,14 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core"
 
-import type { EnrichmentStatus, GeneratedType, SavedItemId, UserId } from "../../domain/SavedItem.js"
+import {
+  enrichmentStatuses,
+  generatedTypes,
+  type EnrichmentStatus,
+  type GeneratedType,
+  type SavedItemId,
+  type UserId,
+} from "../../domain/SavedItem.js"
 import type {
   EnrichmentJobId,
   EnrichmentJobStatus,
@@ -27,19 +34,9 @@ import {
 
 export { account, apikey, session, user, verification }
 
-export const enrichmentStatusEnum = pgEnum("enrichment_status", [
-  "pending",
-  "enriched",
-  "failed",
-])
+export const enrichmentStatusEnum = pgEnum("enrichment_status", enrichmentStatuses)
 
-export const generatedTypeEnum = pgEnum("generated_type", [
-  "article",
-  "video",
-  "website",
-  "repository",
-  "unknown",
-])
+export const generatedTypeEnum = pgEnum("generated_type", generatedTypes)
 
 export const enrichmentJobStatusEnum = pgEnum("enrichment_job_status", [
   "queued",
@@ -80,16 +77,16 @@ export const savedItemsTable = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => ({
-    userNormalizedUrlUnique: uniqueIndex("saved_items_user_normalized_url_unique").on(
+  (table) => [
+    uniqueIndex("saved_items_user_normalized_url_unique").on(
       table.userId,
       table.normalizedUrl,
     ),
-    userLastSavedAtIdx: index("saved_items_user_last_saved_at_idx").on(
+    index("saved_items_user_last_saved_at_idx").on(
       table.userId,
       table.lastSavedAt,
     ),
-  }),
+  ],
 )
 
 export const enrichmentJobsTable = pgTable("enrichment_jobs", {

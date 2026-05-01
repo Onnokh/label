@@ -6,16 +6,18 @@ export type SavedItemId = typeof SavedItemId.Type;
 export const UserId = Schema.String.pipe(Schema.brand("UserId"));
 export type UserId = typeof UserId.Type;
 
-export const EnrichmentStatus = Schema.Literals(["pending", "enriched", "failed"]);
+export const enrichmentStatuses = ["pending", "enriched", "failed"] as const;
+export const EnrichmentStatus = Schema.Literals(enrichmentStatuses);
 export type EnrichmentStatus = typeof EnrichmentStatus.Type;
 
-export const GeneratedType = Schema.Literals([
+export const generatedTypes = [
   "article",
   "video",
   "website",
   "repository",
   "unknown",
-]);
+] as const;
+export const GeneratedType = Schema.Literals(generatedTypes);
 export type GeneratedType = typeof GeneratedType.Type;
 
 export class SavedItem extends Schema.Class<SavedItem>("SavedItem")({

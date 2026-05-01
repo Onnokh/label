@@ -1,5 +1,5 @@
 import { and, desc, eq, type InferInsertModel, type InferSelectModel } from "drizzle-orm"
-import { Context, Effect, Layer, Option } from "effect"
+import { Context, Effect, Layer, Option, Schema } from "effect"
 
 import { SavedItem, type UserId } from "../../domain/SavedItem.js"
 import { PostgresClient } from "../persistence/PostgresClient.js"
@@ -11,47 +11,19 @@ type NewSavedItemInput = Pick<
   "userId" | "originalUrl" | "normalizedUrl" | "host" | "isRead"
 >
 
-export const toSavedItem = (record: SavedItemRecord) =>
-  new SavedItem({
-    id: record.id,
-    userId: record.userId,
-    originalUrl: record.originalUrl,
-    normalizedUrl: record.normalizedUrl,
-    host: record.host,
-    title: record.title ?? undefined,
-    description: record.description ?? undefined,
-    siteName: record.siteName ?? undefined,
-    imageUrl: record.imageUrl ?? undefined,
-    canonicalUrl: record.canonicalUrl ?? undefined,
-    previewSummary: record.previewSummary ?? undefined,
-    generatedType: record.generatedType ?? undefined,
-    generatedTopics: record.generatedTopics,
-    enrichmentStatus: record.enrichmentStatus,
-    isRead: record.isRead,
-    lastSavedAt: record.lastSavedAt,
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt,
-  })
+const decodeSavedItem = Schema.decodeUnknownSync(SavedItem)
 
-const toSavedItemUpdate = (savedItem: SavedItem): Partial<InferInsertModel<typeof savedItemsTable>> => ({
-  userId: savedItem.userId,
-  originalUrl: savedItem.originalUrl,
-  normalizedUrl: savedItem.normalizedUrl,
-  host: savedItem.host,
-  title: savedItem.title,
-  description: savedItem.description,
-  siteName: savedItem.siteName,
-  imageUrl: savedItem.imageUrl,
-  canonicalUrl: savedItem.canonicalUrl,
-  previewSummary: savedItem.previewSummary,
-  generatedType: savedItem.generatedType,
-  generatedTopics: savedItem.generatedTopics,
-  enrichmentStatus: savedItem.enrichmentStatus,
-  isRead: savedItem.isRead,
-  lastSavedAt: savedItem.lastSavedAt,
-  createdAt: savedItem.createdAt,
-  updatedAt: savedItem.updatedAt,
-})
+const nullsToUndefined = <T extends Record<string, unknown>>(record: T): Record<string, unknown> => {
+  const result: Record<string, unknown> = {}
+  for (const key of Object.keys(record)) {
+    const value = record[key]
+    result[key] = value === null ? undefined : value
+  }
+  return result
+}
+
+export const toSavedItem = (record: SavedItemRecord): SavedItem =>
+  decodeSavedItem(nullsToUndefined(record))
 
 export class SavedItemRepository extends Context.Service<SavedItemRepository>()(
   "@app/modules/saved-items/SavedItemRepository",
@@ -113,7 +85,7 @@ export class SavedItemRepository extends Context.Service<SavedItemRepository>()(
           Effect.gen(function* () {
             const [row] = yield* db
               .update(savedItemsTable)
-              .set(toSavedItemUpdate(savedItem))
+              .set({ ...savedItem })
               .where(eq(savedItemsTable.id, savedItem.id))
               .returning()
 

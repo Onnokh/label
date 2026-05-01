@@ -4,7 +4,13 @@
       "Bash(npx tsc *)",
       "Bash(where bun *)",
       "Bash(bun --version)",
-      "Bash(pnpm install *)"
+      "Bash(pnpm install *)",
+      "Bash(bun run *)",
+      "Bash(timeout 8 bun src/index.ts)",
+      "Bash(timeout 8 bun apps/api/src/index.ts)",
+      "Bash(xargs grep *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

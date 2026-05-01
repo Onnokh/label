@@ -1,7 +1,8 @@
-import { Effect, Layer, Redacted } from "effect"
+import { Effect, Layer } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
+import { HttpServerRequest } from "effect/unstable/http"
 
-import { SavedItem } from "../domain/SavedItem.js"
+import { SavedItem, type UserId } from "../domain/SavedItem.js"
 import { BetterAuth } from "../modules/auth/BetterAuth.js"
 import { CaptureService } from "../modules/capture/CaptureService.js"
 import { SavedItemRepository } from "../modules/saved-items/SavedItemRepository.js"
@@ -18,41 +19,44 @@ import {
   savedItemToDto,
 } from "./ApiContract.js"
 
-const bearerToken = (credential: Redacted.Redacted<string>) =>
-  Redacted.value(credential).replace(/^Bearer\s+/i, "")
+const extractBearer = (headers: Record<string, string>) => {
+  const authHeader = headers.authorization ?? headers.Authorization
+  return authHeader?.match(/^Bearer\s+(.+)$/i)?.[1]
+}
 
 export const SessionOrApiKeyAuthLive = Layer.effect(SessionOrApiKeyAuth)(
   Effect.gen(function* () {
     const { auth } = yield* BetterAuth
 
-    return SessionOrApiKeyAuth.of({
-      bearer: (handler, { credential }) =>
-        Effect.tryPromise({
-          try: async () => {
-            const headers = new Headers({ authorization: `Bearer ${bearerToken(credential)}` })
-            const session = await auth.api.getSession({ headers })
+    return SessionOrApiKeyAuth.of((handler) =>
+      Effect.gen(function* () {
+        const request = yield* HttpServerRequest.HttpServerRequest
+        const webHeaders = new Headers(request.headers as Record<string, string>)
 
+        const userId = yield* Effect.tryPromise({
+          try: async (): Promise<UserId> => {
+            const session = await auth.api.getSession({ headers: webHeaders })
             if (session?.user?.id) {
-              return session.user.id
+              return session.user.id as UserId
             }
 
-            const verified = await (auth.api as any).verifyApiKey({
-              body: { key: bearerToken(credential) },
-            })
-
-            const userId = verified.key?.userId ?? verified.key?.referenceId
-            if (!userId) {
-              throw new Error("Missing or invalid credentials.")
+            const bearer = extractBearer(request.headers as Record<string, string>)
+            if (!bearer) {
+              throw new Error("missing")
             }
-            return userId
+
+            const verified = await auth.api.verifyApiKey({ body: { key: bearer } })
+            if (!verified.valid || verified.error !== null || verified.key === null) {
+              throw new Error("invalid")
+            }
+            return verified.key.referenceId as UserId
           },
           catch: () => new Unauthorized({ message: "Missing or invalid credentials." }),
-        }).pipe(
-          Effect.flatMap((userId) =>
-            Effect.provideService(handler, CurrentUser, userId),
-          ),
-        ),
-    })
+        })
+
+        return yield* Effect.provideService(handler, CurrentUser, userId)
+      }),
+    )
   }),
 )
 
