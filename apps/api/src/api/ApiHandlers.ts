@@ -62,10 +62,11 @@ const capturesGroupLive = HttpApiBuilder.group(labelApi, "captures", (handlers) 
       const capture = yield* CaptureService
       const userId = yield* CurrentUser
       const result = yield* capture.capture(userId, payload.url).pipe(
-        Effect.catchTag("InvalidUrl", (error) =>
-          Effect.fail(new InvalidUrlError({ url: error.url })),
-        ),
-        Effect.orDie,
+        Effect.catchTags({
+          InvalidUrl: (error) => Effect.fail(new InvalidUrlError({ url: error.url })),
+          EffectDrizzleQueryError: Effect.die,
+          SqlError: Effect.die,
+        }),
       )
       const savedItem = savedItemToDto(result.savedItem)
       return result.captureResult === "created"

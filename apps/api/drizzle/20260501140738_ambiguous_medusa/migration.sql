@@ -9,17 +9,17 @@ CREATE TABLE "account" (
 	"access_token" text,
 	"refresh_token" text,
 	"id_token" text,
-	"access_token_expires_at" timestamp with time zone,
-	"refresh_token_expires_at" timestamp with time zone,
+	"access_token_expires_at" timestamp,
+	"refresh_token_expires_at" timestamp,
 	"scope" text,
 	"password" text,
-	"created_at" timestamp with time zone NOT NULL,
-	"updated_at" timestamp with time zone NOT NULL
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "apikey" (
 	"id" text PRIMARY KEY,
-	"config_id" text NOT NULL,
+	"config_id" text DEFAULT 'default' NOT NULL,
 	"name" text,
 	"start" text,
 	"reference_id" text NOT NULL,
@@ -27,17 +27,17 @@ CREATE TABLE "apikey" (
 	"key" text NOT NULL,
 	"refill_interval" integer,
 	"refill_amount" integer,
-	"last_refill_at" timestamp with time zone,
+	"last_refill_at" timestamp,
 	"enabled" boolean DEFAULT true,
 	"rate_limit_enabled" boolean DEFAULT true,
-	"rate_limit_time_window" integer,
-	"rate_limit_max" integer,
+	"rate_limit_time_window" integer DEFAULT 86400000,
+	"rate_limit_max" integer DEFAULT 10,
 	"request_count" integer DEFAULT 0,
 	"remaining" integer,
-	"last_request" timestamp with time zone,
-	"expires_at" timestamp with time zone,
-	"created_at" timestamp with time zone NOT NULL,
-	"updated_at" timestamp with time zone NOT NULL,
+	"last_request" timestamp,
+	"expires_at" timestamp,
+	"created_at" timestamp NOT NULL,
+	"updated_at" timestamp NOT NULL,
 	"permissions" text,
 	"metadata" text
 );
@@ -76,10 +76,10 @@ CREATE TABLE "saved_items" (
 --> statement-breakpoint
 CREATE TABLE "session" (
 	"id" text PRIMARY KEY,
-	"expires_at" timestamp with time zone NOT NULL,
-	"token" text NOT NULL,
-	"created_at" timestamp with time zone NOT NULL,
-	"updated_at" timestamp with time zone NOT NULL,
+	"expires_at" timestamp NOT NULL,
+	"token" text NOT NULL UNIQUE,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp NOT NULL,
 	"ip_address" text,
 	"user_agent" text,
 	"user_id" text NOT NULL
@@ -88,31 +88,29 @@ CREATE TABLE "session" (
 CREATE TABLE "user" (
 	"id" text PRIMARY KEY,
 	"name" text NOT NULL,
-	"email" text NOT NULL,
-	"email_verified" boolean NOT NULL,
+	"email" text NOT NULL UNIQUE,
+	"email_verified" boolean DEFAULT false NOT NULL,
 	"image" text,
-	"created_at" timestamp with time zone NOT NULL,
-	"updated_at" timestamp with time zone NOT NULL
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "verification" (
 	"id" text PRIMARY KEY,
 	"identifier" text NOT NULL,
 	"value" text NOT NULL,
-	"expires_at" timestamp with time zone NOT NULL,
-	"created_at" timestamp with time zone,
-	"updated_at" timestamp with time zone
+	"expires_at" timestamp NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX "account_user_id_idx" ON "account" ("user_id");--> statement-breakpoint
-CREATE INDEX "apikey_config_id_idx" ON "apikey" ("config_id");--> statement-breakpoint
-CREATE INDEX "apikey_reference_id_idx" ON "apikey" ("reference_id");--> statement-breakpoint
+CREATE INDEX "account_userId_idx" ON "account" ("user_id");--> statement-breakpoint
+CREATE INDEX "apikey_configId_idx" ON "apikey" ("config_id");--> statement-breakpoint
+CREATE INDEX "apikey_referenceId_idx" ON "apikey" ("reference_id");--> statement-breakpoint
 CREATE INDEX "apikey_key_idx" ON "apikey" ("key");--> statement-breakpoint
 CREATE UNIQUE INDEX "saved_items_user_normalized_url_unique" ON "saved_items" ("user_id","normalized_url");--> statement-breakpoint
 CREATE INDEX "saved_items_user_last_saved_at_idx" ON "saved_items" ("user_id","last_saved_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "session_token_unique" ON "session" ("token");--> statement-breakpoint
-CREATE INDEX "session_user_id_idx" ON "session" ("user_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "user_email_unique" ON "user" ("email");--> statement-breakpoint
+CREATE INDEX "session_userId_idx" ON "session" ("user_id");--> statement-breakpoint
 CREATE INDEX "verification_identifier_idx" ON "verification" ("identifier");--> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "enrichment_jobs" ADD CONSTRAINT "enrichment_jobs_saved_item_id_saved_items_id_fkey" FOREIGN KEY ("saved_item_id") REFERENCES "saved_items"("id") ON DELETE CASCADE;--> statement-breakpoint
