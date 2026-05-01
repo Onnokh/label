@@ -41,6 +41,14 @@ services:
     environment:
       PORT: 3002
       DATABASE_URL: postgres://label:${POSTGRES_PASSWORD:-label}@postgres:5432/label
+      # Standard libpq env so any pg client constructed without a connection
+      # string (e.g. inside better-auth or other deps) still hits Postgres
+      # instead of falling back to localhost.
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: label
+      PGPASSWORD: ${POSTGRES_PASSWORD:-label}
+      PGDATABASE: label
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       BETTER_AUTH_URL: ${SERVICE_URL_API:-http://localhost:3002}
       BETTER_AUTH_TRUSTED_ORIGINS: ${SERVICE_URL_WEB:-http://localhost:8080}
