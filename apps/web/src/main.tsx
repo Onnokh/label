@@ -7,7 +7,8 @@ import {
   createRouter,
   redirect,
 } from "@tanstack/react-router"
-import { StrictMode, useState } from "react"
+import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { StrictMode, type FormEvent, useState } from "react"
 import { createRoot } from "react-dom/client"
 
 import { getSession, signInWithGoogle, signOut, type AuthSession } from "./auth"
@@ -16,6 +17,32 @@ import "./styles.css"
 type RouterContext = {
   readonly session: AuthSession | null
 }
+
+type SavedItem = {
+  readonly id: string
+  readonly originalUrl: string
+  readonly host: string
+  readonly title?: string
+  readonly description?: string
+  readonly siteName?: string
+  readonly previewSummary?: string
+  readonly enrichmentStatus: "pending" | "enriched" | "failed"
+  readonly isRead: boolean
+  readonly lastSavedAt: string
+}
+
+type SavedItemsResponse = {
+  readonly savedItems: SavedItem[]
+}
+
+type CaptureResponse = {
+  readonly savedItem: SavedItem
+  readonly captureResult: "created" | "updated"
+}
+
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4001"
+
+const queryClient = new QueryClient()
 
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: RootLayout,
@@ -51,6 +78,23 @@ declare module "@tanstack/react-router" {
   interface Register {
     router: typeof router
   }
+}
+
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    credentials: "include",
+    ...init,
+    headers: {
+      "content-type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(await response.text())
+  }
+
+  return response.json() as Promise<T>
 }
 
 function RootLayout() {
@@ -95,23 +139,23 @@ function HomePage() {
   }
 
   return (
-    <section className="panel">
-      <p className="eyebrow">Auth smoke test</p>
-      <h1>Sign in to Label</h1>
+    <section className="panel heroPanel">
+      <p className="eyebrow">Web companion</p>
+      <h1>Sign in and save a URL fast</h1>
+      <p className="lede">
+        A tiny capture surface for pasting a link, saving it, and seeing the newest items right away.
+      </p>
       {session ? (
-        <>
-          <p className="lede">Signed in as {session.user.email}.</p>
+        <div className="heroActions">
           <Link to="/dashboard" className="primaryLink">
-            Open dashboard
+            Open ingest
           </Link>
-        </>
+          <p className="meta">Signed in as {session.user.email}</p>
+        </div>
       ) : (
-        <>
-          <p className="lede">Use Google OAuth through the Better Auth API.</p>
-          <button type="button" className="primaryButton" disabled={isSigningIn} onClick={() => void startSignIn()}>
-            {isSigningIn ? "Opening Google..." : "Sign in with Google"}
-          </button>
-        </>
+        <button type="button" className="primaryButton" disabled={isSigningIn} onClick={() => void startSignIn()}>
+          {isSigningIn ? "Opening Google..." : "Sign in with Google"}
+        </button>
       )}
       {error ? <pre className="error">{error}</pre> : null}
     </section>
@@ -120,25 +164,113 @@ function HomePage() {
 
 function DashboardPage() {
   const session = dashboardRoute.useRouteContext().session
+  const queryClient = useQueryClient()
+  const [url, setUrl] = useState("")
+  const [formError, setFormError] = useState<string | null>(null)
+
+  const savedItemsQuery = useQuery({
+    queryKey: ["saved-items"],
+    queryFn: () => apiFetch<SavedItemsResponse>("/v1/saved-items"),
+    enabled: Boolean(session),
+    staleTime: 30_000,
+  })
+
+  const captureMutation = useMutation({
+    mutationFn: (inputUrl: string) =>
+      apiFetch<CaptureResponse>("/v1/captures", {
+        method: "POST",
+        body: JSON.stringify({ url: inputUrl }),
+      }),
+    onSuccess: async () => {
+      setUrl("")
+      setFormError(null)
+      await queryClient.invalidateQueries({ queryKey: ["saved-items"] })
+    },
+    onError: (cause) => {
+      setFormError(cause instanceof Error ? cause.message : "Capture failed.")
+    },
+  })
+
+  const submitCapture = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const trimmed = url.trim()
+
+    if (!trimmed) {
+      setFormError("Paste a URL first.")
+      return
+    }
+
+    setFormError(null)
+    captureMutation.mutate(trimmed)
+  }
 
   return (
-    <section className="panel">
-      <p className="eyebrow">Protected route</p>
-      <h1>Dashboard</h1>
-      <dl className="sessionList">
-        <div>
-          <dt>User ID</dt>
-          <dd>{session?.user.id}</dd>
+    <section className="dashboardGrid">
+      <article className="panel ingestPanel">
+        <p className="eyebrow">Manual ingest</p>
+        <h1>Save a URL</h1>
+        <form className="ingestForm" onSubmit={submitCapture}>
+          <label className="fieldLabel" htmlFor="capture-url">
+            URL
+          </label>
+          <div className="formRow">
+            <input
+              id="capture-url"
+              className="textInput"
+              type="url"
+              inputMode="url"
+              placeholder="https://example.com/story"
+              value={url}
+              onChange={(event) => setUrl(event.target.value)}
+            />
+            <button type="submit" className="primaryButton" disabled={captureMutation.isPending}>
+              {captureMutation.isPending ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </form>
+        <p className="lede subtle">
+          Drop in any link, hit save, and the newest saved items list refreshes immediately.
+        </p>
+        {formError ? <pre className="error">{formError}</pre> : null}
+      </article>
+
+      <article className="panel listPanel">
+        <div className="listHeader">
+          <div>
+            <p className="eyebrow">Saved items</p>
+            <h2>Newest first</h2>
+          </div>
+          <span className="countBadge">
+            {savedItemsQuery.data?.savedItems.length ?? 0} items
+          </span>
         </div>
-        <div>
-          <dt>Email</dt>
-          <dd>{session?.user.email}</dd>
-        </div>
-        <div>
-          <dt>Session expires</dt>
-          <dd>{session ? new Date(session.session.expiresAt).toLocaleString() : ""}</dd>
-        </div>
-      </dl>
+
+        {savedItemsQuery.isLoading ? <p className="lede">Loading saved items...</p> : null}
+        {savedItemsQuery.isError ? <p className="lede">Could not load saved items.</p> : null}
+
+        <ul className="savedList">
+          {savedItemsQuery.data?.savedItems.map((item) => (
+            <li key={item.id} className="savedItem">
+              <div className="savedItemTop">
+                <div>
+                  <h3>{item.title ?? item.host}</h3>
+                  <p className="itemUrl">{item.originalUrl}</p>
+                </div>
+                <span className={`status ${item.enrichmentStatus}`}>{item.enrichmentStatus}</span>
+              </div>
+              {item.description ? <p className="itemDescription">{item.description}</p> : null}
+              <div className="itemMeta">
+                <span>{item.host}</span>
+                <span>{item.isRead ? "Read" : "Unread"}</span>
+                <span>{new Date(item.lastSavedAt).toLocaleString()}</span>
+              </div>
+            </li>
+          ))}
+          {!savedItemsQuery.isLoading && !savedItemsQuery.data?.savedItems.length ? (
+            <li className="emptyState">No saved items yet. Try the form above.</li>
+          ) : null}
+        </ul>
+      </article>
     </section>
   )
 }
@@ -147,6 +279,8 @@ const session = await getSession()
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <RouterProvider router={router} context={{ session }} />
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} context={{ session }} />
+    </QueryClientProvider>
   </StrictMode>,
 )

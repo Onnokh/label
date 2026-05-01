@@ -86,7 +86,7 @@ export class AppConfig extends Context.Service<AppConfig, AppConfigShape>()(
         Config.withDefault("http://localhost:4001"),
       );
       const trustedOrigins = yield* Config.string("BETTER_AUTH_TRUSTED_ORIGINS").pipe(
-        Config.withDefault("https://web.label.localhost"),
+        Config.withDefault("http://localhost:4000,http://127.0.0.1:4000,https://web.label.localhost"),
       );
 
       return {

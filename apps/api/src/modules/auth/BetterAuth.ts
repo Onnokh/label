@@ -2,10 +2,10 @@ import { apiKey } from "@better-auth/api-key"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { betterAuth } from "better-auth"
 import { bearer } from "better-auth/plugins"
+import { drizzle } from "drizzle-orm/node-postgres"
 import { Context, Effect, Layer } from "effect"
 
 import { AppConfig } from "../../runtime/Config.js"
-import { PostgresClient } from "../persistence/PostgresClient.js"
 import { schema } from "../persistence/schema.js"
 
 export class BetterAuth extends Context.Service<BetterAuth>()(
@@ -13,7 +13,7 @@ export class BetterAuth extends Context.Service<BetterAuth>()(
   {
     make: Effect.gen(function* () {
       const config = yield* AppConfig
-      const { db } = yield* PostgresClient
+      const db = drizzle(config.database.url)
 
       const auth = betterAuth({
         database: drizzleAdapter(db, {

@@ -17,15 +17,19 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4001"
 const webBaseUrl = import.meta.env.VITE_WEB_BASE_URL ?? "http://localhost:4000"
 
 export const getSession = async (): Promise<AuthSession | null> => {
-  const response = await fetch(`${apiBaseUrl}/api/auth/get-session`, {
-    credentials: "include",
-  })
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/auth/get-session`, {
+      credentials: "include",
+    })
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return null
+    }
+
+    return response.json() as Promise<AuthSession | null>
+  } catch {
     return null
   }
-
-  return response.json() as Promise<AuthSession | null>
 }
 
 export const signInWithGoogle = async () => {

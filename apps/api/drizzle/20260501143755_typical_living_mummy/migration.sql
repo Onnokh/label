@@ -1,6 +1,18 @@
-CREATE TYPE "enrichment_job_status" AS ENUM('queued', 'running', 'succeeded', 'partial', 'failed');--> statement-breakpoint
-CREATE TYPE "enrichment_status" AS ENUM('pending', 'enriched', 'failed');--> statement-breakpoint
-CREATE TYPE "generated_type" AS ENUM('article', 'video', 'website', 'repository', 'unknown');--> statement-breakpoint
+DO $$ BEGIN
+ CREATE TYPE "enrichment_job_status" AS ENUM('queued', 'running', 'succeeded', 'partial', 'failed');
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+ CREATE TYPE "enrichment_status" AS ENUM('pending', 'enriched', 'failed');
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+ CREATE TYPE "generated_type" AS ENUM('article', 'video', 'website', 'repository', 'unknown');
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
 CREATE TABLE "account" (
 	"id" text PRIMARY KEY,
 	"account_id" text NOT NULL,
