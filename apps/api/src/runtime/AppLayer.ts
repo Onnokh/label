@@ -22,9 +22,9 @@ export const appLayer = Layer.mergeAll(
 ).pipe(
   Layer.provideMerge(BetterAuth.layer),
   Layer.provideMerge(SavedItemIntake.layer),
+  Layer.provideMerge(OEmbedFetcher.layer),
   Layer.provideMerge(PageFetcher.layer),
   Layer.provideMerge(MetadataFetcher.layer),
-  Layer.provideMerge(OEmbedFetcher.layer),
   Layer.provideMerge(ContentExtractor.layer),
   Layer.provideMerge(AiEnricher.layer),
   Layer.provideMerge(PostgresClient.layer),

@@ -155,6 +155,7 @@ export class PageFetcher extends Context.Service<PageFetcher>()(
       const config = yield* AppConfig
 
       return {
+        fetchWithBrowser: (url: string) => fetchViaBrowser(url, config.fetch),
         fetch: (url: string) =>
           Effect.gen(function* () {
             const httpResult = yield* Effect.all([fetchViaHttp(url, config.fetch)], {
