@@ -21,15 +21,23 @@ const extractTweetTitle = (json: OEmbedResponse): string | undefined => {
   if (!html) return undefined
   const match = html.match(/<p[^>]*>([\s\S]*?)<\/p>/i)
   if (!match?.[1]) return undefined
-  return match[1]
+  const text = match[1]
+    .replace(/<a\b[^>]*>https?:\/\/t\.co\/[^\s<]*<\/a>/gi, "") // strip t.co link elements
     .replace(/<[^>]+>/g, " ")
+    .replace(/https?:\/\/\S+/g, "") // strip any remaining bare URLs
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/\s+/g, " ")
-    .trim() || undefined
+    .trim()
+
+  if (text) return text
+
+  // Tweet was just a link — fall back to author attribution
+  const authorName = typeof json.author_name === "string" ? json.author_name.trim() : undefined
+  return authorName ? `Post by ${authorName}` : undefined
 }
 
 const PROVIDERS: ReadonlyArray<Provider> = [
