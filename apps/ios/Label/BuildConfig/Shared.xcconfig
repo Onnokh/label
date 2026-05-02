@@ -2,7 +2,7 @@ DEVELOPMENT_TEAM =
 GOOGLE_CLIENT_ID_IOS = REPLACE_WITH_IOS_CLIENT_ID
 GOOGLE_REVERSED_CLIENT_ID_IOS = REPLACE_WITH_IOS_REVERSED_CLIENT_ID
 GOOGLE_SERVER_CLIENT_ID = REPLACE_WITH_WEB_CLIENT_ID
-LABEL_API_BASE_URL = https://api-label.example.com
+LABEL_API_BASE_URL = https:/$()/api-label.example.com
 
 // Local overrides live in BuildConfig/Local.xcconfig, which is gitignored.
 // Use that file for real team ids, client ids, and environment-specific API hosts.

@@ -40,7 +40,7 @@ final class AuthStore: ObservableObject {
             try? keychain.delete(account: tokenAccount)
             sharedDefaults?.removeObject(forKey: AppConfig.sharedAuthTokenKey)
             session = nil
-            errorMessage = error.localizedDescription
+            errorMessage = AppConfig.userFacingNetworkMessage(for: error) ?? error.localizedDescription
         }
     }
 
@@ -58,7 +58,7 @@ final class AuthStore: ObservableObject {
             sharedDefaults?.set(session.token, forKey: AppConfig.sharedAuthTokenKey)
             self.session = session
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = AppConfig.userFacingNetworkMessage(for: error) ?? error.localizedDescription
         }
     }
 

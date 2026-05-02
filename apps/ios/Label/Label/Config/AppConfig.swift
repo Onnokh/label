@@ -45,4 +45,25 @@ enum AppConfig {
         components.path = path
         return components.url!
     }
+
+    static func userFacingNetworkMessage(for error: Error) -> String? {
+        guard let urlError = error as? URLError else {
+            return nil
+        }
+
+        switch urlError.code {
+        case .cannotFindHost, .dnsLookupFailed:
+            return """
+            The Label API host could not be resolved: \(apiBaseURL.absoluteString). \
+            Check LABEL_API_BASE_URL in apps/ios/Label/BuildConfig/Local.xcconfig and make sure the hostname exists in DNS.
+            """
+        case .cannotConnectToHost:
+            return """
+            The Label API host is configured but could not be reached: \(apiBaseURL.absoluteString). \
+            Check whether the API is running and whether you need VPN or local networking access.
+            """
+        default:
+            return nil
+        }
+    }
 }

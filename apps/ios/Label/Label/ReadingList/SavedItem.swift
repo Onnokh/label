@@ -9,6 +9,9 @@ struct SavedItem: Decodable, Identifiable, Equatable {
     let title: String?
     let description: String?
     let siteName: String?
+    let faviconURL: String?
+    let faviconLightURL: String?
+    let faviconDarkURL: String?
     let imageURL: String?
     let canonicalURL: String?
     let previewSummary: String?
@@ -29,6 +32,9 @@ struct SavedItem: Decodable, Identifiable, Equatable {
         case title
         case description
         case siteName
+        case faviconURL = "faviconUrl"
+        case faviconLightURL = "faviconLightUrl"
+        case faviconDarkURL = "faviconDarkUrl"
         case imageURL = "imageUrl"
         case canonicalURL = "canonicalUrl"
         case previewSummary

@@ -313,6 +313,9 @@ const applyMetadata = (
     title: metadata.title,
     description: metadata.description,
     siteName: metadata.siteName,
+    faviconUrl: metadata.faviconUrl,
+    faviconLightUrl: metadata.faviconLightUrl,
+    faviconDarkUrl: metadata.faviconDarkUrl,
     imageUrl: metadata.imageUrl,
     canonicalUrl: metadata.canonicalUrl,
   })

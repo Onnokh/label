@@ -55,7 +55,7 @@ final class ReadingListStore: ObservableObject {
                 UIApplication.shared.open(url)
             }
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = AppConfig.userFacingNetworkMessage(for: error) ?? error.localizedDescription
         }
     }
 
@@ -64,7 +64,7 @@ final class ReadingListStore: ObservableObject {
             try await requestNoContent(path: "/v1/saved-items/\(item.id)", method: "DELETE")
             savedItems.removeAll { $0.id == item.id }
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = AppConfig.userFacingNetworkMessage(for: error) ?? error.localizedDescription
         }
     }
 
@@ -77,7 +77,7 @@ final class ReadingListStore: ObservableObject {
             savedItems = response.savedItems
             errorMessage = nil
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = AppConfig.userFacingNetworkMessage(for: error) ?? error.localizedDescription
         }
     }
 

@@ -2,4 +2,4 @@ DEVELOPMENT_TEAM = YOUR_TEAM_ID
 GOOGLE_CLIENT_ID_IOS = YOUR_IOS_CLIENT_ID.apps.googleusercontent.com
 GOOGLE_REVERSED_CLIENT_ID_IOS = com.googleusercontent.apps.YOUR_IOS_CLIENT_ID
 GOOGLE_SERVER_CLIENT_ID = YOUR_WEB_CLIENT_ID.apps.googleusercontent.com
-LABEL_API_BASE_URL = https://api-label.example.com
+LABEL_API_BASE_URL = https:/$()/api-label.example.com

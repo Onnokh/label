@@ -32,7 +32,7 @@ struct ContentView: View {
                 Text("Save now, read later.")
                     .font(.largeTitle.bold())
 
-                Text("Sign in with Google to start syncing your reading queue with the Label API.")
+                Text("Sign in with Google to sync the links you save in Label.")
                     .foregroundStyle(.secondary)
 
                 Button {
