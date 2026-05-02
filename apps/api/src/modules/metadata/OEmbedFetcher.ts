@@ -1,7 +1,6 @@
 import { Context, Data, Effect, Layer, Option, Result } from "effect"
 
-import { PageFetcher } from "../fetch/PageFetcher.js"
-import { Metadata, MetadataFetcher } from "./MetadataFetcher.js"
+import { Metadata } from "./MetadataFetcher.js"
 
 type OEmbedResponse = {
   title?: unknown
@@ -56,9 +55,6 @@ const extractTweetText = (html: string): string | undefined => {
     .trim() || undefined
 }
 
-const extractFirstTcoUrl = (html: string): string | undefined =>
-  html.match(/<a\b[^>]+href="(https?:\/\/t\.co\/[^\s"]+)"/i)?.[1]
-
 class OEmbedFetcherError extends Data.TaggedError("OEmbedFetcherError")<{
   readonly cause: unknown
 }> {}
@@ -67,37 +63,6 @@ export class OEmbedFetcher extends Context.Service<OEmbedFetcher>()(
   "@app/modules/metadata/OEmbedFetcher",
   {
     make: Effect.gen(function* () {
-      const pageFetcher = yield* PageFetcher
-      const metadataFetcher = yield* MetadataFetcher
-
-      const fetchTitleFromUrl = (url: string): Effect.Effect<string | undefined, never> =>
-        Effect.gen(function* () {
-          const pageResult = yield* Effect.all(
-            [pageFetcher.fetchWithBrowser(url, {
-              // Wait until og:title is populated — handles JS-rendered SPAs like X.com
-              waitForFn: "!!document.querySelector('meta[property=\"og:title\"]')?.getAttribute('content')",
-            })],
-            { mode: "result" },
-          ).pipe(Effect.map(([r]) => r))
-
-          if (Result.isFailure(pageResult)) return undefined
-
-          const pageOption = pageResult.success
-          if (Option.isNone(pageOption)) return undefined
-
-          const metadataResult = yield* Effect.all(
-            [metadataFetcher.parse(pageOption.value)],
-            { mode: "result" },
-          ).pipe(Effect.map(([r]) => r))
-
-          if (Result.isFailure(metadataResult)) return undefined
-
-          const metadataOption = metadataResult.success
-          if (Option.isNone(metadataOption)) return undefined
-
-          return metadataOption.value.title || undefined
-        })
-
       const resolveTweetTitle = (
         json: OEmbedResponse,
       ): Effect.Effect<string | undefined, never> =>
@@ -107,12 +72,6 @@ export class OEmbedFetcher extends Context.Service<OEmbedFetcher>()(
 
           const text = extractTweetText(html)
           if (text) return text
-
-          const tcoUrl = extractFirstTcoUrl(html)
-          if (tcoUrl) {
-            const linked = yield* fetchTitleFromUrl(tcoUrl)
-            if (linked) return linked
-          }
 
           const authorName = typeof json.author_name === "string" ? json.author_name.trim() : undefined
           return authorName ? `Post by ${authorName}` : undefined
