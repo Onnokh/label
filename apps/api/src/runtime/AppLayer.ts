@@ -10,6 +10,7 @@ import { ContentExtractor } from "../modules/content/ContentExtractor.js";
 import { EnrichmentWorkflow } from "../modules/enrichment/EnrichmentWorkflow.js";
 import { PageFetcher } from "../modules/fetch/PageFetcher.js";
 import { MetadataFetcher } from "../modules/metadata/MetadataFetcher.js";
+import { OEmbedFetcher } from "../modules/metadata/OEmbedFetcher.js";
 import { PostgresClient } from "../modules/persistence/PostgresClient.js";
 import { AppConfig } from "./Config.js";
 
@@ -23,6 +24,7 @@ export const appLayer = Layer.mergeAll(
   Layer.provideMerge(SavedItemIntake.layer),
   Layer.provideMerge(PageFetcher.layer),
   Layer.provideMerge(MetadataFetcher.layer),
+  Layer.provideMerge(OEmbedFetcher.layer),
   Layer.provideMerge(ContentExtractor.layer),
   Layer.provideMerge(AiEnricher.layer),
   Layer.provideMerge(PostgresClient.layer),

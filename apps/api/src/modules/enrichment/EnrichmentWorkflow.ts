@@ -13,6 +13,7 @@ import {
 } from "../content/ContentExtractor.js"
 import { PageFetcher } from "../fetch/PageFetcher.js"
 import { Metadata, MetadataFetcher } from "../metadata/MetadataFetcher.js"
+import { OEmbedFetcher } from "../metadata/OEmbedFetcher.js"
 
 export type EnrichmentWorkflowResult = {
   readonly savedItem: SavedItem
@@ -34,6 +35,7 @@ export class EnrichmentWorkflow extends Context.Service<EnrichmentWorkflow>()(
   {
     make: Effect.gen(function* () {
       const metadataFetcher = yield* MetadataFetcher
+      const oEmbedFetcher = yield* OEmbedFetcher
       const contentExtractor = yield* ContentExtractor
       const aiEnricher = yield* AiEnricher
       const pageFetcher = yield* PageFetcher
@@ -59,34 +61,41 @@ export class EnrichmentWorkflow extends Context.Service<EnrichmentWorkflow>()(
             const stages: Array<EnrichmentStageResult> = []
 
             {
+              const oEmbedResult = yield* oEmbedFetcher.fetch(savedItem.originalUrl)
+
               const result = yield* runStage(
                 "metadata",
-                pageResultToOption(pageResult).pipe(
-                  Effect.flatMap(
-                    Option.match({
-                      onNone: () =>
-                        Effect.succeed<StageResult<Metadata>>({
-                          _tag: "skip",
-                          message: "Fetched page was not HTML.",
-                        }),
-                      onSome: (page) =>
-                        metadataFetcher.parse(page).pipe(
-                          Effect.map((metadataOption) =>
-                            Option.match(metadataOption, {
-                              onNone: (): StageResult<Metadata> => ({
-                                _tag: "skip",
-                                message: "No useful metadata found.",
-                              }),
-                              onSome: (value): StageResult<Metadata> => ({
-                                _tag: "success",
-                                value,
-                              }),
+                Option.isSome(oEmbedResult)
+                  ? Effect.succeed<StageResult<Metadata>>({
+                      _tag: "success",
+                      value: oEmbedResult.value,
+                    })
+                  : pageResultToOption(pageResult).pipe(
+                      Effect.flatMap(
+                        Option.match({
+                          onNone: () =>
+                            Effect.succeed<StageResult<Metadata>>({
+                              _tag: "skip",
+                              message: "Fetched page was not HTML.",
                             }),
-                          ),
-                        ),
-                    }),
-                  ),
-                ),
+                          onSome: (page) =>
+                            metadataFetcher.parse(page).pipe(
+                              Effect.map((metadataOption) =>
+                                Option.match(metadataOption, {
+                                  onNone: (): StageResult<Metadata> => ({
+                                    _tag: "skip",
+                                    message: "No useful metadata found.",
+                                  }),
+                                  onSome: (value): StageResult<Metadata> => ({
+                                    _tag: "success",
+                                    value,
+                                  }),
+                                }),
+                              ),
+                            ),
+                        }),
+                      ),
+                    ),
                 stages,
               )
 
