@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient
 import { StrictMode, type FormEvent, useState } from "react"
 import { createRoot } from "react-dom/client"
 
+import { createApiKey, deleteApiKey, listApiKeys, type ApiKeyRecord } from "./apiKeys"
 import { getSession, signInWithGoogle, signOut, type AuthSession } from "./auth"
 import { SavedCard } from "./SavedCard"
 import "./styles.css"
@@ -242,6 +243,8 @@ function ReadingList() {
       </form>
       {formError ? <pre className="error">{formError}</pre> : null}
 
+      <ApiKeysPanel />
+
       {savedItemsQuery.isLoading ? <div className="message">Loading...</div> : null}
       {savedItemsQuery.isError ? (
         <div className="message errorMessage">Could not load saved items.</div>
@@ -262,6 +265,175 @@ function ReadingList() {
       ) : null}
     </section>
   )
+}
+
+function ApiKeysPanel() {
+  const queryClient = useQueryClient()
+  const [name, setName] = useState("")
+  const [revealedKey, setRevealedKey] = useState<string | null>(null)
+  const [panelError, setPanelError] = useState<string | null>(null)
+  const [copiedState, setCopiedState] = useState<"idle" | "done">("idle")
+
+  const apiKeysQuery = useQuery({
+    queryKey: ["api-keys"],
+    queryFn: listApiKeys,
+    staleTime: 30_000,
+  })
+
+  const createMutation = useMutation({
+    mutationFn: (nextName: string) => createApiKey(nextName),
+    onSuccess: async ({ key }) => {
+      setRevealedKey(key)
+      setName("")
+      setPanelError(null)
+      setCopiedState("idle")
+      await queryClient.invalidateQueries({ queryKey: ["api-keys"] })
+    },
+    onError: (cause) => {
+      setPanelError(cause instanceof Error ? cause.message : "Could not create API key.")
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (keyId: string) => deleteApiKey(keyId),
+    onSuccess: async () => {
+      setPanelError(null)
+      await queryClient.invalidateQueries({ queryKey: ["api-keys"] })
+    },
+    onError: (cause) => {
+      setPanelError(cause instanceof Error ? cause.message : "Could not revoke API key.")
+    },
+  })
+
+  const apiKeys = apiKeysQuery.data ?? []
+
+  const submitCreate = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setPanelError(null)
+    createMutation.mutate(name)
+  }
+
+  const copyKey = async () => {
+    if (!revealedKey) {
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(revealedKey)
+      setCopiedState("done")
+    } catch {
+      setPanelError("Could not copy the API key.")
+    }
+  }
+
+  return (
+    <section className="settingsCard">
+      <div className="settingsHeader">
+        <div>
+          <p className="eyebrow">API keys</p>
+          <h2 className="settingsTitle">External access</h2>
+        </div>
+        <span className="meta">{apiKeys.length} keys</span>
+      </div>
+      <p className="subtitle settingsSubtitle">
+        Create API keys for external systems that need to capture URLs, view saved items, and update read state.
+      </p>
+
+      <form className="form" onSubmit={submitCreate}>
+        <input
+          className="input"
+          type="text"
+          placeholder="Personal automation"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+        <button type="submit" className="primaryButton" disabled={createMutation.isPending}>
+          {createMutation.isPending ? "Creating..." : "Create API key"}
+        </button>
+      </form>
+
+      {revealedKey ? (
+        <div className="secretCard">
+          <div className="secretHeader">
+            <strong>New API key</strong>
+            <button type="button" className="ghostButton" onClick={() => void copyKey()}>
+              {copiedState === "done" ? "Copied" : "Copy"}
+            </button>
+          </div>
+          <p className="meta">This key is only shown once.</p>
+          <pre className="secretValue">{revealedKey}</pre>
+        </div>
+      ) : null}
+
+      {apiKeysQuery.isLoading ? <div className="message">Loading API keys...</div> : null}
+      {apiKeysQuery.isError ? <div className="message errorMessage">Could not load API keys.</div> : null}
+
+      {!apiKeysQuery.isLoading && !apiKeysQuery.isError ? (
+        apiKeys.length === 0 ? (
+          <div className="message settingsEmpty">No API keys yet.</div>
+        ) : (
+          <ul className="settingsList">
+            {apiKeys.map((apiKey) => (
+              <li key={apiKey.id} className="settingsListItem">
+                <ApiKeyRow
+                  apiKey={apiKey}
+                  isDeleting={deleteMutation.isPending && deleteMutation.variables === apiKey.id}
+                  onDelete={() => deleteMutation.mutate(apiKey.id)}
+                />
+              </li>
+            ))}
+          </ul>
+        )
+      ) : null}
+
+      {panelError ? <pre className="error">{panelError}</pre> : null}
+    </section>
+  )
+}
+
+function ApiKeyRow({
+  apiKey,
+  isDeleting,
+  onDelete,
+}: {
+  readonly apiKey: ApiKeyRecord
+  readonly isDeleting: boolean
+  readonly onDelete: () => void
+}) {
+  const label = apiKey.name?.trim() || apiKey.start || apiKey.prefix || "Unnamed key"
+  const createdAt = formatTimestamp(apiKey.createdAt)
+  const lastUsedAt = formatTimestamp(apiKey.lastRequest)
+
+  return (
+    <div className="settingsRow">
+      <div className="settingsRowBody">
+        <div className="settingsRowTitle">{label}</div>
+        <div className="settingsRowMeta">
+          {createdAt ? `Created ${createdAt}` : "Created recently"}
+          {lastUsedAt ? ` · Last used ${lastUsedAt}` : ""}
+        </div>
+      </div>
+      <button type="button" className="ghostButton" disabled={isDeleting} onClick={onDelete}>
+        {isDeleting ? "Revoking..." : "Revoke"}
+      </button>
+    </div>
+  )
+}
+
+function formatTimestamp(value: string | Date | null | undefined) {
+  if (!value) {
+    return null
+  }
+
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date)
 }
 
 const session = await getSession()

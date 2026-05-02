@@ -441,6 +441,105 @@ button, a, input { font: inherit; }
   font-size: 0.8125rem;
 }
 
+.settingsCard {
+  margin-bottom: 2rem;
+  padding: 1.25rem;
+  border: 1px solid #262626;
+  border-radius: 1rem;
+  background: rgba(23, 23, 23, 0.5);
+}
+
+.settingsHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.settingsTitle {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+}
+
+.settingsSubtitle {
+  margin-bottom: 1rem;
+}
+
+.settingsList {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.settingsListItem {
+  margin: 0;
+}
+
+.settingsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #262626;
+  border-radius: 0.85rem;
+  background: rgba(10, 10, 10, 0.55);
+}
+
+.settingsRowBody {
+  min-width: 0;
+}
+
+.settingsRowTitle {
+  color: #f5f5f5;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.settingsRowMeta {
+  margin-top: 0.2rem;
+  color: #a3a3a3;
+  font-size: 0.8125rem;
+}
+
+.settingsEmpty {
+  padding: 1rem 0 0;
+}
+
+.secretCard {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #1d4ed8;
+  border-radius: 0.85rem;
+  background: rgba(29, 78, 216, 0.12);
+}
+
+.secretHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.4rem;
+}
+
+.secretValue {
+  margin: 0.75rem 0 0;
+  padding: 0.85rem;
+  border-radius: 0.65rem;
+  background: rgba(10, 10, 10, 0.75);
+  border: 1px solid #1f2937;
+  color: #dbeafe;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 0.8125rem;
+}
+
 .signInCard {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -492,4 +591,10 @@ button, a, input { font: inherit; }
 @media (max-width: 640px) {
   .page { padding: 1.25rem; }
   .form { flex-direction: column; }
+  .settingsHeader,
+  .settingsRow,
+  .secretHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
