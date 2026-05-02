@@ -18,7 +18,7 @@ RUN mkdir -p /ms-playwright \
     && chown -R bun:bun /ms-playwright
 
 USER bun
-RUN bunx playwright install chromium
+RUN bunx playwright install --only-shell chromium
 
 COPY --chown=bun:bun apps/api ./
 EXPOSE 3002
