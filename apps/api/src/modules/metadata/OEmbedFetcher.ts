@@ -13,29 +13,68 @@ type OEmbedResponse = {
 type Provider = {
   readonly pattern: RegExp
   readonly endpoint: string
-  readonly parseTitle?: (json: OEmbedResponse) => string | undefined
+  readonly fetchTitle?: (json: OEmbedResponse) => Promise<string | undefined>
 }
 
-const extractTweetTitle = (json: OEmbedResponse): string | undefined => {
-  const html = typeof json.html === "string" ? json.html : undefined
-  if (!html) return undefined
+const extractTweetText = (html: string): string | undefined => {
   const match = html.match(/<p[^>]*>([\s\S]*?)<\/p>/i)
   if (!match?.[1]) return undefined
-  const text = match[1]
-    .replace(/<a\b[^>]*>https?:\/\/t\.co\/[^\s<]*<\/a>/gi, "") // strip t.co link elements
+  return match[1]
+    .replace(/<a\b[^>]*>https?:\/\/t\.co\/[^\s<]*<\/a>/gi, "")
     .replace(/<[^>]+>/g, " ")
-    .replace(/https?:\/\/\S+/g, "") // strip any remaining bare URLs
+    .replace(/https?:\/\/\S+/g, "")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/\s+/g, " ")
-    .trim()
+    .trim() || undefined
+}
 
+const extractFirstTcoUrl = (html: string): string | undefined =>
+  html.match(/<a\b[^>]+href="(https?:\/\/t\.co\/[^\s"]+)"/i)?.[1]
+
+const JS_REQUIRED_HOSTS = new Set(["x.com", "twitter.com", "instagram.com"])
+
+const fetchLinkedTitle = async (url: string): Promise<string | undefined> => {
+  try {
+    const response = await fetch(url, {
+      redirect: "follow",
+      headers: {
+        accept: "text/html",
+        "user-agent": "Mozilla/5.0 (compatible; bot/1.0)",
+      },
+    })
+    if (!response.ok) return undefined
+    // Skip hosts that require JS — plain HTML won't have a meaningful title
+    const finalHost = new URL(response.url).hostname.replace(/^www\./, "")
+    if (JS_REQUIRED_HOSTS.has(finalHost)) return undefined
+    const html = await response.text()
+    return (
+      html.match(/<meta\b[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)?.[1]
+      ?? html.match(/<meta\b[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i)?.[1]
+      ?? html.match(/<title\b[^>]*>([^<]+)<\/title>/i)?.[1]
+    )?.replace(/\s+/g, " ").trim() || undefined
+  } catch {
+    return undefined
+  }
+}
+
+const fetchTweetTitle = async (json: OEmbedResponse): Promise<string | undefined> => {
+  const html = typeof json.html === "string" ? json.html : undefined
+  if (!html) return undefined
+
+  const text = extractTweetText(html)
   if (text) return text
 
-  // Tweet was just a link — fall back to author attribution
+  // Tweet is a shared link — follow the t.co URL to get the linked page title
+  const tcoUrl = extractFirstTcoUrl(html)
+  if (tcoUrl) {
+    const linkedTitle = await fetchLinkedTitle(tcoUrl)
+    if (linkedTitle) return linkedTitle
+  }
+
   const authorName = typeof json.author_name === "string" ? json.author_name.trim() : undefined
   return authorName ? `Post by ${authorName}` : undefined
 }
@@ -52,7 +91,7 @@ const PROVIDERS: ReadonlyArray<Provider> = [
   {
     pattern: /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/\w+\/status\//,
     endpoint: "https://publish.twitter.com/oembed",
-    parseTitle: extractTweetTitle,
+    fetchTitle: fetchTweetTitle,
   },
 ]
 
@@ -92,8 +131,8 @@ export class OEmbedFetcher extends Context.Service<OEmbedFetcher>()(
 
             const json = await response.json() as OEmbedResponse
 
-            const title = provider.parseTitle
-              ? provider.parseTitle(json)
+            const title = provider.fetchTitle
+              ? await provider.fetchTitle(json)
               : typeof json.title === "string" ? json.title.trim() : undefined
 
             if (!title) {
