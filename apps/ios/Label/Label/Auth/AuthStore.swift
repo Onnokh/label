@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 final class AuthStore: ObservableObject {
     @Published private(set) var session: AppSession?
+    @Published private(set) var googleUserProfile: GoogleUserProfile?
     @Published private(set) var isRestoringSession = false
     @Published private(set) var isSigningIn = false
     @Published var errorMessage: String?
@@ -31,15 +32,18 @@ final class AuthStore: ObservableObject {
             guard let token = try keychain.read(account: tokenAccount), !token.isEmpty else {
                 sharedDefaults?.removeObject(forKey: AppConfig.sharedAuthTokenKey)
                 session = nil
+                googleUserProfile = nil
                 return
             }
 
+            googleUserProfile = await googleSignInClient.restoreUserProfile()
             session = try await fetchSession(token: token)
             sharedDefaults?.set(token, forKey: AppConfig.sharedAuthTokenKey)
         } catch {
             try? keychain.delete(account: tokenAccount)
             sharedDefaults?.removeObject(forKey: AppConfig.sharedAuthTokenKey)
             session = nil
+            googleUserProfile = nil
             errorMessage = AppConfig.userFacingNetworkMessage(for: error) ?? error.localizedDescription
         }
     }
@@ -56,6 +60,7 @@ final class AuthStore: ObservableObject {
             let session = try await exchangeGoogleTokensForSession(googleTokens)
             try keychain.write(session.token, account: tokenAccount)
             sharedDefaults?.set(session.token, forKey: AppConfig.sharedAuthTokenKey)
+            googleUserProfile = await googleSignInClient.restoreUserProfile()
             self.session = session
         } catch {
             errorMessage = AppConfig.userFacingNetworkMessage(for: error) ?? error.localizedDescription
@@ -65,6 +70,7 @@ final class AuthStore: ObservableObject {
     func signOut() async {
         let token = session?.token ?? (try? keychain.read(account: tokenAccount))
         session = nil
+        googleUserProfile = nil
         errorMessage = nil
         try? keychain.delete(account: tokenAccount)
         sharedDefaults?.removeObject(forKey: AppConfig.sharedAuthTokenKey)

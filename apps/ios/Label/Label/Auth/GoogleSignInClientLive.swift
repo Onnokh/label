@@ -34,6 +34,26 @@ struct LiveGoogleSignInClient: GoogleSignInClient {
         )
     }
 
+    func restoreUserProfile() async -> GoogleUserProfile? {
+        if let currentUser = GIDSignIn.sharedInstance.currentUser {
+            return profile(for: currentUser)
+        }
+
+        guard GIDSignIn.sharedInstance.hasPreviousSignIn() else {
+            return nil
+        }
+
+        return await withCheckedContinuation { continuation in
+            GIDSignIn.sharedInstance.restorePreviousSignIn { user, _ in
+                if let user {
+                    continuation.resume(returning: profile(for: user))
+                } else {
+                    continuation.resume(returning: nil)
+                }
+            }
+        }
+    }
+
     func signOut() {
         GIDSignIn.sharedInstance.signOut()
     }
@@ -48,6 +68,15 @@ struct LiveGoogleSignInClient: GoogleSignInClient {
         }
 
         return value
+    }
+
+    private func profile(for user: GIDGoogleUser) -> GoogleUserProfile {
+        let dimension: UInt = 84
+        let imageURL = user.profile?.hasImage == true
+            ? user.profile?.imageURL(withDimension: dimension)
+            : nil
+
+        return GoogleUserProfile(imageURL: imageURL)
     }
 }
 

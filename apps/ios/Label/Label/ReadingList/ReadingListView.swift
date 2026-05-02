@@ -6,8 +6,10 @@ import WebKit
 struct ReadingListView: View {
     @EnvironmentObject private var authStore: AuthStore
     @StateObject private var store: ReadingListStore
+    private let session: AppSession
 
     init(session: AppSession) {
+        self.session = session
         _store = StateObject(wrappedValue: ReadingListStore(session: session))
     }
 
@@ -36,6 +38,23 @@ struct ReadingListView: View {
                     ForEach(store.savedItems) { item in
                         SavedItemRow(item: item) {
                             await store.markOpened(item)
+                        } onToggleRead: {
+                            await store.setRead(item, isRead: !item.isRead)
+                        } onDelete: {
+                            await store.delete(item)
+                        }
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                            Button {
+                                Task {
+                                    await store.setRead(item, isRead: !item.isRead)
+                                }
+                            } label: {
+                                Label(
+                                    item.isRead ? "Unread" : "Read",
+                                    systemImage: item.isRead ? "circle.badge" : "checkmark.circle"
+                                )
+                            }
+                            .tint(item.isRead ? .orange : .green)
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
@@ -72,9 +91,12 @@ struct ReadingListView: View {
                         Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
                     }
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    AccountAvatarButton(
+                        name: session.name,
+                        imageURL: authStore.googleUserProfile?.imageURL
+                    )
                 }
-                .accessibilityLabel("More")
+                .accessibilityLabel("\(session.name) account")
             }
         }
         .task {
@@ -86,6 +108,8 @@ struct ReadingListView: View {
 private struct SavedItemRow: View {
     let item: SavedItem
     let onOpen: () async -> Void
+    let onToggleRead: () async -> Void
+    let onDelete: () async -> Void
 
     var body: some View {
         Button {
@@ -122,6 +146,53 @@ private struct SavedItemRow: View {
             .padding(.vertical, 14)
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button {
+                Task {
+                    await onToggleRead()
+                }
+            } label: {
+                Label(
+                    item.isRead ? "Mark Unread" : "Mark Read",
+                    systemImage: item.isRead ? "circle.badge" : "checkmark.circle"
+                )
+            }
+
+            if let shareURL = item.shareURL {
+                Button {
+                    copyLink(shareURL)
+                } label: {
+                    Label("Copy Link", systemImage: "doc.on.doc")
+                }
+
+                ShareLink(
+                    item: shareURL,
+                    preview: SharePreview(item.displayTitle)
+                ) {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+
+                Divider()
+            }
+
+            Button(role: .destructive) {
+                Task {
+                    await onDelete()
+                }
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        .accessibilityAction(named: "Copy Link") {
+            guard let shareURL = item.shareURL else { return }
+            copyLink(shareURL)
+        }
+    }
+
+    private func copyLink(_ url: URL) {
+        UIPasteboard.general.url = url
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        UIAccessibility.post(notification: .announcement, argument: "Link copied")
     }
 }
 
@@ -138,6 +209,45 @@ private struct SavedItemStatusIndicator: View {
                         .stroke(Color.secondary.opacity(0.35), lineWidth: 1.25)
                 }
             }
+    }
+}
+
+private struct AccountAvatarButton: View {
+    let name: String
+    let imageURL: URL?
+
+    var body: some View {
+        Group {
+            if let imageURL {
+                AsyncImage(url: imageURL) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    case .empty, .failure:
+                        fallbackAvatar
+                    @unknown default:
+                        fallbackAvatar
+                    }
+                }
+            } else {
+                fallbackAvatar
+            }
+        }
+        .frame(width: 30, height: 30)
+        .clipShape(Circle())
+    }
+
+    private var fallbackAvatar: some View {
+        ZStack {
+            Circle()
+                .fill(Color(uiColor: .secondarySystemFill))
+
+            Text(name.initials)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.primary)
+        }
     }
 }
 
@@ -381,6 +491,11 @@ private enum SVGSnapshotError: Error {
 }
 
 private extension SavedItem {
+    var shareURL: URL? {
+        Self.safeRemoteURL(canonicalURL)
+            ?? Self.safeRemoteURL(originalURL)
+    }
+
     var displayTitle: String {
         title?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty
             ?? siteName?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty
@@ -416,11 +531,11 @@ private extension SavedItem {
             faviconLightURL ?? faviconURL ?? faviconDarkURL
         }
 
-        if let themeSpecificURL = Self.safeRemoteFaviconURL(themeSpecificURLString) {
+        if let themeSpecificURL = Self.safeRemoteURL(themeSpecificURLString) {
             return themeSpecificURL
         }
 
-        return Self.safeRemoteFaviconURL(faviconURL) ?? googleFaviconURL
+        return Self.safeRemoteURL(faviconURL) ?? googleFaviconURL
     }
 
     var monogram: String {
@@ -434,7 +549,7 @@ private extension SavedItem {
         return formatter
     }()
 
-    private static func safeRemoteFaviconURL(_ value: String?) -> URL? {
+    private static func safeRemoteURL(_ value: String?) -> URL? {
         guard
             let value,
             let url = URL(string: value),
@@ -451,6 +566,18 @@ private extension SavedItem {
 private extension String {
     var nonEmpty: String? {
         isEmpty ? nil : self
+    }
+
+    var initials: String {
+        let components = split(whereSeparator: \.isWhitespace)
+            .prefix(2)
+            .compactMap { $0.first.map(String.init) }
+
+        if components.isEmpty {
+            return String(prefix(1)).uppercased()
+        }
+
+        return components.joined().uppercased()
     }
 }
 

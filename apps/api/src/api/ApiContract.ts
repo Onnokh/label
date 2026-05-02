@@ -33,6 +33,12 @@ export class SavedItemsResponse extends Schema.Class<SavedItemsResponse>("SavedI
   savedItems: Schema.Array(SavedItemDto),
 }) {}
 
+export class SavedItemReadStatePayload extends Schema.Class<SavedItemReadStatePayload>(
+  "SavedItemReadStatePayload",
+)({
+  isRead: Schema.Boolean,
+}) {}
+
 export class Unauthorized extends Schema.ErrorClass<Unauthorized>("Unauthorized")({
   _tag: Schema.tag("Unauthorized"),
   message: Schema.String,
@@ -79,6 +85,14 @@ const savedItemsGroup = HttpApiGroup.make("saved-items")
   .add(
     HttpApiEndpoint.post("markOpened", "/v1/saved-items/:id/open", {
       params: Schema.Struct({ id: SavedItemId }),
+      success: SavedItemDto,
+      error: SavedItemNotFoundError,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("setReadState", "/v1/saved-items/:id/read", {
+      params: Schema.Struct({ id: SavedItemId }),
+      payload: SavedItemReadStatePayload,
       success: SavedItemDto,
       error: SavedItemNotFoundError,
     }),

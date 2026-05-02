@@ -123,6 +123,25 @@ const savedItemsGroupLive = HttpApiBuilder.group(labelApi, "saved-items", (handl
         return savedItemToDto(updated)
       }),
     )
+    .handle("setReadState", ({ params, payload }) =>
+      Effect.gen(function* () {
+        const repo = yield* SavedItemRepository
+        const item = yield* repo.findById(params.id).pipe(Effect.orDie)
+        if (item._tag === "None") {
+          return yield* new SavedItemNotFoundError({ savedItemId: params.id })
+        }
+        const updated = yield* repo
+          .update(
+            new SavedItem({
+              ...item.value,
+              isRead: payload.isRead,
+              updatedAt: new Date(),
+            }),
+          )
+          .pipe(Effect.orDie)
+        return savedItemToDto(updated)
+      }),
+    )
     .handle("remove", ({ params }) =>
       Effect.gen(function* () {
         const repo = yield* SavedItemRepository

@@ -11,11 +11,13 @@ final class ReadingListStore: ObservableObject {
 
     private let session: AppSession
     private let decoder: JSONDecoder
+    private let encoder: JSONEncoder
 
     init(session: AppSession) {
         self.session = session
         self.decoder = JSONDecoder()
         self.decoder.dateDecodingStrategy = .iso8601
+        self.encoder = JSONEncoder()
     }
 
     func loadIfNeeded() async {
@@ -59,6 +61,25 @@ final class ReadingListStore: ObservableObject {
         }
     }
 
+    func setRead(_ item: SavedItem, isRead: Bool) async {
+        do {
+            let updated = try await request(
+                path: "/v1/saved-items/\(item.id)/read",
+                method: "POST",
+                body: ReadStateUpdateRequest(isRead: isRead),
+                responseType: SavedItem.self
+            )
+
+            if let index = savedItems.firstIndex(where: { $0.id == updated.id }) {
+                savedItems[index] = updated
+            }
+
+            errorMessage = nil
+        } catch {
+            errorMessage = AppConfig.userFacingNetworkMessage(for: error) ?? error.localizedDescription
+        }
+    }
+
     func delete(_ item: SavedItem) async {
         do {
             try await requestNoContent(path: "/v1/saved-items/\(item.id)", method: "DELETE")
@@ -86,9 +107,27 @@ final class ReadingListStore: ObservableObject {
         method: String = "GET",
         responseType: T.Type
     ) async throws -> T {
+        try await request(
+            path: path,
+            method: method,
+            body: Optional<ReadStateUpdateRequest>.none,
+            responseType: responseType
+        )
+    }
+
+    private func request<T: Decodable, Body: Encodable>(
+        path: String,
+        method: String = "GET",
+        body: Body?,
+        responseType: T.Type
+    ) async throws -> T {
         var request = URLRequest(url: AppConfig.endpoint(path))
         request.httpMethod = method
         request.setValue("Bearer \(session.token)", forHTTPHeaderField: "Authorization")
+        if let body {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try encoder.encode(body)
+        }
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -128,4 +167,8 @@ final class ReadingListStore: ObservableObject {
 
         return AuthError.authenticationFailed(fallback)
     }
+}
+
+private struct ReadStateUpdateRequest: Encodable {
+    let isRead: Bool
 }

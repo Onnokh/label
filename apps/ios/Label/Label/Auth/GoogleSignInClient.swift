@@ -1,8 +1,13 @@
 import Foundation
 
+struct GoogleUserProfile: Equatable {
+    let imageURL: URL?
+}
+
 @MainActor
 protocol GoogleSignInClient {
     func signIn() async throws -> GoogleAuthTokens
+    func restoreUserProfile() async -> GoogleUserProfile?
     func signOut()
 }
 
@@ -10,6 +15,10 @@ protocol GoogleSignInClient {
 struct UnimplementedGoogleSignInClient: GoogleSignInClient {
     func signIn() async throws -> GoogleAuthTokens {
         throw AuthError.missingGoogleSignInIntegration
+    }
+
+    func restoreUserProfile() async -> GoogleUserProfile? {
+        nil
     }
 
     func signOut() {}
