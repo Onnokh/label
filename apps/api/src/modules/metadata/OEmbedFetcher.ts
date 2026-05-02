@@ -73,7 +73,10 @@ export class OEmbedFetcher extends Context.Service<OEmbedFetcher>()(
       const fetchTitleFromUrl = (url: string): Effect.Effect<string | undefined, never> =>
         Effect.gen(function* () {
           const pageResult = yield* Effect.all(
-            [pageFetcher.fetchWithBrowser(url)],
+            [pageFetcher.fetchWithBrowser(url, {
+              // Wait until og:title is populated — handles JS-rendered SPAs like X.com
+              waitForFn: "!!document.querySelector('meta[property=\"og:title\"]')?.getAttribute('content')",
+            })],
             { mode: "result" },
           ).pipe(Effect.map(([r]) => r))
 

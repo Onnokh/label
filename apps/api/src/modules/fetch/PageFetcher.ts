@@ -87,6 +87,9 @@ const fetchViaBrowser = (
     readonly browserHeadless: boolean
     readonly userAgent: string
   },
+  options?: {
+    readonly waitForFn?: string
+  },
 ) =>
   Effect.tryPromise({
     try: async () => {
@@ -111,6 +114,10 @@ const fetchViaBrowser = (
           })
 
           await page.waitForTimeout(1_000)
+
+          if (options?.waitForFn) {
+            await page.waitForFunction(options.waitForFn, { timeout: 10_000 }).catch(() => {})
+          }
 
           const status = response?.status()
 
@@ -155,7 +162,8 @@ export class PageFetcher extends Context.Service<PageFetcher>()(
       const config = yield* AppConfig
 
       return {
-        fetchWithBrowser: (url: string) => fetchViaBrowser(url, config.fetch),
+        fetchWithBrowser: (url: string, options?: { readonly waitForFn?: string }) =>
+          fetchViaBrowser(url, config.fetch, options),
         fetch: (url: string) =>
           Effect.gen(function* () {
             const httpResult = yield* Effect.all([fetchViaHttp(url, config.fetch)], {
