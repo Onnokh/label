@@ -5,21 +5,16 @@ WORKDIR /app/apps/api
 COPY apps/api/package.json apps/api/bun.lock ./
 RUN bun install --frozen-lockfile
 
-FROM oven/bun:1.2-debian AS runtime
+FROM mcr.microsoft.com/playwright:v1.59.1-noble AS runtime
 ENV NODE_ENV=production \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 WORKDIR /app/apps/api
 
 USER root
-COPY --from=deps /app/apps/api/node_modules ./node_modules
-RUN DEBIAN_FRONTEND=noninteractive bunx playwright install-deps chromium \
-    && rm -rf /var/lib/apt/lists/*
-RUN mkdir -p /ms-playwright \
-    && chown -R bun:bun /ms-playwright
+RUN npm install -g bun@1.2.23
+COPY --from=deps --chown=pwuser:pwuser /app/apps/api/node_modules ./node_modules
+COPY --chown=pwuser:pwuser apps/api ./
 
-USER bun
-RUN bunx playwright install --only-shell chromium
-
-COPY --chown=bun:bun apps/api ./
+USER pwuser
 EXPOSE 3002
 CMD ["sh", "-c", "bun src/migrate.ts && bun src/index.ts"]
