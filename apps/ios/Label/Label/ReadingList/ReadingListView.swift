@@ -15,10 +15,10 @@ struct ReadingListView: View {
 
     var body: some View {
         Group {
-            if store.isLoading && store.savedItems.isEmpty {
+            if store.isLoading && store.savedItems.isEmpty && store.pendingSavedItems.isEmpty {
                 ProgressView("Loading your sleeve...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if store.savedItems.isEmpty {
+            } else if store.savedItems.isEmpty && store.pendingSavedItems.isEmpty {
                 ContentUnavailableView(
                     "Your Sleeve is empty",
                     systemImage: "book.closed",
@@ -26,6 +26,39 @@ struct ReadingListView: View {
                 )
             } else {
                 List {
+                    if store.pendingCaptureCount > 0 || store.lastSuccessfulSyncAt != nil {
+                        Section {
+                            SyncStatusRow(
+                                lastSuccessfulSyncAt: store.lastSuccessfulSyncAt,
+                                pendingCaptureCount: store.pendingCaptureCount,
+                                isSyncingPendingCaptures: store.isSyncingPendingCaptures
+                            )
+                        }
+                        .listRowBackground(Color.clear)
+                    }
+
+                    if !store.pendingSavedItems.isEmpty {
+                        Section {
+                            ForEach(store.pendingSavedItems) { item in
+                                PendingSavedItemRow(item: item) {
+                                    store.removePendingSavedItem(item)
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        store.removePendingSavedItem(item)
+                                    } label: {
+                                        Label("Remove", systemImage: "trash")
+                                    }
+                                }
+                                .listRowInsets(EdgeInsets(top: 0, leading: 18, bottom: 0, trailing: 18))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparatorTint(.white.opacity(0.08))
+                            }
+                        } header: {
+                            Text("Waiting to sync")
+                        }
+                    }
+
                     if let errorMessage = store.errorMessage {
                         Section {
                             Text(errorMessage)
@@ -43,7 +76,7 @@ struct ReadingListView: View {
                         } onDelete: {
                             await store.delete(item)
                         }
-                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
                             Button {
                                 Task {
                                     await store.setRead(item, isRead: !item.isRead)
@@ -51,7 +84,7 @@ struct ReadingListView: View {
                             } label: {
                                 Label(
                                     item.isRead ? "Unread" : "Read",
-                                    systemImage: item.isRead ? "circle.badge" : "checkmark.circle"
+                                    systemImage: item.isRead ? "circle" : "checkmark.circle"
                                 )
                             }
                             .tint(item.isRead ? .orange : .green)
@@ -105,6 +138,153 @@ struct ReadingListView: View {
     }
 }
 
+private struct PendingSavedItemRow: View {
+    let item: PendingSavedItem
+    let onDelete: () -> Void
+
+    var body: some View {
+        Button {
+            guard let url = item.url else { return }
+            UIApplication.shared.open(url)
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                PendingSavedItemStatusIndicator()
+                    .padding(.top, 12)
+
+                PendingSavedItemMonogram(host: item.host)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(item.title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .multilineTextAlignment(.leading)
+
+                    Text(item.host)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.tertiary)
+
+                    Text("Saved offline. Waiting to sync.")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text(item.queuedDateLabel)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .padding(.top, 2)
+            }
+            .contentShape(Rectangle())
+            .padding(.vertical, 14)
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            if let url = item.url {
+                Button {
+                    UIPasteboard.general.url = url
+                } label: {
+                    Label("Copy Link", systemImage: "doc.on.doc")
+                }
+
+                ShareLink(
+                    item: url,
+                    preview: SharePreview(item.title)
+                ) {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+
+                Divider()
+            }
+
+            Button(role: .destructive) {
+                onDelete()
+            } label: {
+                Label("Remove", systemImage: "trash")
+            }
+        }
+    }
+}
+
+private struct PendingSavedItemStatusIndicator: View {
+    var body: some View {
+        Image(systemName: "tray.and.arrow.up")
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .frame(width: 10, height: 10)
+    }
+}
+
+private struct PendingSavedItemMonogram: View {
+    let host: String
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .fill(Color(uiColor: .secondarySystemFill))
+
+            Text(String(host.prefix(1)).uppercased())
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.secondary)
+        }
+        .frame(width: 42, height: 42)
+        .padding(.vertical, 4)
+    }
+}
+
+private struct SyncStatusRow: View {
+    let lastSuccessfulSyncAt: Date?
+    let pendingCaptureCount: Int
+    let isSyncingPendingCaptures: Bool
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { context in
+            if let status = makeStatus(relativeTo: context.date) {
+                HStack(spacing: 10) {
+                    Image(systemName: status.iconName)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.secondary)
+
+                    Text(status.message)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.secondary)
+
+                    Spacer(minLength: 0)
+                }
+                .padding(.vertical, 6)
+            }
+        }
+    }
+
+    private func makeStatus(relativeTo now: Date) -> (iconName: String, message: String)? {
+        if pendingCaptureCount > 0 {
+            if isSyncingPendingCaptures {
+                let message = pendingCaptureCount == 1
+                    ? "Syncing 1 saved link..."
+                    : "Syncing \(pendingCaptureCount) saved links..."
+                return ("arrow.triangle.2.circlepath", message)
+            }
+
+            let message = pendingCaptureCount == 1
+                ? "1 saved link waiting to sync"
+                : "\(pendingCaptureCount) saved links waiting to sync"
+            return ("tray.and.arrow.up", message)
+        }
+
+        guard let lastSuccessfulSyncAt else { return nil }
+
+        let elapsed = now.timeIntervalSince(lastSuccessfulSyncAt)
+        if elapsed < 45 {
+            return ("checkmark.circle", "Updated just now")
+        }
+
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return ("checkmark.circle", "Updated \(formatter.localizedString(for: lastSuccessfulSyncAt, relativeTo: now))")
+    }
+}
+
 private struct SavedItemRow: View {
     let item: SavedItem
     let onOpen: () async -> Void
@@ -154,7 +334,7 @@ private struct SavedItemRow: View {
             } label: {
                 Label(
                     item.isRead ? "Mark Unread" : "Mark Read",
-                    systemImage: item.isRead ? "circle.badge" : "checkmark.circle"
+                    systemImage: item.isRead ? "circle" : "checkmark.circle"
                 )
             }
 
@@ -561,6 +741,19 @@ private extension SavedItem {
 
         return url
     }
+}
+
+private extension PendingSavedItem {
+    var queuedDateLabel: String {
+        Self.queuedDateFormatter.string(from: queuedAt)
+    }
+
+    private static let queuedDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.setLocalizedDateFormatFromTemplate("d MMM")
+        return formatter
+    }()
 }
 
 private extension String {

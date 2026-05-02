@@ -1,6 +1,6 @@
 import Foundation
 
-struct AppSession: Equatable {
+struct AppSession: Codable, Equatable {
     let token: String
     let userId: String
     let email: String

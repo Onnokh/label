@@ -4,6 +4,7 @@ enum AppConfig {
     static let keychainService = "plowplow.Label"
     static let appGroupIdentifier = "group.plowplow.Label"
     static let sharedAuthTokenKey = "auth-token"
+    static let sharedAppSessionKey = "app-session"
 
     static let apiBaseURL: URL = {
         if
@@ -52,6 +53,8 @@ enum AppConfig {
         }
 
         switch urlError.code {
+        case .notConnectedToInternet, .networkConnectionLost, .timedOut:
+            return "You're offline right now. Label will keep showing your last synced saved items until the connection comes back."
         case .cannotFindHost, .dnsLookupFailed:
             return """
             The Label API host could not be resolved: \(apiBaseURL.absoluteString). \

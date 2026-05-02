@@ -1,6 +1,6 @@
 import Foundation
 
-struct SavedItem: Decodable, Identifiable, Equatable {
+struct SavedItem: Codable, Identifiable, Equatable {
     let id: String
     let userId: String
     let originalURL: String
@@ -48,7 +48,7 @@ struct SavedItem: Decodable, Identifiable, Equatable {
     }
 }
 
-enum EnrichmentStatus: String, Decodable {
+enum EnrichmentStatus: String, Codable {
     case pending
     case enriched
     case failed

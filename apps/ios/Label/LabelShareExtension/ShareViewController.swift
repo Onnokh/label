@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 final class ShareViewController: UIViewController {
     private static let appGroupIdentifier = "group.plowplow.Label"
     private static let sharedAuthTokenKey = "auth-token"
+    private static let sharedAppSessionKey = "app-session"
     private let activityIndicator = UIActivityIndicatorView(style: .large)
     private let statusLabel = UILabel()
     private var hasStarted = false
@@ -50,8 +51,20 @@ final class ShareViewController: UIViewController {
         do {
             let sharedURL = try await loadSharedURL()
             let token = try loadSharedAuthToken()
-            try await capture(sharedURL: sharedURL, token: token)
-            extensionContext?.completeRequest(returningItems: nil)
+            do {
+                try await capture(sharedURL: sharedURL, token: token)
+                extensionContext?.completeRequest(returningItems: nil)
+            } catch {
+                guard shouldQueueCapture(after: error) else {
+                    throw error
+                }
+
+                try queueCapture(sharedURL)
+                activityIndicator.stopAnimating()
+                statusLabel.text = "Saved offline. Label will sync it when you're back online."
+                try? await Task.sleep(nanoseconds: 850_000_000)
+                extensionContext?.completeRequest(returningItems: nil)
+            }
         } catch {
             statusLabel.text = error.localizedDescription
             activityIndicator.stopAnimating()
@@ -64,6 +77,23 @@ final class ShareViewController: UIViewController {
             alert.addAction(dismissAction)
             present(alert, animated: true)
         }
+    }
+
+    private func shouldQueueCapture(after error: Error) -> Bool {
+        if error is URLError {
+            return true
+        }
+
+        if let shareError = error as? ShareExtensionError {
+            switch shareError {
+            case .invalidServerResponse, .captureTemporarilyUnavailable:
+                return true
+            case .missingSharedURL, .notSignedIn, .captureFailed:
+                return false
+            }
+        }
+
+        return false
     }
 
     private func loadSharedAuthToken() throws -> String {
@@ -111,6 +141,41 @@ final class ShareViewController: UIViewController {
         throw ShareExtensionError.missingSharedURL
     }
 
+    private func queueCapture(_ sharedURL: URL) throws {
+        guard
+            let defaults = UserDefaults(suiteName: Self.appGroupIdentifier),
+            let sessionData = defaults.data(forKey: Self.sharedAppSessionKey),
+            let session = try? JSONDecoder().decode(SharedAppSession.self, from: sessionData),
+            let queueURL = pendingCapturesURL(for: session.userId)
+        else {
+            throw ShareExtensionError.notSignedIn
+        }
+
+        let pendingCapture = PendingCapture(
+            id: UUID(),
+            url: sharedURL.absoluteString,
+            queuedAt: Date()
+        )
+
+        var pendingCaptures: [PendingCapture] = []
+        if
+            let data = try? Data(contentsOf: queueURL),
+            let existingCaptures = try? JSONDecoder.sharedISO8601.decode([PendingCapture].self, from: data)
+        {
+            pendingCaptures = existingCaptures
+        }
+
+        pendingCaptures.append(pendingCapture)
+
+        try FileManager.default.createDirectory(
+            at: queueURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+
+        let data = try JSONEncoder.sharedISO8601.encode(pendingCaptures)
+        try data.write(to: queueURL, options: .atomic)
+    }
+
     private func capture(sharedURL: URL, token: String) async throws {
         var request = URLRequest(url: apiEndpoint("/v1/captures"))
         request.httpMethod = "POST"
@@ -126,6 +191,10 @@ final class ShareViewController: UIViewController {
         }
 
         guard (200 ..< 300).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 429 || (500 ..< 600).contains(httpResponse.statusCode) {
+                throw ShareExtensionError.captureTemporarilyUnavailable
+            }
+
             if
                 let payload = try? JSONDecoder().decode(ServerErrorResponse.self, from: data),
                 let message = payload.message,
@@ -136,6 +205,13 @@ final class ShareViewController: UIViewController {
 
             throw ShareExtensionError.invalidServerResponse
         }
+    }
+
+    private func pendingCapturesURL(for userId: String) -> URL? {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: Self.appGroupIdentifier)?
+            .appendingPathComponent("PendingCaptures", isDirectory: true)
+            .appendingPathComponent("\(userId).json", isDirectory: false)
     }
 
     private func apiEndpoint(_ path: String) -> URL {
@@ -184,6 +260,7 @@ private enum ShareExtensionError: LocalizedError {
     case missingSharedURL
     case notSignedIn
     case invalidServerResponse
+    case captureTemporarilyUnavailable
     case captureFailed(String)
 
     var errorDescription: String? {
@@ -194,10 +271,38 @@ private enum ShareExtensionError: LocalizedError {
             return "Sign in to Label in the main app before sharing links."
         case .invalidServerResponse:
             return "Label could not save this link right now."
+        case .captureTemporarilyUnavailable:
+            return "Label is temporarily unavailable."
         case .captureFailed(let message):
             return message
         }
     }
+}
+
+private struct SharedAppSession: Decodable {
+    let userId: String
+}
+
+private struct PendingCapture: Codable {
+    let id: UUID
+    let url: String
+    let queuedAt: Date
+}
+
+private extension JSONDecoder {
+    static let sharedISO8601: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }()
+}
+
+private extension JSONEncoder {
+    static let sharedISO8601: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return encoder
+    }()
 }
 
 private extension NSItemProvider {

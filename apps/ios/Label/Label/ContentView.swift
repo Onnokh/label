@@ -12,11 +12,11 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            if authStore.isRestoringSession {
-                ProgressView("Checking session...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let session = authStore.session {
+            if let session = authStore.session {
                 ReadingListView(session: session)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if authStore.isRestoringSession {
+                ProgressView("Checking session...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 signedOutView

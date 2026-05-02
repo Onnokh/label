@@ -13,6 +13,8 @@ final class AuthStore: ObservableObject {
     private let tokenAccount = "auth-token"
     private let googleSignInClient: any GoogleSignInClient
     private let sharedDefaults = UserDefaults(suiteName: AppConfig.appGroupIdentifier)
+    private let decoder = JSONDecoder()
+    private let encoder = JSONEncoder()
 
     init() {
         self.googleSignInClient = makeGoogleSignInClient()
@@ -26,24 +28,37 @@ final class AuthStore: ObservableObject {
         guard !isRestoringSession else { return }
 
         isRestoringSession = true
+        errorMessage = nil
         defer { isRestoringSession = false }
+
+        let cachedSession = readCachedSession()
 
         do {
             guard let token = try keychain.read(account: tokenAccount), !token.isEmpty else {
-                sharedDefaults?.removeObject(forKey: AppConfig.sharedAuthTokenKey)
+                clearPersistedSession()
                 session = nil
                 googleUserProfile = nil
                 return
             }
 
+            if let cachedSession {
+                session = cachedSession
+            }
+
             googleUserProfile = await googleSignInClient.restoreUserProfile()
-            session = try await fetchSession(token: token)
+            let restoredSession = try await fetchSession(token: token)
+            session = restoredSession
+            cache(session: restoredSession)
             sharedDefaults?.set(token, forKey: AppConfig.sharedAuthTokenKey)
         } catch {
-            try? keychain.delete(account: tokenAccount)
-            sharedDefaults?.removeObject(forKey: AppConfig.sharedAuthTokenKey)
-            session = nil
-            googleUserProfile = nil
+            if shouldDiscardSession(for: error) {
+                clearPersistedSession()
+                session = nil
+                googleUserProfile = nil
+            } else {
+                session = cachedSession
+            }
+
             errorMessage = AppConfig.userFacingNetworkMessage(for: error) ?? error.localizedDescription
         }
     }
@@ -60,6 +75,7 @@ final class AuthStore: ObservableObject {
             let session = try await exchangeGoogleTokensForSession(googleTokens)
             try keychain.write(session.token, account: tokenAccount)
             sharedDefaults?.set(session.token, forKey: AppConfig.sharedAuthTokenKey)
+            cache(session: session)
             googleUserProfile = await googleSignInClient.restoreUserProfile()
             self.session = session
         } catch {
@@ -72,8 +88,7 @@ final class AuthStore: ObservableObject {
         session = nil
         googleUserProfile = nil
         errorMessage = nil
-        try? keychain.delete(account: tokenAccount)
-        sharedDefaults?.removeObject(forKey: AppConfig.sharedAuthTokenKey)
+        clearPersistedSession()
 
         guard let token else {
             googleSignInClient.signOut()
@@ -146,6 +161,10 @@ final class AuthStore: ObservableObject {
             throw AuthError.invalidServerResponse
         }
 
+        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+            throw AuthError.sessionExpired
+        }
+
         guard httpResponse.statusCode == 200 else {
             throw authError(from: data, fallback: .invalidServerResponse)
         }
@@ -169,6 +188,38 @@ final class AuthStore: ObservableObject {
         }
 
         return .authenticationFailed(message)
+    }
+
+    private func readCachedSession() -> AppSession? {
+        guard
+            let data = sharedDefaults?.data(forKey: AppConfig.sharedAppSessionKey)
+        else {
+            return nil
+        }
+
+        return try? decoder.decode(AppSession.self, from: data)
+    }
+
+    private func cache(session: AppSession) {
+        guard let data = try? encoder.encode(session) else { return }
+        sharedDefaults?.set(data, forKey: AppConfig.sharedAppSessionKey)
+    }
+
+    private func clearPersistedSession() {
+        try? keychain.delete(account: tokenAccount)
+        sharedDefaults?.removeObject(forKey: AppConfig.sharedAuthTokenKey)
+        sharedDefaults?.removeObject(forKey: AppConfig.sharedAppSessionKey)
+    }
+
+    private func shouldDiscardSession(for error: Error) -> Bool {
+        guard let authError = error as? AuthError else { return false }
+
+        switch authError {
+        case .sessionExpired:
+            return true
+        default:
+            return false
+        }
     }
 }
 
