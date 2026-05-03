@@ -1,0 +1,69 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "sleeve",
+  "description": "Add, View and Delete items fom your Sleeve",
+  "license": "MIT",
+  "scripts": {
+    "dev": "ray develop",
+    "lint": "ray lint",
+    "fix-lint": "ray lint --fix",
+    "build": "ray build",
+    "publish": "npx @raycast/api@latest publish",
+    "prepublishOnly": "echo \"\\n\\nIt seems like you are trying to publish the Raycast extension to npm.\\n\\nIf you did intend to publish it to npm, remove the \\`prepublishOnly\\` script and rerun \\`npm publish\\` again.\\nIf you wanted to publish it to the Raycast Store instead, use \\`npm run publish\\` instead.\\n\\n\" && exit 1"
+  },
+  "dependencies": {
+    "@raycast/api": "^1.103.0",
+    "@raycast/utils": "^2.2.1"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.0.4",
+    "@types/node": "22.19.17",
+    "@types/react": "19.0.10",
+    "eslint": "^9.22.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
+  },
+  "icon": "extension-icon.png",
+  "commands": [
+    {
+      "name": "sleeve",
+      "title": "Sleeve",
+      "description": "Save URL from clipboard to your Sleeve",
+      "mode": "no-view"
+    },
+    {
+      "name": "view-your-sleeve",
+      "title": "View Your Sleeve",
+      "description": "Show all your sleeved items",
+      "mode": "view"
+    }
+  ],
+  "title": "Sleeve",
+  "author": "onnokh",
+  "platforms": [
+    "Windows",
+    "macOS"
+  ],
+  "categories": [
+    "Applications"
+  ],
+  "preferences": [
+    {
+      "name": "apiUrl",
+      "title": "API URL",
+      "description": "The base URL for the Label API",
+      "type": "textfield",
+      "required": true,
+      "default": "https://api-label.missingmounts.com",
+      "placeholder": "https://api-label.missingmounts.com"
+    },
+    {
+      "name": "apiKey",
+      "title": "API Key",
+      "description": "Your personal Capture Token for the Label API. Find this in the Web Companion under Token Settings.",
+      "type": "password",
+      "required": true,
+      "placeholder": "Enter your Capture Token"
+    }
+  ]
+}
