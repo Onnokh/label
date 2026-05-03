@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sleeve — Settings</title>
+    <style>
+      * {
+        margin: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        background: #fafafa;
+        color: #1a1a1a;
+        display: flex;
+        justify-content: center;
+        padding: 2rem;
+      }
+      .card {
+        width: 100%;
+        max-width: 400px;
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      }
+      h1 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+      p.hint {
+        font-size: 0.8125rem;
+        color: #666;
+        margin-bottom: 1.5rem;
+        line-height: 1.4;
+      }
+      p.hint a {
+        color: #3182ce;
+        text-decoration: none;
+      }
+      p.hint a:hover {
+        text-decoration: underline;
+      }
+      label {
+        display: block;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        margin-bottom: 0.375rem;
+        color: #444;
+      }
+      input {
+        width: 100%;
+        font-size: 0.875rem;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        background: white;
+        color: #1a1a1a;
+        margin-bottom: 1rem;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+      input:focus {
+        border-color: #3182ce;
+      }
+      .actions {
+        display: flex;
+        gap: 0.5rem;
+      }
+      button {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      .btn-primary {
+        background: #1a1a1a;
+        color: white;
+      }
+      .btn-primary:hover {
+        background: #333;
+      }
+      .btn-secondary {
+        background: #eee;
+        color: #444;
+      }
+      .btn-secondary:hover {
+        background: #ddd;
+      }
+      .feedback {
+        font-size: 0.8125rem;
+        margin-top: 0.75rem;
+        min-height: 1.25rem;
+      }
+      .feedback.success {
+        color: #2f855a;
+      }
+      .feedback.error {
+        color: #c53030;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Sleeve</h1>
+      <p class="hint">
+        Paste your Capture Token from the
+        <a href="https://sleeve.missingmounts.com" target="_blank"
+          >Web Companion</a
+        >
+        Token Settings.
+      </p>
+
+      <label for="api-key">Capture Token</label>
+      <input type="password" id="api-key" placeholder="Enter your Capture Token" />
+
+      <div class="actions">
+        <button class="btn-primary" id="save">Save</button>
+        <button class="btn-secondary" id="clear">Clear</button>
+      </div>
+      <div id="feedback" class="feedback"></div>
+    </div>
+
+    <script type="module" src="options.ts"></script>
+  </body>
+</html>
