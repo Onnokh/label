@@ -19,10 +19,12 @@ final class AuthStore: ObservableObject {
     private let sharedDefaults = UserDefaults(suiteName: AppConfig.appGroupIdentifier)
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
+    private let api: APIClient
 
     init() {
         self.googleSignInClient = makeGoogleSignInClient()
         self.appleSignInClient = makeAppleSignInClient()
+        self.api = Self.makeAPIClient(encoder: encoder, decoder: decoder)
     }
 
     init(
@@ -31,6 +33,17 @@ final class AuthStore: ObservableObject {
     ) {
         self.googleSignInClient = googleSignInClient
         self.appleSignInClient = appleSignInClient ?? UnimplementedAppleSignInClient()
+        self.api = Self.makeAPIClient(encoder: encoder, decoder: decoder)
+    }
+
+    private static func makeAPIClient(encoder: JSONEncoder, decoder: JSONDecoder) -> APIClient {
+        APIClient(
+            baseURL: AppConfig.apiBaseURL,
+            origin: AppConfig.apiOrigin,
+            session: AppConfig.apiSession,
+            encoder: encoder,
+            decoder: decoder
+        )
     }
 
     func restoreSession() async {
@@ -136,13 +149,7 @@ final class AuthStore: ObservableObject {
             return
         }
 
-        var request = URLRequest(url: AppConfig.endpoint("/api/auth/sign-out"))
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(AppConfig.apiOrigin, forHTTPHeaderField: "Origin")
-        request.httpShouldHandleCookies = false
-
-        _ = try? await AppConfig.apiSession.data(for: request)
+        _ = try? await api.send("/api/auth/sign-out", method: .post, token: token)
         googleSignInClient.signOut()
     }
 
@@ -159,18 +166,12 @@ final class AuthStore: ObservableObject {
             throw AuthError.sessionExpired
         }
 
-        var request = URLRequest(url: AppConfig.endpoint("/api/auth/delete-user"))
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(AppConfig.apiOrigin, forHTTPHeaderField: "Origin")
-        request.httpShouldHandleCookies = false
-        request.httpBody = Data("{}".utf8)
-
-        let (data, response) = try await AppConfig.apiSession.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200..<300).contains(httpResponse.statusCode) else {
+        do {
+            _ = try await api.send("/api/auth/delete-user", method: .post, token: token, httpBody: Data("{}".utf8))
+        } catch let APIClientError.unacceptableStatus(_, data) {
             throw authError(from: data, fallback: .invalidServerResponse)
+        } catch APIClientError.invalidResponse {
+            throw AuthError.invalidServerResponse
         }
 
         session = nil
@@ -186,33 +187,28 @@ final class AuthStore: ObservableObject {
         accessToken: String? = nil,
         nonce: String? = nil
     ) async throws -> AppSession {
-        var request = URLRequest(url: AppConfig.endpoint("/api/auth/sign-in/social"))
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(AppConfig.apiOrigin, forHTTPHeaderField: "Origin")
-        request.httpShouldHandleCookies = false
-        request.httpBody = try JSONEncoder().encode(
-            NativeSocialSignInRequest(
-                provider: provider,
-                disableRedirect: true,
-                idToken: .init(
-                    token: idToken,
-                    accessToken: accessToken,
-                    nonce: nonce
+        let response: APIResponse
+        do {
+            response = try await api.send(
+                "/api/auth/sign-in/social",
+                method: .post,
+                body: NativeSocialSignInRequest(
+                    provider: provider,
+                    disableRedirect: true,
+                    idToken: .init(
+                        token: idToken,
+                        accessToken: accessToken,
+                        nonce: nonce
+                    )
                 )
             )
-        )
-
-        let (data, response) = try await AppConfig.apiSession.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
+        } catch let APIClientError.unacceptableStatus(_, data) {
+            throw authError(from: data, fallback: .invalidServerResponse)
+        } catch APIClientError.invalidResponse {
             throw AuthError.invalidServerResponse
         }
 
-        guard (200 ..< 300).contains(httpResponse.statusCode) else {
-            throw authError(from: data, fallback: .invalidServerResponse)
-        }
-
-        let payload = try JSONDecoder().decode(NativeSocialSignInResponse.self, from: data)
+        let payload = try decoder.decode(NativeSocialSignInResponse.self, from: response.data)
         if payload.redirect {
             if let url = payload.url, !url.isEmpty {
                 throw AuthError.authenticationFailed("The server tried to start a browser redirect instead of returning a native session.")
@@ -221,7 +217,7 @@ final class AuthStore: ObservableObject {
         }
 
         guard
-            let token = bearerToken(from: httpResponse) ?? payload.token,
+            let token = bearerToken(from: response.http) ?? payload.token,
             let user = payload.user
         else {
             throw AuthError.invalidTokenExchangeResponse
@@ -236,27 +232,21 @@ final class AuthStore: ObservableObject {
     }
 
     private func fetchSession(token: String) async throws -> AppSession {
-        var request = URLRequest(url: AppConfig.endpoint("/api/auth/get-session"))
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(AppConfig.apiOrigin, forHTTPHeaderField: "Origin")
-        request.httpShouldHandleCookies = false
-
-        let (data, response) = try await AppConfig.apiSession.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
+        let response: APIResponse
+        do {
+            response = try await api.send("/api/auth/get-session", token: token)
+        } catch let APIClientError.unacceptableStatus(code, data) {
+            if code == 401 || code == 403 {
+                throw AuthError.sessionExpired
+            }
+            throw authError(from: data, fallback: .invalidServerResponse)
+        } catch APIClientError.invalidResponse {
             throw AuthError.invalidServerResponse
         }
 
-        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-            throw AuthError.sessionExpired
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            throw authError(from: data, fallback: .invalidServerResponse)
-        }
-
-        let payload = try JSONDecoder().decode(AuthSessionResponse.self, from: data)
+        let payload = try decoder.decode(AuthSessionResponse.self, from: response.data)
         return AppSession(
-            token: bearerToken(from: httpResponse) ?? token,
+            token: bearerToken(from: response.http) ?? token,
             userId: payload.user.id,
             email: payload.user.email,
             name: normalizedName(payload.user.name),

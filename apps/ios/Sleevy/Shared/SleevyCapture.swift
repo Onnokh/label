@@ -7,41 +7,34 @@ struct SleevyCaptureClient {
     let encoder: JSONEncoder
     let decoder: JSONDecoder
 
+    private var api: APIClient {
+        APIClient(baseURL: apiBaseURL, origin: apiOrigin, session: urlSession, encoder: encoder, decoder: decoder)
+    }
+
     func capture(url: String, token: String, sourceName: String? = nil, captureChannel: String? = nil) async throws -> Data {
-        var request = URLRequest(url: endpoint("/v1/captures"))
-        request.httpMethod = "POST"
-        request.httpShouldHandleCookies = false
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(apiOrigin, forHTTPHeaderField: "Origin")
-        request.httpBody = try encoder.encode(SleevyCaptureRequest(url: url, sourceName: sourceName, captureChannel: captureChannel))
+        do {
+            let response = try await api.send(
+                "/v1/captures",
+                method: .post,
+                token: token,
+                body: SleevyCaptureRequest(url: url, sourceName: sourceName, captureChannel: captureChannel)
+            )
+            return response.data
+        } catch let APIClientError.unacceptableStatus(code, data) {
+            if code == 401 || code == 403 {
+                throw SleevyCaptureError.sessionExpired
+            }
 
-        let (data, response) = try await urlSession.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw SleevyCaptureError.invalidServerResponse
-        }
-
-        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-            throw SleevyCaptureError.sessionExpired
-        }
-
-        guard (200 ..< 300).contains(httpResponse.statusCode) else {
             let message = serverMessage(data)
 
-            if httpResponse.statusCode == 429 || (500 ..< 600).contains(httpResponse.statusCode) {
+            if code == 429 || (500 ..< 600).contains(code) {
                 throw SleevyCaptureError.temporarilyUnavailable(message ?? "Sleevy could not sync this saved link right now.")
             }
 
             throw SleevyCaptureError.failed(message ?? "Sleevy could not sync this saved link right now.")
+        } catch APIClientError.invalidResponse {
+            throw SleevyCaptureError.invalidServerResponse
         }
-
-        return data
-    }
-
-    private func endpoint(_ path: String) -> URL {
-        var components = URLComponents(url: apiBaseURL, resolvingAgainstBaseURL: false)!
-        components.path = path
-        return components.url!
     }
 
     private func serverMessage(_ data: Data) -> String? {

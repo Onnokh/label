@@ -74,12 +74,6 @@ enum AppConfig {
         return "\(scheme)://\(host)"
     }()
 
-    static func endpoint(_ path: String) -> URL {
-        var components = URLComponents(url: apiBaseURL, resolvingAgainstBaseURL: false)!
-        components.path = path
-        return components.url!
-    }
-
     static func userFacingNetworkMessage(for error: Error) -> String? {
         guard let urlError = error as? URLError else {
             return nil

@@ -25,6 +25,7 @@ final class ReadingListStore: ObservableObject {
     private let session: AppSession
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
+    private let api: APIClient
     private let captureClient: SleevyCaptureClient
     private let pendingCaptureStore: SleevyPendingCaptureStore
     private let cacheURL: URL
@@ -44,6 +45,13 @@ final class ReadingListStore: ObservableObject {
         self.decoder.dateDecodingStrategy = .sleevyISO8601
         self.encoder = JSONEncoder()
         self.encoder.dateEncodingStrategy = .iso8601
+        self.api = APIClient(
+            baseURL: AppConfig.apiBaseURL,
+            origin: AppConfig.apiOrigin,
+            session: AppConfig.apiSession,
+            encoder: self.encoder,
+            decoder: self.decoder
+        )
         self.captureClient = SleevyCaptureClient(
             apiBaseURL: AppConfig.apiBaseURL,
             apiOrigin: AppConfig.apiOrigin,
@@ -389,65 +397,64 @@ final class ReadingListStore: ObservableObject {
         queryItems: [URLQueryItem] = [],
         responseType: T.Type
     ) async throws -> T {
-        try await request(
-            path: path,
-            method: method,
-            queryItems: queryItems,
-            body: Optional<ReadStateUpdateRequest>.none,
-            responseType: responseType
-        )
+        do {
+            return try await api.send(
+                path,
+                method: HTTPMethod(rawValue: method) ?? .get,
+                query: queryItems,
+                token: session.token,
+                as: T.self
+            )
+        } catch let APIClientError.unacceptableStatus(code, data) {
+            throw mapStatusError(code: code, data: data)
+        } catch APIClientError.invalidResponse {
+            throw AuthError.invalidServerResponse
+        }
     }
 
     private func request<T: Decodable, Body: Encodable>(
         path: String,
         method: String = "GET",
         queryItems: [URLQueryItem] = [],
-        body: Body?,
+        body: Body,
         responseType: T.Type
     ) async throws -> T {
-        var components = URLComponents(url: AppConfig.endpoint(path), resolvingAgainstBaseURL: false)!
-        components.queryItems = queryItems.isEmpty ? nil : queryItems
-        var request = URLRequest(url: components.url!)
-        request.httpMethod = method
-        request.setValue("Bearer \(session.token)", forHTTPHeaderField: "Authorization")
-        if let body {
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try encoder.encode(body)
-        }
-
-        let (data, response) = try await AppConfig.apiSession.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
+        do {
+            return try await api.send(
+                path,
+                method: HTTPMethod(rawValue: method) ?? .get,
+                query: queryItems,
+                token: session.token,
+                body: body,
+                as: T.self
+            )
+        } catch let APIClientError.unacceptableStatus(code, data) {
+            throw mapStatusError(code: code, data: data)
+        } catch APIClientError.invalidResponse {
             throw AuthError.invalidServerResponse
         }
-
-        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-            throw AuthError.sessionExpired
-        }
-
-        guard (200 ..< 300).contains(httpResponse.statusCode) else {
-            throw messageError(data: data, fallback: "Request failed with status \(httpResponse.statusCode).")
-        }
-
-        return try decoder.decode(responseType, from: data)
     }
 
     private func requestNoContent(path: String, method: String) async throws {
-        var request = URLRequest(url: AppConfig.endpoint(path))
-        request.httpMethod = method
-        request.setValue("Bearer \(session.token)", forHTTPHeaderField: "Authorization")
-
-        let (data, response) = try await AppConfig.apiSession.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
+        do {
+            try await api.send(
+                path,
+                method: HTTPMethod(rawValue: method) ?? .get,
+                token: session.token
+            )
+        } catch let APIClientError.unacceptableStatus(code, data) {
+            throw mapStatusError(code: code, data: data)
+        } catch APIClientError.invalidResponse {
             throw AuthError.invalidServerResponse
         }
+    }
 
-        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-            throw AuthError.sessionExpired
+    private func mapStatusError(code: Int, data: Data) -> Error {
+        if code == 401 || code == 403 {
+            return AuthError.sessionExpired
         }
 
-        guard (200 ..< 300).contains(httpResponse.statusCode) else {
-            throw messageError(data: data, fallback: "Request failed with status \(httpResponse.statusCode).")
-        }
+        return messageError(data: data, fallback: "Request failed with status \(code).")
     }
 
     private func messageError(data: Data, fallback: String) -> Error {
@@ -589,33 +596,29 @@ final class ReadingListStore: ObservableObject {
     }
 
     private func submitReadStateUpdate(itemId: String, isRead: Bool) async throws -> SavedItem {
-        var request = URLRequest(url: AppConfig.endpoint("/v1/saved-items/\(itemId)/read-state"))
-        request.httpMethod = "POST"
-        request.httpShouldHandleCookies = false
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(session.token)", forHTTPHeaderField: "Authorization")
-        request.httpBody = try encoder.encode(ReadStateUpdateRequest(isRead: isRead))
+        do {
+            return try await api.send(
+                "/v1/saved-items/\(itemId)/read-state",
+                method: .post,
+                token: session.token,
+                body: ReadStateUpdateRequest(isRead: isRead),
+                as: SavedItem.self
+            )
+        } catch let APIClientError.unacceptableStatus(code, data) {
+            if code == 401 || code == 403 {
+                throw AuthError.sessionExpired
+            }
 
-        let (data, response) = try await AppConfig.apiSession.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AuthError.invalidServerResponse
-        }
-
-        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-            throw AuthError.sessionExpired
-        }
-
-        guard (200 ..< 300).contains(httpResponse.statusCode) else {
             let message = serverMessage(data) ?? "Sleevy could not update this saved item right now."
 
-            if httpResponse.statusCode == 429 || (500 ..< 600).contains(httpResponse.statusCode) {
+            if code == 429 || (500 ..< 600).contains(code) {
                 throw PendingReadStateSyncError.retriable(message)
             }
 
             throw PendingReadStateSyncError.unretriable(message)
+        } catch APIClientError.invalidResponse {
+            throw AuthError.invalidServerResponse
         }
-
-        return try decoder.decode(SavedItem.self, from: data)
     }
 
     private func shouldRetryPendingCapture(after error: Error) -> Bool {
