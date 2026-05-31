@@ -9,11 +9,8 @@ import {
 } from "../../src/domain/EnrichmentJob.js"
 import type { UserId } from "../../src/domain/SavedItem.js"
 import { CaptureService } from "../../src/modules/capture/CaptureService.js"
-import { CaptureServiceStore } from "../../src/modules/capture/CaptureServiceStore.js"
-import { PostgresClient } from "../../src/modules/persistence/PostgresClient.js"
 import { SavedItemIntake } from "../../src/modules/saved-items/SavedItemIntake.js"
 import { SavedItemRepository } from "../../src/modules/saved-items/SavedItemRepository.js"
-import { AppConfig } from "../../src/runtime/Config.js"
 import {
   cleanTestDatabase,
   setupTestDatabase,
@@ -24,14 +21,13 @@ import {
 let databaseAvailable = false
 let setupError: unknown
 
+// Each service now provides its own dependencies via `defaultLayer`
+// (PostgresClient + AppConfig are shared across them by layer-identity
+// memoization), so the test wiring is a flat, order-independent merge.
 const persistenceLayer = Layer.mergeAll(
-  CaptureService.layer,
-  SavedItemRepository.layer,
-  SavedItemIntake.layer,
-).pipe(
-  Layer.provide(CaptureServiceStore.layer),
-  Layer.provide(PostgresClient.layer),
-  Layer.provide(AppConfig.layer),
+  CaptureService.defaultLayer,
+  SavedItemRepository.defaultLayer,
+  SavedItemIntake.defaultLayer,
 )
 
 const runIntegration = <A, E>(

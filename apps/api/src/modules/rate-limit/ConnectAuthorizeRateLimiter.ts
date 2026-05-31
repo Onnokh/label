@@ -72,4 +72,8 @@ export class ConnectAuthorizeRateLimiter extends Context.Service<ConnectAuthoriz
   },
 ) {
   static readonly layer = Layer.effect(ConnectAuthorizeRateLimiter, ConnectAuthorizeRateLimiter.make)
+
+  static readonly defaultLayer = ConnectAuthorizeRateLimiter.layer.pipe(
+    Layer.provide(AppConfig.layer),
+  )
 }

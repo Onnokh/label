@@ -195,6 +195,14 @@ export class EnrichmentWorkflow extends Context.Service<EnrichmentWorkflow>()(
   },
 ) {
   static readonly layer = Layer.effect(EnrichmentWorkflow, EnrichmentWorkflow.make)
+
+  static readonly defaultLayer = EnrichmentWorkflow.layer.pipe(
+    Layer.provide(MetadataFetcher.layer),
+    Layer.provide(OEmbedFetcher.layer),
+    Layer.provide(AiEnricher.defaultLayer),
+    Layer.provide(PageFetcher.defaultLayer),
+    Layer.provide(SavedItemIntake.defaultLayer),
+  )
 }
 
 const pageResultToOption = <A>(

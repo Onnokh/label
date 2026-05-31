@@ -96,6 +96,10 @@ export class AiEnricher extends Context.Service<AiEnricher>()(
   },
 ) {
   static readonly layer = Layer.effect(AiEnricher, AiEnricher.make)
+
+  static readonly defaultLayer = AiEnricher.layer.pipe(
+    Layer.provide(AppConfig.layer),
+  )
 }
 
 const buildPromptText = (input: AiEnrichmentInput) => {

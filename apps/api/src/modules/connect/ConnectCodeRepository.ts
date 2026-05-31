@@ -107,4 +107,8 @@ export class ConnectCodeRepository extends Context.Service<ConnectCodeRepository
   },
 ) {
   static readonly layer = Layer.effect(ConnectCodeRepository, ConnectCodeRepository.make)
+
+  static readonly defaultLayer = ConnectCodeRepository.layer.pipe(
+    Layer.provide(PostgresClient.defaultLayer),
+  )
 }

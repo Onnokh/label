@@ -61,4 +61,8 @@ export class PostgresClient extends Context.Service<PostgresClient, {
     ),
     Layer.provide(SharedPool.layer),
   )
+
+  static readonly defaultLayer = PostgresClient.layer.pipe(
+    Layer.provide(AppConfig.layer),
+  )
 }

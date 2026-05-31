@@ -217,4 +217,9 @@ export class BetterAuth extends Context.Service<BetterAuth>()(
   },
 ) {
   static readonly layer = Layer.effect(BetterAuth, BetterAuth.make)
+
+  static readonly defaultLayer = BetterAuth.layer.pipe(
+    Layer.provide(AppConfig.layer),
+    Layer.provide(PostgresClient.defaultLayer),
+  )
 }

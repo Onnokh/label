@@ -78,4 +78,8 @@ export class ApiKeyRateLimiter extends Context.Service<ApiKeyRateLimiter, ApiKey
   },
 ) {
   static readonly layer = Layer.effect(ApiKeyRateLimiter, ApiKeyRateLimiter.make)
+
+  static readonly defaultLayer = ApiKeyRateLimiter.layer.pipe(
+    Layer.provide(AppConfig.layer),
+  )
 }

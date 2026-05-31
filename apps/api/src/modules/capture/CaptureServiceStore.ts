@@ -258,4 +258,8 @@ export class CaptureServiceStore extends Context.Service<CaptureServiceStore>()(
   },
 ) {
   static readonly layer = Layer.effect(CaptureServiceStore, CaptureServiceStore.make)
+
+  static readonly defaultLayer = CaptureServiceStore.layer.pipe(
+    Layer.provide(PostgresClient.defaultLayer),
+  )
 }

@@ -191,4 +191,8 @@ export class SavedItemIntake extends Context.Service<SavedItemIntake>()(
   },
 ) {
   static readonly layer = Layer.effect(SavedItemIntake, SavedItemIntake.make)
+
+  static readonly defaultLayer = SavedItemIntake.layer.pipe(
+    Layer.provide(PostgresClient.defaultLayer),
+  )
 }

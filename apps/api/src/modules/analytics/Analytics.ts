@@ -23,4 +23,8 @@ export class Analytics extends Context.Service<Analytics>()(
   },
 ) {
   static readonly layer = Layer.effect(Analytics, Analytics.make)
+
+  static readonly defaultLayer = Analytics.layer.pipe(
+    Layer.provide(AppConfig.layer),
+  )
 }

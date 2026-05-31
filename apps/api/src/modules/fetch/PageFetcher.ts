@@ -273,4 +273,8 @@ export class PageFetcher extends Context.Service<PageFetcher>()(
     Layer.provide(CloudflareBrowserFetcher.layer),
     Layer.provide(LightpandaFetcher.layer),
   )
+
+  static readonly defaultLayer = PageFetcher.layer.pipe(
+    Layer.provide(AppConfig.layer),
+  )
 }

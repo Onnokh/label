@@ -100,4 +100,8 @@ export class CaptureService extends Context.Service<CaptureService>()(
   },
 ) {
   static readonly layer = Layer.effect(CaptureService, CaptureService.make)
+
+  static readonly defaultLayer = CaptureService.layer.pipe(
+    Layer.provide(CaptureServiceStore.defaultLayer),
+  )
 }

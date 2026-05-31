@@ -89,4 +89,8 @@ export class FolderRepository extends Context.Service<FolderRepository>()(
   },
 ) {
   static readonly layer = Layer.effect(FolderRepository, FolderRepository.make)
+
+  static readonly defaultLayer = FolderRepository.layer.pipe(
+    Layer.provide(PostgresClient.defaultLayer),
+  )
 }

@@ -72,4 +72,8 @@ export class ConnectExchangeRateLimiter extends Context.Service<ConnectExchangeR
   },
 ) {
   static readonly layer = Layer.effect(ConnectExchangeRateLimiter, ConnectExchangeRateLimiter.make)
+
+  static readonly defaultLayer = ConnectExchangeRateLimiter.layer.pipe(
+    Layer.provide(AppConfig.layer),
+  )
 }

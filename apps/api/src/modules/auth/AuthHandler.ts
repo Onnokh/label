@@ -19,4 +19,8 @@ export class AuthHandler extends Context.Service<AuthHandler, {
   },
 ) {
   static readonly layer = Layer.effect(AuthHandler, AuthHandler.make)
+
+  static readonly defaultLayer = AuthHandler.layer.pipe(
+    Layer.provide(BetterAuth.defaultLayer),
+  )
 }
