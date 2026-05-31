@@ -59,8 +59,8 @@ export class AiEnricher extends Context.Service<AiEnricher>()(
       const model = config.ai.model ?? "gpt-5.4-nano"
 
       return {
-        chooseTags: (input: AiEnrichmentInput) =>
-          generateOpenAiObject({
+        chooseTags: Effect.fn("AiEnricher.chooseTags")(function* (input: AiEnrichmentInput) {
+          const value = yield* generateOpenAiObject({
             apiKey,
             model,
             objectName: "link_tags",
@@ -68,17 +68,15 @@ export class AiEnricher extends Context.Service<AiEnricher>()(
             system: tagSystemPrompt,
             prompt: buildPromptText(input),
             operation: "chooseTags",
-          }).pipe(
-            Effect.map((value) => {
-              const tags = value.tags
-              return tags && tags.length > 0
-                ? Option.some(tags as readonly Topic[])
-                : Option.none<readonly Topic[]>()
-            }),
-          ),
+          })
+          const tags = value.tags
+          return tags && tags.length > 0
+            ? Option.some(tags as readonly Topic[])
+            : Option.none<readonly Topic[]>()
+        }),
 
-        preview: (input: AiEnrichmentInput) =>
-          generateOpenAiObject({
+        preview: Effect.fn("AiEnricher.preview")(function* (input: AiEnrichmentInput) {
+          const value = yield* generateOpenAiObject({
             apiKey,
             model,
             objectName: "link_preview",
@@ -86,11 +84,9 @@ export class AiEnricher extends Context.Service<AiEnricher>()(
             system: summarySystemPrompt,
             prompt: buildPromptText(input),
             operation: "preview",
-          }).pipe(
-            Effect.map((value) =>
-              value.summary ? Option.some(value.summary) : Option.none<string>(),
-            ),
-          ),
+          })
+          return value.summary ? Option.some(value.summary) : Option.none<string>()
+        }),
       }
     }),
   },

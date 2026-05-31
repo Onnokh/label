@@ -44,152 +44,152 @@ export class EnrichmentWorkflow extends Context.Service<EnrichmentWorkflow>()(
       const intake = yield* SavedItemIntake
 
       return {
-        enrich: (linkId: Link["id"]) =>
-          Effect.gen(function* () {
-            const status = yield* intake.getEnrichmentStatus(linkId)
-            if (status === "enriched") {
-              return
-            }
+        enrich: Effect.fn("EnrichmentWorkflow.enrich")(function* (linkId: Link["id"]) {
+          yield* Effect.annotateCurrentSpan("linkId", linkId)
+          const status = yield* intake.getEnrichmentStatus(linkId)
+          if (status === "enriched") {
+            return
+          }
 
-            const startResult = yield* intake.startEnrichment(linkId)
-            const { link } = startResult
-            let { metadata: linkMetadata, enrichment: linkEnrichment, job } = startResult
-            yield* Effect.logDebug("enrichment job created", {
-              jobId: job.id,
-              attempt: job.attempt,
-              url: link.originalUrl,
-            })
-            let metadata = Option.none<Metadata>()
-            const pageResult = yield* Effect.all(
-              [pageFetcher.fetch(link.originalUrl)],
-              { mode: "result" },
-            ).pipe(Effect.map(([result]) => result))
+          const startResult = yield* intake.startEnrichment(linkId)
+          const { link } = startResult
+          let { metadata: linkMetadata, enrichment: linkEnrichment, job } = startResult
+          yield* Effect.logDebug("enrichment job created", {
+            jobId: job.id,
+            attempt: job.attempt,
+            url: link.originalUrl,
+          })
+          let metadata = Option.none<Metadata>()
+          const pageResult = yield* Effect.all(
+            [pageFetcher.fetch(link.originalUrl)],
+            { mode: "result" },
+          ).pipe(Effect.map(([result]) => result))
 
-            const stages: Array<EnrichmentStageResult> = []
+          const stages: Array<EnrichmentStageResult> = []
 
-            {
-              const oEmbedResult = yield* oEmbedFetcher.fetch(link.originalUrl)
+          {
+            const oEmbedResult = yield* oEmbedFetcher.fetch(link.originalUrl)
 
-              const result = yield* runStage(
-                "metadata",
-                Option.isSome(oEmbedResult)
-                  ? Effect.succeed<StageResult<Metadata>>({
-                    _tag: "success",
-                    value: oEmbedResult.value,
-                  })
-                  : pageResultToOption(pageResult).pipe(
-                    Effect.flatMap(
-                      Option.match({
-                        onNone: () =>
-                          Effect.succeed<StageResult<Metadata>>({
-                            _tag: "skip",
-                            message: "Fetched page was not HTML.",
-                          }),
-                        onSome: (page) =>
-                          metadataFetcher.parse(page).pipe(
-                            Effect.map((metadataOption) =>
-                              Option.match(metadataOption, {
-                                onNone: (): StageResult<Metadata> => ({
-                                  _tag: "skip",
-                                  message: "No useful metadata found.",
-                                }),
-                                onSome: (value): StageResult<Metadata> => ({
-                                  _tag: "success",
-                                  value,
-                                }),
+            const result = yield* runStage(
+              "metadata",
+              Option.isSome(oEmbedResult)
+                ? Effect.succeed<StageResult<Metadata>>({
+                  _tag: "success",
+                  value: oEmbedResult.value,
+                })
+                : pageResultToOption(pageResult).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () =>
+                        Effect.succeed<StageResult<Metadata>>({
+                          _tag: "skip",
+                          message: "Fetched page was not HTML.",
+                        }),
+                      onSome: (page) =>
+                        metadataFetcher.parse(page).pipe(
+                          Effect.map((metadataOption) =>
+                            Option.match(metadataOption, {
+                              onNone: (): StageResult<Metadata> => ({
+                                _tag: "skip",
+                                message: "No useful metadata found.",
                               }),
-                            ),
+                              onSome: (value): StageResult<Metadata> => ({
+                                _tag: "success",
+                                value,
+                              }),
+                            }),
                           ),
-                      }),
-                    ),
-                  ),
-                stages,
-              )
-
-              if (Option.isSome(result)) {
-                metadata = Option.some(result.value)
-                linkMetadata = applyMetadata(linkMetadata, result.value)
-              }
-            }
-
-            const aiInput = {
-              link,
-              metadata,
-            }
-
-            {
-              const result = yield* runStage<readonly Topic[]>(
-                "tagging",
-                aiEnricher.chooseTags(aiInput).pipe(
-                  Effect.map((tagsOption) =>
-                    Option.match(tagsOption, {
-                      onNone: (): StageResult<readonly Topic[]> => ({
-                        _tag: "skip",
-                        message: "AI tags lacked enough signal or AI is disabled.",
-                      }),
-                      onSome: (value): StageResult<readonly Topic[]> => ({
-                        _tag: "success",
-                        value,
-                      }),
+                        ),
                     }),
                   ),
                 ),
-                stages,
-              )
-
-              if (Option.isSome(result)) {
-                linkEnrichment = applyTags(linkEnrichment, result.value)
-              }
-            }
-
-            {
-              const result = yield* runStage(
-                "preview-summary",
-                aiEnricher.preview(aiInput).pipe(
-                  Effect.map((summaryOption) =>
-                    Option.match(summaryOption, {
-                      onNone: (): StageResult<string> => ({
-                        _tag: "skip",
-                        message: "AI preview summary is disabled or no input was available.",
-                      }),
-                      onSome: (value): StageResult<string> => ({
-                        _tag: "success",
-                        value,
-                      }),
-                    }),
-                  ),
-                ),
-                stages,
-              )
-
-              if (Option.isSome(result)) {
-                linkEnrichment = applyPreviewSummary(linkEnrichment, result.value)
-              }
-            }
-
-            const jobStatus = summarizeJobStatus(stages)
-            linkEnrichment = markFinished(
-              linkEnrichment,
-              jobStatus === "failed" ? "failed" : "enriched",
+              stages,
             )
 
-            job = new EnrichmentJob({
-              ...job,
-              status: jobStatus,
+            if (Option.isSome(result)) {
+              metadata = Option.some(result.value)
+              linkMetadata = applyMetadata(linkMetadata, result.value)
+            }
+          }
+
+          const aiInput = {
+            link,
+            metadata,
+          }
+
+          {
+            const result = yield* runStage<readonly Topic[]>(
+              "tagging",
+              aiEnricher.chooseTags(aiInput).pipe(
+                Effect.map((tagsOption) =>
+                  Option.match(tagsOption, {
+                    onNone: (): StageResult<readonly Topic[]> => ({
+                      _tag: "skip",
+                      message: "AI tags lacked enough signal or AI is disabled.",
+                    }),
+                    onSome: (value): StageResult<readonly Topic[]> => ({
+                      _tag: "success",
+                      value,
+                    }),
+                  }),
+                ),
+              ),
               stages,
-              completedAt: new Date(),
-            })
+            )
 
-            yield* Effect.logInfo("enrichment finished", {
-              jobStatus: job.status,
-              enrichmentStatus: linkEnrichment.status,
-              stages: stages.map((s) => `${s.stage}:${s.status}`),
-              title: linkMetadata.title,
-              metadataSource: Option.isSome(metadata) ? "resolved" : "none",
-            })
+            if (Option.isSome(result)) {
+              linkEnrichment = applyTags(linkEnrichment, result.value)
+            }
+          }
 
-            return yield* intake.finishEnrichment(link, linkMetadata, linkEnrichment, job)
-          }),
+          {
+            const result = yield* runStage(
+              "preview-summary",
+              aiEnricher.preview(aiInput).pipe(
+                Effect.map((summaryOption) =>
+                  Option.match(summaryOption, {
+                    onNone: (): StageResult<string> => ({
+                      _tag: "skip",
+                      message: "AI preview summary is disabled or no input was available.",
+                    }),
+                    onSome: (value): StageResult<string> => ({
+                      _tag: "success",
+                      value,
+                    }),
+                  }),
+                ),
+              ),
+              stages,
+            )
+
+            if (Option.isSome(result)) {
+              linkEnrichment = applyPreviewSummary(linkEnrichment, result.value)
+            }
+          }
+
+          const jobStatus = summarizeJobStatus(stages)
+          linkEnrichment = markFinished(
+            linkEnrichment,
+            jobStatus === "failed" ? "failed" : "enriched",
+          )
+
+          job = new EnrichmentJob({
+            ...job,
+            status: jobStatus,
+            stages,
+            completedAt: new Date(),
+          })
+
+          yield* Effect.logInfo("enrichment finished", {
+            jobStatus: job.status,
+            enrichmentStatus: linkEnrichment.status,
+            stages: stages.map((s) => `${s.stage}:${s.status}`),
+            title: linkMetadata.title,
+            metadataSource: Option.isSome(metadata) ? "resolved" : "none",
+          })
+
+          return yield* intake.finishEnrichment(link, linkMetadata, linkEnrichment, job)
+        }),
       }
     }),
   },
@@ -275,7 +275,7 @@ const runStage = <A>(
     })
 
     return Option.some(result.success.value)
-  })
+  }).pipe(Effect.withSpan(`EnrichmentWorkflow.stage.${stage}`))
 
 const renderError = (error: unknown): string => {
   if (

@@ -82,19 +82,18 @@ export class CaptureService extends Context.Service<CaptureService>()(
       const store = yield* CaptureServiceStore
 
       return {
-        save: (input: CaptureInput) =>
-          Effect.gen(function* () {
-            const url = yield* normalizeCaptureUrl(input.url)
+        save: Effect.fn("CaptureService.save")(function* (input: CaptureInput) {
+          const url = yield* normalizeCaptureUrl(input.url)
 
-            return yield* store.save({
-              userId: input.userId,
-              url,
-              ...(input.sourceName !== undefined ? { sourceName: input.sourceName } : {}),
-              ...(input.captureChannel !== undefined ? { captureChannel: input.captureChannel } : {}),
-              ...(input.tags !== undefined ? { tags: input.tags } : {}),
-              ...(input.folderId !== undefined ? { folderId: input.folderId } : {}),
-            })
-          }),
+          return yield* store.save({
+            userId: input.userId,
+            url,
+            ...(input.sourceName !== undefined ? { sourceName: input.sourceName } : {}),
+            ...(input.captureChannel !== undefined ? { captureChannel: input.captureChannel } : {}),
+            ...(input.tags !== undefined ? { tags: input.tags } : {}),
+            ...(input.folderId !== undefined ? { folderId: input.folderId } : {}),
+          })
+        }),
       }
     }),
   },

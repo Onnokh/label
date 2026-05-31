@@ -10,8 +10,9 @@ export class HttpFetcher extends Context.Service<HttpFetcher>()(
       const config = yield* AppConfig
 
       return {
-        fetch: (url: string) =>
-          Effect.tryPromise({
+        fetch: Effect.fn("HttpFetcher.fetch")(function* (url: string) {
+          yield* Effect.annotateCurrentSpan("url", url)
+          return yield* Effect.tryPromise({
             try: async () => {
               const abortController = new AbortController()
               const timeout = setTimeout(
@@ -61,7 +62,8 @@ export class HttpFetcher extends Context.Service<HttpFetcher>()(
                 url,
                 cause,
               }),
-          }),
+          })
+        }),
       }
     }),
   },

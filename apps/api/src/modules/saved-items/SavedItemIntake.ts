@@ -54,18 +54,17 @@ export class SavedItemIntake extends Context.Service<SavedItemIntake>()(
       const { db } = yield* PostgresClient
 
       return {
-        getEnrichmentStatus: (linkId: Link["id"]) =>
-          Effect.gen(function* () {
-            const rows = yield* db
-              .select({ status: linkEnrichmentTable.status })
-              .from(linkEnrichmentTable)
-              .where(eq(linkEnrichmentTable.linkId, linkId))
-              .limit(1)
-            return rows[0]?.status as LinkEnrichment["status"] | undefined
-          }),
+        getEnrichmentStatus: Effect.fn("SavedItemIntake.getEnrichmentStatus")(function* (linkId: Link["id"]) {
+          const rows = yield* db
+            .select({ status: linkEnrichmentTable.status })
+            .from(linkEnrichmentTable)
+            .where(eq(linkEnrichmentTable.linkId, linkId))
+            .limit(1)
+          return rows[0]?.status as LinkEnrichment["status"] | undefined
+        }),
 
-        startEnrichment: (linkId: Link["id"]) =>
-          db.transaction((tx) =>
+        startEnrichment: Effect.fn("SavedItemIntake.startEnrichment")(function* (linkId: Link["id"]) {
+          return yield* db.transaction((tx) =>
             Effect.gen(function* () {
               const linkRows = yield* tx
                 .select({
@@ -126,15 +125,16 @@ export class SavedItemIntake extends Context.Service<SavedItemIntake>()(
                 job,
               }
             }),
-          ),
+          )
+        }),
 
-        finishEnrichment: (
+        finishEnrichment: Effect.fn("SavedItemIntake.finishEnrichment")(function* (
           link: Link,
           metadata: LinkMetadata,
           enrichment: LinkEnrichment,
           job: EnrichmentJob,
-        ) =>
-          db.transaction((tx) =>
+        ) {
+          return yield* db.transaction((tx) =>
             Effect.gen(function* () {
               const [metadataRow] = yield* tx
                 .update(linkMetadataTable)
@@ -185,7 +185,8 @@ export class SavedItemIntake extends Context.Service<SavedItemIntake>()(
                 job,
               }
             }),
-          ),
+          )
+        }),
       }
     }),
   },

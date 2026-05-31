@@ -28,8 +28,9 @@ export class MetadataFetcher extends Context.Service<MetadataFetcher>()(
   "@app/modules/metadata/MetadataFetcher",
   {
     make: Effect.succeed({
-      parse: (page: PageDocument) =>
-        Effect.try({
+      parse: Effect.fn("MetadataFetcher.parse")(function* (page: PageDocument) {
+        yield* Effect.annotateCurrentSpan("url", page.finalUrl)
+        return yield* Effect.try({
           try: () => buildMetadata(page),
           catch: (cause) =>
             new MetadataFetcherError({
@@ -37,7 +38,8 @@ export class MetadataFetcher extends Context.Service<MetadataFetcher>()(
               url: page.finalUrl,
               cause,
             }),
-        }),
+        })
+      }),
     }),
   },
 ) {

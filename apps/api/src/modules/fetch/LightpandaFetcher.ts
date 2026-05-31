@@ -60,8 +60,9 @@ export class LightpandaFetcher extends Context.Service<LightpandaFetcher>()(
       const config = yield* AppConfig
 
       return {
-        fetch: (url: string) =>
-          Effect.tryPromise({
+        fetch: Effect.fn("LightpandaFetcher.fetch")(function* (url: string) {
+          yield* Effect.annotateCurrentSpan("url", url)
+          return yield* Effect.tryPromise({
             try: async () => {
               const html = await runLightpanda(url, config.fetch.browserTimeoutMs)
 
@@ -85,7 +86,8 @@ export class LightpandaFetcher extends Context.Service<LightpandaFetcher>()(
                 url,
                 cause,
               }),
-          }),
+          })
+        }),
       }
     }),
   },

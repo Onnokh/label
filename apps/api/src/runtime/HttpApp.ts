@@ -1,5 +1,5 @@
 import { Effect, Layer } from "effect"
-import { HttpEffect, HttpRouter, HttpServer } from "effect/unstable/http"
+import { HttpEffect, HttpMiddleware, HttpRouter, HttpServer } from "effect/unstable/http"
 
 import { sleevyApiLive } from "../api/ApiHandlers.js"
 import { Analytics } from "../modules/analytics/Analytics.js"
@@ -84,7 +84,9 @@ export const makeApiWebHandler = Effect.gen(function* () {
   const { auth } = yield* BetterAuth
   const rateLimiter = yield* ApiKeyRateLimiter
   const httpEffect = yield* HttpRouter.toHttpEffect(httpAppLayer)
-  const apiFetch = HttpEffect.toWebHandler(Effect.provideContext(httpEffect, context))
+  const apiFetch = HttpEffect.toWebHandler(
+    Effect.provideContext(HttpMiddleware.tracer(httpEffect), context),
+  )
 
   return ((request) =>
     withCors(

@@ -122,16 +122,17 @@ export class OEmbedFetcher extends Context.Service<OEmbedFetcher>()(
   "@app/modules/metadata/OEmbedFetcher",
   {
     make: Effect.succeed({
-      fetch: (url: string): Effect.Effect<Option.Option<Metadata>, never> => {
+      fetch: Effect.fn("OEmbedFetcher.fetch")(function* (url: string) {
+        yield* Effect.annotateCurrentSpan("url", url)
         const provider = findProvider(url)
-        if (!provider) return Effect.succeed(Option.none())
+        if (!provider) return Option.none<Metadata>()
 
         const resolveEffect = Effect.tryPromise({
           try: () => provider.resolve(url),
           catch: (cause) => new OEmbedFetcherError({ cause }),
         })
 
-        return Effect.gen(function* () {
+        return yield* Effect.gen(function* () {
           const result = yield* Effect.all([resolveEffect], { mode: "result" }).pipe(
             Effect.map(([r]) => r),
           )
@@ -169,7 +170,7 @@ export class OEmbedFetcher extends Context.Service<OEmbedFetcher>()(
             }),
           )
         })
-      },
+      }),
     }),
   },
 ) {

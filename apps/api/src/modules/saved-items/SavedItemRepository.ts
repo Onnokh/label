@@ -141,84 +141,81 @@ export class SavedItemRepository extends Context.Service<SavedItemRepository>()(
       }
 
       return {
-        findByUserAndId: (userId: UserId, id: SavedItem["id"]) =>
-          Effect.gen(function* () {
-            const rows = yield* selectSavedItemWithLink(
-              and(eq(savedItemsTable.userId, userId), eq(savedItemsTable.id, id)),
-            ).limit(1)
+        findByUserAndId: Effect.fn("SavedItemRepository.findByUserAndId")(function* (userId: UserId, id: SavedItem["id"]) {
+          const rows = yield* selectSavedItemWithLink(
+            and(eq(savedItemsTable.userId, userId), eq(savedItemsTable.id, id)),
+          ).limit(1)
 
-            return rows[0]
-              ? Option.some(toAggregate(rows[0]))
-              : Option.none<SavedItemWithLink>()
-          }),
+          return rows[0]
+            ? Option.some(toAggregate(rows[0]))
+            : Option.none<SavedItemWithLink>()
+        }),
 
-        listByUser: (userId: UserId, sort: SavedItemSort = "newest", folderId?: FolderId | null) =>
-          Effect.gen(function* () {
-            const rows = yield* selectSavedItemWithLink(
-              folderId === undefined
-                ? eq(savedItemsTable.userId, userId)
-                : and(
-                    eq(savedItemsTable.userId, userId),
-                    folderId === null
-                      ? isNull(savedItemsTable.folderId)
-                      : eq(savedItemsTable.folderId, folderId),
-                  ),
-            ).orderBy(...orderByForSort(sort))
+        listByUser: Effect.fn("SavedItemRepository.listByUser")(function* (userId: UserId, sort: SavedItemSort = "newest", folderId?: FolderId | null) {
+          const rows = yield* selectSavedItemWithLink(
+            folderId === undefined
+              ? eq(savedItemsTable.userId, userId)
+              : and(
+                  eq(savedItemsTable.userId, userId),
+                  folderId === null
+                    ? isNull(savedItemsTable.folderId)
+                    : eq(savedItemsTable.folderId, folderId),
+                ),
+          ).orderBy(...orderByForSort(sort))
 
-            return rows.map(toAggregate)
-          }),
+          return rows.map(toAggregate)
+        }),
 
-        setReadState: (id: SavedItem["id"], isRead: boolean) =>
-          Effect.gen(function* () {
-            const [row] = yield* db
-              .update(savedItemsTable)
-              .set({ isRead, updatedAt: new Date() })
-              .where(eq(savedItemsTable.id, id))
-              .returning()
+        setReadState: Effect.fn("SavedItemRepository.setReadState")(function* (id: SavedItem["id"], isRead: boolean) {
+          const [row] = yield* db
+            .update(savedItemsTable)
+            .set({ isRead, updatedAt: new Date() })
+            .where(eq(savedItemsTable.id, id))
+            .returning()
 
-            if (!row) {
-              return Option.none<SavedItemWithLink>()
-            }
+          if (!row) {
+            return Option.none<SavedItemWithLink>()
+          }
 
-            const linkRows = yield* selectLinkWithCompanions(row.linkId)
-            const joined = linkRows[0]
+          const linkRows = yield* selectLinkWithCompanions(row.linkId)
+          const joined = linkRows[0]
 
-            if (!joined) {
-              return Option.none<SavedItemWithLink>()
-            }
+          if (!joined) {
+            return Option.none<SavedItemWithLink>()
+          }
 
-            const sourceRow = row.sourceId
-              ? (yield* db.select().from(sourcesTable).where(eq(sourcesTable.id, row.sourceId)).limit(1))[0] ?? null
-              : null
+          const sourceRow = row.sourceId
+            ? (yield* db.select().from(sourcesTable).where(eq(sourcesTable.id, row.sourceId)).limit(1))[0] ?? null
+            : null
 
-            const folderRow = row.folderId
-              ? (yield* db.select().from(foldersTable).where(eq(foldersTable.id, row.folderId)).limit(1))[0] ?? null
-              : null
+          const folderRow = row.folderId
+            ? (yield* db.select().from(foldersTable).where(eq(foldersTable.id, row.folderId)).limit(1))[0] ?? null
+            : null
 
-            return Option.some(toSavedItemWithLink(row, joined.link, joined.metadata, joined.enrichment, sourceRow, folderRow))
-          }),
+          return Option.some(toSavedItemWithLink(row, joined.link, joined.metadata, joined.enrichment, sourceRow, folderRow))
+        }),
 
-        setFolder: (userId: UserId, id: SavedItem["id"], folderId: FolderId | null) =>
-          Effect.gen(function* () {
-            const [row] = yield* db
-              .update(savedItemsTable)
-              .set({ folderId, updatedAt: new Date() })
-              .where(and(eq(savedItemsTable.userId, userId), eq(savedItemsTable.id, id)))
-              .returning()
+        setFolder: Effect.fn("SavedItemRepository.setFolder")(function* (userId: UserId, id: SavedItem["id"], folderId: FolderId | null) {
+          const [row] = yield* db
+            .update(savedItemsTable)
+            .set({ folderId, updatedAt: new Date() })
+            .where(and(eq(savedItemsTable.userId, userId), eq(savedItemsTable.id, id)))
+            .returning()
 
-            if (!row) return Option.none<SavedItemWithLink>()
+          if (!row) return Option.none<SavedItemWithLink>()
 
-            const rows = yield* selectSavedItemWithLink(
-              and(eq(savedItemsTable.userId, userId), eq(savedItemsTable.id, id)),
-            ).limit(1)
-            return rows[0] ? Option.some(toAggregate(rows[0])) : Option.none<SavedItemWithLink>()
-          }),
+          const rows = yield* selectSavedItemWithLink(
+            and(eq(savedItemsTable.userId, userId), eq(savedItemsTable.id, id)),
+          ).limit(1)
+          return rows[0] ? Option.some(toAggregate(rows[0])) : Option.none<SavedItemWithLink>()
+        }),
 
-        deleteByUserAndId: (userId: UserId, id: SavedItem["id"]) =>
-          db.delete(savedItemsTable).where(and(
+        deleteByUserAndId: Effect.fn("SavedItemRepository.deleteByUserAndId")(function* (userId: UserId, id: SavedItem["id"]) {
+          return yield* db.delete(savedItemsTable).where(and(
             eq(savedItemsTable.userId, userId),
             eq(savedItemsTable.id, id),
-          )),
+          ))
+        }),
       }
     }),
   },

@@ -50,12 +50,13 @@ export class CloudflareBrowserFetcher extends Context.Service<CloudflareBrowserF
       const isConfigured = accountId.length > 0 && apiToken.length > 0
 
       return {
-        fetch: (url: string) => {
+        fetch: Effect.fn("CloudflareBrowserFetcher.fetch")(function* (url: string) {
+          yield* Effect.annotateCurrentSpan("url", url)
           if (!isConfigured) {
-            return Effect.succeed(Option.none<PageDocument>())
+            return Option.none<PageDocument>()
           }
 
-          return Effect.tryPromise({
+          return yield* Effect.tryPromise({
             try: async () => {
               // Resolve URL first to handle redirects (e.g., Reddit share URLs -> canonical URLs)
               // This prevents "execution context destroyed" errors from navigation during rendering
@@ -130,7 +131,7 @@ export class CloudflareBrowserFetcher extends Context.Service<CloudflareBrowserF
                 cause,
               }),
           })
-        },
+        }),
       }
     }),
   },

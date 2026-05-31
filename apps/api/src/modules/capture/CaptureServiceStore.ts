@@ -57,8 +57,8 @@ export class CaptureServiceStore extends Context.Service<CaptureServiceStore>()(
       const { db } = yield* PostgresClient
 
       return {
-        save: (input: SaveCaptureCommand) =>
-          db.transaction((tx) =>
+        save: Effect.fn("CaptureServiceStore.save")(function* (input: SaveCaptureCommand) {
+          return yield* db.transaction((tx) =>
             Effect.gen(function* () {
               let sourceId: SourceId | undefined
               let sourceRecord: InferSelectModel<typeof sourcesTable> | undefined
@@ -252,7 +252,8 @@ export class CaptureServiceStore extends Context.Service<CaptureServiceStore>()(
                 enrichment: { _tag: "start" as const, linkId: link.id },
               }
             }),
-          ),
+          )
+        }),
       }
     }),
   },
