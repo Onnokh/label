@@ -16,7 +16,13 @@ const program = Effect.gen(function* () {
         fetch,
       }),
     ),
-    (server) => Effect.promise(() => server.stop()),
+    // Runs on interruption (SIGTERM/SIGINT) thanks to BunRuntime.runMain.
+    // `server.stop()` drains in-flight requests before resolving; the Postgres
+    // pool is closed afterwards by SharedPool's own release (LIFO order).
+    (server) =>
+      Effect.log("Shutting down Sleevy API…").pipe(
+        Effect.andThen(Effect.promise(() => server.stop())),
+      ),
   )
 
   const portlessUrl = process.env.PORTLESS_URL
