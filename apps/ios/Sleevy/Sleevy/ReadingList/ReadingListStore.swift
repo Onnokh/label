@@ -24,8 +24,7 @@ final class ReadingListStore: ObservableObject {
     private let session: AppSession
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
-    private let api: APIClient
-    private let captureClient: SleevyCaptureClient
+    private let savedItemsAPI: SavedItemsAPI
     private let pendingCaptureQueue: PendingCaptureQueue
     private let readStateQueue: ReadStateQueue
     private let savedItemCache: SavedItemCache
@@ -48,19 +47,25 @@ final class ReadingListStore: ObservableObject {
         self.decoder.dateDecodingStrategy = .sleevyISO8601
         self.encoder = JSONEncoder()
         self.encoder.dateEncodingStrategy = .iso8601
-        self.api = APIClient(
+        let api = APIClient(
             baseURL: AppConfig.apiBaseURL,
             origin: AppConfig.apiOrigin,
             session: AppConfig.apiSession,
             encoder: self.encoder,
             decoder: self.decoder
         )
-        self.captureClient = SleevyCaptureClient(
+        let captureClient = SleevyCaptureClient(
             apiBaseURL: AppConfig.apiBaseURL,
             apiOrigin: AppConfig.apiOrigin,
             urlSession: AppConfig.apiSession,
             encoder: self.encoder,
             decoder: self.decoder
+        )
+        self.savedItemsAPI = SavedItemsAPI(
+            api: api,
+            captureClient: captureClient,
+            decoder: self.decoder,
+            token: session.token
         )
         self.pendingCaptureQueue = PendingCaptureQueue(
             userId: session.userId,
@@ -137,8 +142,8 @@ final class ReadingListStore: ObservableObject {
         defer { isLoadingLibrary = false }
 
         do {
-            let foldersResponse = try await request(path: "/v1/folders", responseType: FoldersResponse.self)
-            let rootResponse = try await request(
+            let foldersResponse = try await savedItemsAPI.request(path: "/v1/folders", responseType: FoldersResponse.self)
+            let rootResponse = try await savedItemsAPI.request(
                 path: "/v1/saved-items",
                 queryItems: [URLQueryItem(name: "folder", value: "none")],
                 responseType: SavedItemsResponse.self
@@ -153,7 +158,7 @@ final class ReadingListStore: ObservableObject {
 
     func loadFolderItems(_ folder: Folder) async {
         do {
-            let response = try await request(
+            let response = try await savedItemsAPI.request(
                 path: "/v1/saved-items",
                 queryItems: [URLQueryItem(name: "folder", value: folder.id)],
                 responseType: SavedItemsResponse.self
@@ -166,7 +171,7 @@ final class ReadingListStore: ObservableObject {
     }
 
     func createFolder(named name: String, emoji: String?, color: String?) async throws {
-        let folder = try await request(
+        let folder = try await savedItemsAPI.request(
             path: "/v1/folders",
             method: "POST",
             body: FolderNameRequest(name: name, emoji: emoji, color: color),
@@ -178,7 +183,7 @@ final class ReadingListStore: ObservableObject {
     }
 
     func renameFolder(_ folder: Folder, to name: String, emoji: String?, color: String?) async throws {
-        let renamed = try await request(
+        let renamed = try await savedItemsAPI.request(
             path: "/v1/folders/\(folder.id)",
             method: "PATCH",
             body: FolderNameRequest(name: name, emoji: emoji, color: color),
@@ -192,7 +197,7 @@ final class ReadingListStore: ObservableObject {
     }
 
     func deleteFolder(_ folder: Folder) async throws {
-        try await requestNoContent(path: "/v1/folders/\(folder.id)", method: "DELETE")
+        try await savedItemsAPI.requestNoContent(path: "/v1/folders/\(folder.id)", method: "DELETE")
         folders.removeAll { $0.id == folder.id }
         let returningItems = (folderItems.removeValue(forKey: folder.id) ?? []).map { $0.withFolder(nil) }
         libraryRootItems.append(contentsOf: returningItems)
@@ -204,7 +209,7 @@ final class ReadingListStore: ObservableObject {
     }
 
     func move(_ item: SavedItem, to folder: Folder?) async throws {
-        let updated = try await request(
+        let updated = try await savedItemsAPI.request(
             path: "/v1/saved-items/\(item.id)/folder",
             method: "PUT",
             body: FolderAssignmentRequest(folderId: folder?.id),
@@ -236,7 +241,7 @@ final class ReadingListStore: ObservableObject {
         }
 
         do {
-            let savedItem = try await submitCapture(url: url, sourceName: Self.sourceName, captureChannel: "ios-app")
+            let savedItem = try await savedItemsAPI.capture(url: url, sourceName: Self.sourceName, captureChannel: "ios-app")
             upsertCapturedSavedItem(savedItem)
             isAPIReachable = true
             errorMessage = nil
@@ -270,7 +275,7 @@ final class ReadingListStore: ObservableObject {
             guard let self else { return }
 
             do {
-                let updated = try await request(
+                let updated = try await savedItemsAPI.request(
                     path: "/v1/saved-items/\(item.id)/open",
                     method: "POST",
                     responseType: SavedItem.self
@@ -309,7 +314,7 @@ final class ReadingListStore: ObservableObject {
         }
 
         do {
-            let updated = try await submitReadStateUpdate(itemId: item.id, isRead: isRead)
+            let updated = try await savedItemsAPI.setReadState(itemId: item.id, isRead: isRead)
             let queuedState = readStateQueue.override(for: updated.id)
             if queuedState == nil || queuedState == isRead {
                 readStateQueue.remove(itemId: updated.id)
@@ -334,7 +339,7 @@ final class ReadingListStore: ObservableObject {
 
     func delete(_ item: SavedItem) async {
         do {
-            try await requestNoContent(path: "/v1/saved-items/\(item.id)", method: "DELETE")
+            try await savedItemsAPI.requestNoContent(path: "/v1/saved-items/\(item.id)", method: "DELETE")
             savedItems.removeAll { $0.id == item.id }
             libraryRootItems.removeAll { $0.id == item.id }
             for key in Array(folderItems.keys) {
@@ -376,7 +381,7 @@ final class ReadingListStore: ObservableObject {
     @discardableResult
     private func performLoad() async -> Bool {
         do {
-            let response = try await request(
+            let response = try await savedItemsAPI.request(
                 path: "/v1/saved-items",
                 responseType: SavedItemsResponse.self
             )
@@ -404,89 +409,6 @@ final class ReadingListStore: ObservableObject {
             }
             return false
         }
-    }
-
-    private func request<T: Decodable>(
-        path: String,
-        method: String = "GET",
-        queryItems: [URLQueryItem] = [],
-        responseType: T.Type
-    ) async throws -> T {
-        do {
-            return try await api.send(
-                path,
-                method: HTTPMethod(rawValue: method) ?? .get,
-                query: queryItems,
-                token: session.token,
-                as: T.self
-            )
-        } catch let APIClientError.unacceptableStatus(code, data) {
-            throw mapStatusError(code: code, data: data)
-        } catch APIClientError.invalidResponse {
-            throw AuthError.invalidServerResponse
-        }
-    }
-
-    private func request<T: Decodable, Body: Encodable>(
-        path: String,
-        method: String = "GET",
-        queryItems: [URLQueryItem] = [],
-        body: Body,
-        responseType: T.Type
-    ) async throws -> T {
-        do {
-            return try await api.send(
-                path,
-                method: HTTPMethod(rawValue: method) ?? .get,
-                query: queryItems,
-                token: session.token,
-                body: body,
-                as: T.self
-            )
-        } catch let APIClientError.unacceptableStatus(code, data) {
-            throw mapStatusError(code: code, data: data)
-        } catch APIClientError.invalidResponse {
-            throw AuthError.invalidServerResponse
-        }
-    }
-
-    private func requestNoContent(path: String, method: String) async throws {
-        do {
-            try await api.send(
-                path,
-                method: HTTPMethod(rawValue: method) ?? .get,
-                token: session.token
-            )
-        } catch let APIClientError.unacceptableStatus(code, data) {
-            throw mapStatusError(code: code, data: data)
-        } catch APIClientError.invalidResponse {
-            throw AuthError.invalidServerResponse
-        }
-    }
-
-    private func mapStatusError(code: Int, data: Data) -> Error {
-        if code == 401 || code == 403 {
-            return AuthError.sessionExpired
-        }
-
-        return messageError(data: data, fallback: "Request failed with status \(code).")
-    }
-
-    private func messageError(data: Data, fallback: String) -> Error {
-        guard
-            let body = String(data: data, encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-            !body.isEmpty
-        else {
-            return AuthError.authenticationFailed(fallback)
-        }
-
-        // HTML response means a proxy/CDN error page, not an auth failure
-        if body.hasPrefix("<") {
-            return APIError.unreachable
-        }
-
-        return AuthError.authenticationFailed(body)
     }
 
     private func startMonitoringConnectivity() {
@@ -571,7 +493,7 @@ final class ReadingListStore: ObservableObject {
 
         for (index, pendingUpdate) in pendingReadStateUpdates.enumerated() {
             do {
-                let updated = try await submitReadStateUpdate(
+                let updated = try await savedItemsAPI.setReadState(
                     itemId: pendingUpdate.itemId,
                     isRead: pendingUpdate.isRead
                 )
@@ -602,38 +524,7 @@ final class ReadingListStore: ObservableObject {
     }
 
     private func submitPendingCapture(url: String, sourceName: String?, captureChannel: String?) async throws {
-        _ = try await submitCapture(url: url, sourceName: sourceName, captureChannel: captureChannel)
-    }
-
-    private func submitCapture(url: String, sourceName: String? = nil, captureChannel: String? = nil) async throws -> SavedItem {
-        let data = try await captureClient.capture(url: url, token: session.token, sourceName: sourceName, captureChannel: captureChannel)
-        return try decoder.decode(CaptureResponse.self, from: data).savedItem
-    }
-
-    private func submitReadStateUpdate(itemId: String, isRead: Bool) async throws -> SavedItem {
-        do {
-            return try await api.send(
-                "/v1/saved-items/\(itemId)/read-state",
-                method: .post,
-                token: session.token,
-                body: ReadStateUpdateRequest(isRead: isRead),
-                as: SavedItem.self
-            )
-        } catch let APIClientError.unacceptableStatus(code, data) {
-            if code == 401 || code == 403 {
-                throw AuthError.sessionExpired
-            }
-
-            let message = serverMessage(data) ?? "Sleevy could not update this saved item right now."
-
-            if code == 429 || (500 ..< 600).contains(code) {
-                throw PendingReadStateSyncError.retriable(message)
-            }
-
-            throw PendingReadStateSyncError.unretriable(message)
-        } catch APIClientError.invalidResponse {
-            throw AuthError.invalidServerResponse
-        }
+        _ = try await savedItemsAPI.capture(url: url, sourceName: sourceName, captureChannel: captureChannel)
     }
 
     private func handleAuthenticationInvalid(_ error: Error) -> Bool {
@@ -655,18 +546,6 @@ final class ReadingListStore: ObservableObject {
     private func invalidateAuthentication() {
         errorMessage = nil
         onAuthenticationInvalid?("Your Sleevy session expired. Please sign in again.")
-    }
-
-    private func serverMessage(_ data: Data) -> String? {
-        guard
-            let payload = try? decoder.decode(ServerErrorResponse.self, from: data),
-            let message = payload.message,
-            !message.isEmpty
-        else {
-            return nil
-        }
-
-        return message
     }
 
     private func restoreCachedItems() {
@@ -768,10 +647,6 @@ final class ReadingListStore: ObservableObject {
 
 }
 
-private struct ReadStateUpdateRequest: Encodable {
-    let isRead: Bool
-}
-
 private struct FolderNameRequest: Encodable {
     let name: String
     let emoji: String?
@@ -808,20 +683,7 @@ private struct FolderAssignmentRequest: Encodable {
     }
 }
 
-private struct CaptureResponse: Decodable {
-    let savedItem: SavedItem
-    let captureResult: String
-}
-
-private struct ServerErrorResponse: Decodable {
-    let message: String?
-}
-
 enum CaptureSubmissionOutcome: Equatable {
     case saved(SavedItem)
     case queued
-}
-
-private enum APIError: Error {
-    case unreachable
 }
