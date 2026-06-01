@@ -72,6 +72,8 @@ enum SleevyCaptureError: LocalizedError {
 
 struct SleevyPendingCaptureStore {
     let appGroupIdentifier: String
+    /// Overrides the app group container; used by tests to point at a temp directory.
+    var containerURLOverride: URL? = nil
 
     func enqueue(url: String, for userId: String, sourceName: String? = nil, captureChannel: String? = nil) throws {
         var pendingCaptures = load(for: userId)
@@ -124,8 +126,9 @@ struct SleevyPendingCaptureStore {
     }
 
     private func pendingCapturesURL(for userId: String) -> URL? {
-        FileManager.default
-            .containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?
+        let container = containerURLOverride
+            ?? FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)
+        return container?
             .appendingPathComponent("PendingCaptures", isDirectory: true)
             .appendingPathComponent("\(userId).json", isDirectory: false)
     }

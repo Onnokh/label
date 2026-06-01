@@ -27,7 +27,7 @@ final class ReadingListStore: ObservableObject {
     private let encoder: JSONEncoder
     private let api: APIClient
     private let captureClient: SleevyCaptureClient
-    private let pendingCaptureStore: SleevyPendingCaptureStore
+    private let pendingCaptureQueue: PendingCaptureQueue
     private let readStateQueue: ReadStateQueue
     private let cacheURL: URL
     private let statusDefaults: UserDefaults
@@ -60,8 +60,9 @@ final class ReadingListStore: ObservableObject {
             encoder: self.encoder,
             decoder: self.decoder
         )
-        self.pendingCaptureStore = SleevyPendingCaptureStore(
-            appGroupIdentifier: AppConfig.appGroupIdentifier
+        self.pendingCaptureQueue = PendingCaptureQueue(
+            userId: session.userId,
+            store: SleevyPendingCaptureStore(appGroupIdentifier: AppConfig.appGroupIdentifier)
         )
         self.readStateQueue = ReadStateQueue(
             userId: session.userId,
@@ -72,9 +73,9 @@ final class ReadingListStore: ObservableObject {
         self.cacheURL = Self.makeCacheURL(for: session.userId)
         self.statusDefaults = UserDefaults.standard
         self.lastSuccessfulSyncAt = statusDefaults.object(forKey: Self.lastSyncDefaultsKey(for: session.userId)) as? Date
-        let pendingCaptures = pendingCaptureStore.load(for: session.userId)
-        self.pendingCaptureCount = pendingCaptures.count
-        self.pendingSavedItems = pendingCaptures.map(PendingSavedItem.init)
+        let pendingItems = pendingCaptureQueue.pendingSavedItems()
+        self.pendingCaptureCount = pendingItems.count
+        self.pendingSavedItems = pendingItems
         startMonitoringConnectivity()
     }
 
@@ -211,7 +212,7 @@ final class ReadingListStore: ObservableObject {
     }
 
     func removePendingSavedItem(_ item: PendingSavedItem) {
-        pendingCaptureStore.remove(id: item.id, for: session.userId)
+        pendingCaptureQueue.remove(id: item.id)
         refreshPendingCaptureState()
     }
 
@@ -234,7 +235,7 @@ final class ReadingListStore: ObservableObject {
             errorMessage = nil
             return .saved(savedItem)
         } catch {
-            if shouldRetryPendingCapture(after: error) {
+            if pendingCaptureQueue.shouldRetry(after: error) {
                 enqueuePendingCapture(url: url)
                 errorMessage = nil
                 return .queued
@@ -518,7 +519,7 @@ final class ReadingListStore: ObservableObject {
             refreshPendingCaptureState()
         }
 
-        let pendingCaptures = pendingCaptureStore.load(for: session.userId)
+        let pendingCaptures = pendingCaptureQueue.load()
         guard !pendingCaptures.isEmpty else { return }
 
         var remainingCaptures: [SleevyPendingCapture] = []
@@ -532,7 +533,7 @@ final class ReadingListStore: ObservableObject {
                     break
                 }
 
-                if shouldRetryPendingCapture(after: error) {
+                if pendingCaptureQueue.shouldRetry(after: error) {
                     remainingCaptures.append(contentsOf: pendingCaptures[index...])
                     retriableError = error
                     break
@@ -540,7 +541,7 @@ final class ReadingListStore: ObservableObject {
             }
         }
 
-        try? pendingCaptureStore.persist(remainingCaptures, for: session.userId)
+        pendingCaptureQueue.persist(remainingCaptures)
 
         if retriableError != nil {
             errorMessage = nil
@@ -628,36 +629,6 @@ final class ReadingListStore: ObservableObject {
         }
     }
 
-    private func shouldRetryPendingCapture(after error: Error) -> Bool {
-        if error is URLError {
-            return true
-        }
-
-        if let captureError = error as? SleevyCaptureError {
-            switch captureError {
-            case .temporarilyUnavailable:
-                return true
-            case .sessionExpired:
-                return false
-            case .invalidServerResponse:
-                return true
-            case .failed:
-                return false
-            }
-        }
-
-        if let authError = error as? AuthError {
-            switch authError {
-            case .sessionExpired:
-                return false
-            default:
-                break
-            }
-        }
-
-        return false
-    }
-
     private func handleAuthenticationInvalid(_ error: Error) -> Bool {
         if let authError = error as? AuthError,
            case .sessionExpired = authError {
@@ -703,9 +674,9 @@ final class ReadingListStore: ObservableObject {
     }
 
     private func refreshPendingCaptureState() {
-        let pendingCaptures = pendingCaptureStore.load(for: session.userId)
-        pendingCaptureCount = pendingCaptures.count
-        pendingSavedItems = pendingCaptures.map(PendingSavedItem.init)
+        let pendingItems = pendingCaptureQueue.pendingSavedItems()
+        pendingCaptureCount = pendingItems.count
+        pendingSavedItems = pendingItems
     }
 
     private func persistSavedItems() {
@@ -738,7 +709,7 @@ final class ReadingListStore: ObservableObject {
     }
 
     private func enqueuePendingCapture(url: String) {
-        try? pendingCaptureStore.enqueue(url: url, for: session.userId, sourceName: Self.sourceName, captureChannel: "ios-app")
+        pendingCaptureQueue.enqueue(url: url, sourceName: Self.sourceName, captureChannel: "ios-app")
         refreshPendingCaptureState()
     }
 
@@ -861,39 +832,6 @@ private struct CaptureResponse: Decodable {
 
 private struct ServerErrorResponse: Decodable {
     let message: String?
-}
-
-struct PendingSavedItem: Identifiable, Equatable {
-    let id: UUID
-    let url: URL?
-    let rawURL: String
-    let host: String
-    let title: String
-    let queuedAt: Date
-
-    fileprivate init(pendingCapture: SleevyPendingCapture) {
-        let resolvedURL = URL(string: pendingCapture.url)
-        let sanitizedHost = resolvedURL?.host?
-            .replacingOccurrences(of: #"^www\."#, with: "", options: .regularExpression)
-        let trimmedURL = pendingCapture.url.trimmingCharacters(in: .whitespacesAndNewlines)
-        let lastPathComponent = resolvedURL?.lastPathComponent.trimmingCharacters(in: .whitespacesAndNewlines)
-        let preferredTitle: String
-
-        if let lastPathComponent, !lastPathComponent.isEmpty, lastPathComponent != "/" {
-            preferredTitle = lastPathComponent
-        } else if let sanitizedHost, !sanitizedHost.isEmpty {
-            preferredTitle = sanitizedHost
-        } else {
-            preferredTitle = trimmedURL
-        }
-
-        self.id = pendingCapture.id
-        self.url = resolvedURL
-        self.rawURL = pendingCapture.url
-        self.host = (sanitizedHost?.isEmpty == false ? sanitizedHost : nil) ?? trimmedURL
-        self.title = preferredTitle
-        self.queuedAt = pendingCapture.queuedAt
-    }
 }
 
 enum CaptureSubmissionOutcome: Equatable {
