@@ -15,13 +15,32 @@ struct SleevyAPI {
     private let api: APIClient
     private let captureClient: SleevyCaptureClient
     private let decoder: JSONDecoder
-    private let token: String
+    private let tokenStore: SessionTokenStore
 
-    init(api: APIClient, captureClient: SleevyCaptureClient, decoder: JSONDecoder, token: String) {
+    init(api: APIClient, captureClient: SleevyCaptureClient, decoder: JSONDecoder, tokenStore: SessionTokenStore) {
         self.api = api
         self.captureClient = captureClient
         self.decoder = decoder
-        self.token = token
+        self.tokenStore = tokenStore
+    }
+
+    /// Convenience for call sites (and tests) that hold a static token and don't
+    /// need rotation persisted anywhere.
+    init(api: APIClient, captureClient: SleevyCaptureClient, decoder: JSONDecoder, token: String) {
+        self.init(
+            api: api,
+            captureClient: captureClient,
+            decoder: decoder,
+            tokenStore: SessionTokenStore(initial: token)
+        )
+    }
+
+    /// Picks up a rotated bearer token from the response, if the server sent one,
+    /// so the next request (on any path) uses the fresh token rather than a stale
+    /// snapshot that would eventually 401 and force a spurious sign-out.
+    private func applyRotation(from http: HTTPURLResponse) {
+        guard let rotated = http.value(forHTTPHeaderField: "set-auth-token") else { return }
+        tokenStore.rotate(to: rotated)
     }
 
     func request<T: Decodable>(
@@ -31,13 +50,14 @@ struct SleevyAPI {
         responseType: T.Type
     ) async throws -> T {
         do {
-            return try await api.send(
+            let response = try await api.send(
                 path,
                 method: method,
                 query: queryItems,
-                token: token,
-                as: T.self
+                token: tokenStore.current
             )
+            applyRotation(from: response.http)
+            return try decoder.decode(T.self, from: response.data)
         } catch let APIClientError.unacceptableStatus(code, data) {
             throw mapStatusError(code: code, data: data)
         } catch APIClientError.invalidResponse {
@@ -53,14 +73,15 @@ struct SleevyAPI {
         responseType: T.Type
     ) async throws -> T {
         do {
-            return try await api.send(
+            let response = try await api.send(
                 path,
                 method: method,
                 query: queryItems,
-                token: token,
-                body: body,
-                as: T.self
+                token: tokenStore.current,
+                body: body
             )
+            applyRotation(from: response.http)
+            return try decoder.decode(T.self, from: response.data)
         } catch let APIClientError.unacceptableStatus(code, data) {
             throw mapStatusError(code: code, data: data)
         } catch APIClientError.invalidResponse {
@@ -70,11 +91,12 @@ struct SleevyAPI {
 
     func requestNoContent(path: String, method: HTTPMethod) async throws {
         do {
-            try await api.send(
+            let response = try await api.send(
                 path,
                 method: method,
-                token: token
+                token: tokenStore.current
             )
+            applyRotation(from: response.http)
         } catch let APIClientError.unacceptableStatus(code, data) {
             throw mapStatusError(code: code, data: data)
         } catch APIClientError.invalidResponse {
@@ -86,8 +108,9 @@ struct SleevyAPI {
     /// `SleevyCaptureError` (from `SleevyCaptureClient`) so the store's
     /// retry/auth handling can classify them.
     func capture(url: String, sourceName: String? = nil, captureChannel: String? = nil) async throws -> SavedItem {
-        let data = try await captureClient.capture(url: url, token: token, sourceName: sourceName, captureChannel: captureChannel)
-        return try decoder.decode(CaptureResponse.self, from: data).savedItem
+        let response = try await captureClient.capture(url: url, token: tokenStore.current, sourceName: sourceName, captureChannel: captureChannel)
+        applyRotation(from: response.http)
+        return try decoder.decode(CaptureResponse.self, from: response.data).savedItem
     }
 
     /// Writes a saved item's read state. A `401/403` is mapped to
@@ -95,13 +118,14 @@ struct SleevyAPI {
     /// everything else to `.unretriable`.
     func setReadState(itemId: String, isRead: Bool) async throws -> SavedItem {
         do {
-            return try await api.send(
+            let response = try await api.send(
                 "/v1/saved-items/\(itemId)/read-state",
                 method: .post,
-                token: token,
-                body: ReadStateUpdateRequest(isRead: isRead),
-                as: SavedItem.self
+                token: tokenStore.current,
+                body: ReadStateUpdateRequest(isRead: isRead)
             )
+            applyRotation(from: response.http)
+            return try decoder.decode(SavedItem.self, from: response.data)
         } catch let APIClientError.unacceptableStatus(code, data) {
             if code == 401 || code == 403 {
                 throw AuthError.sessionExpired

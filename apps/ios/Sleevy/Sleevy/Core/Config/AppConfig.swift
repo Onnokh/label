@@ -3,6 +3,9 @@ import Foundation
 enum AppConfig {
     static let keychainService = "app.sleevy"
     static let keychainAccessGroup = Bundle.main.object(forInfoDictionaryKey: "SleevyKeychainAccessGroup") as? String
+    /// Keychain account holding the bearer token. Shared with the share extension
+    /// (which hard-codes the same string) so both targets read one token.
+    static let keychainTokenAccount = "auth-token"
     static let appGroupIdentifier = "group.app.sleevy"
     static let sharedAppSessionKey = "app-session"
     static let apiSession: URLSession = {

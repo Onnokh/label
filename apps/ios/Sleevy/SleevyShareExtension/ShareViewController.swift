@@ -110,12 +110,13 @@ final class ShareViewController: UIViewController {
             let sharedURL = try await loadSharedURL()
             let token = try loadSharedAuthToken()
             do {
-                _ = try await captureClient.capture(
+                let response = try await captureClient.capture(
                     url: sharedURL.absoluteString,
                     token: token,
                     sourceName: Self.sourceName,
                     captureChannel: CaptureChannel.shareExtension.rawValue
                 )
+                persistRotatedToken(from: response.http)
                 extensionContext?.completeRequest(returningItems: nil)
             } catch {
                 guard shouldQueueCapture(after: error) else {
@@ -164,6 +165,20 @@ final class ShareViewController: UIViewController {
         }
 
         return false
+    }
+
+    /// Mirrors a rotated `set-auth-token` back to the shared keychain so the main
+    /// app and the next share see the fresh token instead of a stale snapshot.
+    private func persistRotatedToken(from http: HTTPURLResponse) {
+        guard
+            let rotated = http.value(forHTTPHeaderField: "set-auth-token")?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+            !rotated.isEmpty
+        else {
+            return
+        }
+
+        try? keychain.write(rotated, account: Self.authTokenAccount)
     }
 
     private func loadSharedAuthToken() throws -> String {

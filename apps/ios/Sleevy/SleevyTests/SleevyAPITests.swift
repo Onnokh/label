@@ -19,6 +19,31 @@ struct SleevyAPITests {
         #expect(response.savedItems.isEmpty)
     }
 
+    // MARK: - Token rotation
+
+    @Test func rotatesBearerTokenFromResponseHeader() async throws {
+        let store = SessionTokenStore(initial: "stale-token")
+        let api = makeAPI(
+            status: 200,
+            body: Data(#"{"savedItems":[]}"#.utf8),
+            headers: ["set-auth-token": "fresh-token"],
+            tokenStore: store
+        )
+
+        _ = try await api.request(path: "/v1/saved-items", responseType: SavedItemsResponse.self)
+
+        #expect(store.current == "fresh-token")
+    }
+
+    @Test func leavesTokenUntouchedWhenNoRotationHeader() async throws {
+        let store = SessionTokenStore(initial: "stable-token")
+        let api = makeAPI(status: 200, body: Data(#"{"savedItems":[]}"#.utf8), tokenStore: store)
+
+        _ = try await api.request(path: "/v1/saved-items", responseType: SavedItemsResponse.self)
+
+        #expect(store.current == "stable-token")
+    }
+
     // MARK: - request(...) error mapping
 
     @Test func unauthorizedMapsToSessionExpired() async {
@@ -111,13 +136,18 @@ struct SleevyAPITests {
 
     // MARK: - Helpers
 
-    private func makeAPI(status: Int, body: Data) -> SleevyAPI {
+    private func makeAPI(
+        status: Int,
+        body: Data,
+        headers: [String: String] = [:],
+        tokenStore: SessionTokenStore? = nil
+    ) -> SleevyAPI {
         StubURLProtocol.handler = { request in
             let response = HTTPURLResponse(
                 url: request.url!,
                 statusCode: status,
                 httpVersion: nil,
-                headerFields: ["Content-Type": "application/json"]
+                headerFields: ["Content-Type": "application/json"].merging(headers) { _, new in new }
             )!
             return (response, body)
         }
@@ -135,6 +165,9 @@ struct SleevyAPITests {
             encoder: .sharedISO8601,
             decoder: .sharedISO8601
         )
+        if let tokenStore {
+            return SleevyAPI(api: api, captureClient: captureClient, decoder: .sharedISO8601, tokenStore: tokenStore)
+        }
         return SleevyAPI(api: api, captureClient: captureClient, decoder: .sharedISO8601, token: "test-token")
     }
 

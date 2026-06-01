@@ -13,7 +13,7 @@ struct ContentView: View {
 
     var body: some View {
         if let session = authStore.session {
-            SignedInTabView(session: session)
+            SignedInTabView(session: session, tokenStore: authStore.tokenStore)
         } else {
             NavigationStack {
                 if authStore.isRestoringSession {

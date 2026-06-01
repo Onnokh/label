@@ -71,6 +71,7 @@ final class Library {
     /// inject stubbed versions to drive the coordination logic deterministically.
     init(
         session: AppSession,
+        tokenStore: SessionTokenStore? = nil,
         connectivityMonitor: any ConnectivityMonitoring = LiveConnectivityMonitor(),
         api: SleevyAPI? = nil,
         pendingCaptureQueue: PendingCaptureQueue? = nil,
@@ -89,7 +90,7 @@ final class Library {
         self.encoder = encoder
 
         self.api = api ?? Self.makeAPI(
-            token: session.token,
+            tokenStore: tokenStore ?? SessionTokenStore(initial: session.token),
             encoder: encoder,
             decoder: decoder
         )
@@ -572,7 +573,7 @@ final class Library {
     /// URL session. Extracted so the initializer can fall back to it when no API
     /// is injected.
     private static func makeAPI(
-        token: String,
+        tokenStore: SessionTokenStore,
         encoder: JSONEncoder,
         decoder: JSONDecoder
     ) -> SleevyAPI {
@@ -594,7 +595,7 @@ final class Library {
             api: api,
             captureClient: captureClient,
             decoder: decoder,
-            token: token
+            tokenStore: tokenStore
         )
     }
 

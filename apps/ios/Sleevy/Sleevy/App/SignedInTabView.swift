@@ -13,9 +13,9 @@ struct SignedInTabView: View {
     @State private var libraryPath: [AppRoute] = []
     @State private var shouldRefreshAfterActivation = false
 
-    init(session: AppSession) {
+    init(session: AppSession, tokenStore: SessionTokenStore) {
         self.session = session
-        _store = State(wrappedValue: Library(session: session))
+        _store = State(wrappedValue: Library(session: session, tokenStore: tokenStore))
     }
 
     var body: some View {

@@ -10,11 +10,16 @@ final class AuthStore {
     private(set) var isSigningIn = false
     var errorMessage: String?
 
-    private let keychain = KeychainStore(
-        service: AppConfig.keychainService,
-        accessGroup: AppConfig.keychainAccessGroup
+    /// The single source of truth for the bearer token, shared with `Library`'s
+    /// `SleevyAPI` so a token rotated on either the auth path or the reading-list
+    /// path is seen by both and persisted to the keychain.
+    let tokenStore = SessionTokenStore.live(
+        keychain: KeychainStore(
+            service: AppConfig.keychainService,
+            accessGroup: AppConfig.keychainAccessGroup
+        ),
+        account: AppConfig.keychainTokenAccount
     )
-    private let tokenAccount = "auth-token"
     private let googleSignInClient: any GoogleSignInClient
     private let appleSignInClient: any AppleSignInClient
     private let sharedDefaults = UserDefaults(suiteName: AppConfig.appGroupIdentifier)
@@ -57,7 +62,8 @@ final class AuthStore {
         let cachedSession = readCachedSession()
 
         do {
-            guard let token = try keychain.read(account: tokenAccount), !token.isEmpty else {
+            let token = tokenStore.current
+            guard !token.isEmpty else {
                 clearPersistedSession()
                 session = nil
                 googleUserProfile = nil
@@ -73,9 +79,7 @@ final class AuthStore {
             let restoredSession = try await fetchSession(token: token)
             let sessionProvider = restoredSession.provider ?? cachedSession?.provider
             let displaySession = restoredSession.withProvider(sessionProvider)
-            if restoredSession.token != token {
-                try keychain.write(restoredSession.token, account: tokenAccount)
-            }
+            tokenStore.rotate(to: restoredSession.token)
             session = displaySession
             cache(session: displaySession)
         } catch {
@@ -105,7 +109,7 @@ final class AuthStore {
                 idToken: googleTokens.idToken,
                 accessToken: googleTokens.accessToken
             )
-            try keychain.write(session.token, account: tokenAccount)
+            tokenStore.rotate(to: session.token)
             cache(session: session)
             googleUserProfile = await googleSignInClient.restoreUserProfile()
             prefetchProfileImage(googleUserProfile)
@@ -129,7 +133,7 @@ final class AuthStore {
                 idToken: appleTokens.idToken,
                 nonce: appleTokens.nonce
             )
-            try keychain.write(session.token, account: tokenAccount)
+            tokenStore.rotate(to: session.token)
             cache(session: session)
             googleUserProfile = nil
             self.session = session
@@ -139,7 +143,7 @@ final class AuthStore {
     }
 
     func signOut() async {
-        let token = session?.token ?? (try? keychain.read(account: tokenAccount))
+        let token = currentToken
         session = nil
         googleUserProfile = nil
         errorMessage = nil
@@ -163,7 +167,7 @@ final class AuthStore {
     }
 
     func deleteAccount() async throws {
-        guard let token = session?.token ?? (try? keychain.read(account: tokenAccount)) else {
+        guard let token = currentToken else {
             throw AuthError.sessionExpired
         }
 
@@ -306,8 +310,19 @@ final class AuthStore {
         }
     }
 
+    /// The active bearer token, or `nil` when there is none. Prefers the
+    /// in-memory session token, falling back to the store (which survives an app
+    /// relaunch via the keychain).
+    private var currentToken: String? {
+        if let sessionToken = session?.token, !sessionToken.isEmpty {
+            return sessionToken
+        }
+        let stored = tokenStore.current
+        return stored.isEmpty ? nil : stored
+    }
+
     private func clearPersistedSession() {
-        try? keychain.delete(account: tokenAccount)
+        tokenStore.clear()
         sharedDefaults?.removeObject(forKey: AppConfig.sharedAppSessionKey)
     }
 

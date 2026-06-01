@@ -11,15 +11,16 @@ struct SleevyCaptureClient {
         APIClient(baseURL: apiBaseURL, origin: apiOrigin, session: urlSession, encoder: encoder, decoder: decoder)
     }
 
-    func capture(url: String, token: String, sourceName: String? = nil, captureChannel: String? = nil) async throws -> Data {
+    /// Returns the full `APIResponse` (not just the body) so callers can read the
+    /// rotated `set-auth-token` header and keep their bearer token fresh.
+    func capture(url: String, token: String, sourceName: String? = nil, captureChannel: String? = nil) async throws -> APIResponse {
         do {
-            let response = try await api.send(
+            return try await api.send(
                 "/v1/captures",
                 method: .post,
                 token: token,
                 body: SleevyCaptureRequest(url: url, sourceName: sourceName, captureChannel: captureChannel)
             )
-            return response.data
         } catch let APIClientError.unacceptableStatus(code, data) {
             if code == 401 || code == 403 {
                 throw SleevyCaptureError.sessionExpired
