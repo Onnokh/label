@@ -16,9 +16,9 @@ struct APIResponse {
     let http: HTTPURLResponse
 }
 
-/// Transport-level failures surfaced by `APIClient`.
+/// Transport-level failures surfaced by `HTTPClient`.
 ///
-/// `APIClient` deliberately does *not* decide what a given status code means —
+/// `HTTPClient` deliberately does *not* decide what a given status code means —
 /// a `401` is "session expired" for the reading list but "bad credentials" on
 /// the sign-in endpoint, and a `5xx` is retriable for some calls but not others.
 /// That policy lives with each caller, which inspects `code`/`data` and maps to
@@ -37,7 +37,7 @@ enum APIClientError: Error {
 ///
 /// It is intentionally free of `AppConfig` so it also compiles into the share
 /// extension; callers inject the base URL, origin, session, and JSON coders.
-nonisolated struct APIClient {
+nonisolated struct HTTPClient {
     let baseURL: URL
     let origin: String?
     let session: URLSession

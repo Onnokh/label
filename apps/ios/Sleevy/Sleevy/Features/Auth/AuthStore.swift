@@ -11,7 +11,7 @@ final class AuthStore {
     var errorMessage: String?
 
     /// The single source of truth for the bearer token, shared with `Library`'s
-    /// `SleevyAPI` so a token rotated on either the auth path or the reading-list
+    /// `SleevyAPIClient` so a token rotated on either the auth path or the reading-list
     /// path is seen by both and persisted to the keychain.
     let tokenStore = SessionTokenStore.live(
         keychain: KeychainStore(
@@ -25,12 +25,12 @@ final class AuthStore {
     private let sharedDefaults = UserDefaults(suiteName: AppConfig.appGroupIdentifier)
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
-    private let api: APIClient
+    private let api: HTTPClient
 
     init() {
         self.googleSignInClient = makeGoogleSignInClient()
         self.appleSignInClient = makeAppleSignInClient()
-        self.api = Self.makeAPIClient(encoder: encoder, decoder: decoder)
+        self.api = Self.makeHTTPClient(encoder: encoder, decoder: decoder)
     }
 
     init(
@@ -39,11 +39,11 @@ final class AuthStore {
     ) {
         self.googleSignInClient = googleSignInClient
         self.appleSignInClient = appleSignInClient ?? UnimplementedAppleSignInClient()
-        self.api = Self.makeAPIClient(encoder: encoder, decoder: decoder)
+        self.api = Self.makeHTTPClient(encoder: encoder, decoder: decoder)
     }
 
-    private static func makeAPIClient(encoder: JSONEncoder, decoder: JSONDecoder) -> APIClient {
-        APIClient(
+    private static func makeHTTPClient(encoder: JSONEncoder, decoder: JSONDecoder) -> HTTPClient {
+        HTTPClient(
             baseURL: AppConfig.apiBaseURL,
             origin: AppConfig.apiOrigin,
             session: AppConfig.apiSession,

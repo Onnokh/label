@@ -3,7 +3,7 @@ import Foundation
 /// The Sleevy REST surface: the typed reading-list verbs plus the policy that
 /// maps transport-level `APIClientError`s to the store's domain errors.
 ///
-/// `APIClient` deliberately stays policy-free — it only knows 2xx-vs-not. This
+/// `HTTPClient` deliberately stays policy-free — it only knows 2xx-vs-not. This
 /// type owns the decisions that are specific to Sleevy's endpoints: a
 /// `401/403` means the session expired, an HTML error body means a proxy/CDN is
 /// unreachable, and read-state writes distinguish retriable (`429`/`5xx`) from
@@ -11,13 +11,13 @@ import Foundation
 ///
 /// Extracting it from the store lets these mappings be unit-tested with a
 /// stubbed `URLSession`, without standing up the whole store.
-struct SleevyAPI {
-    private let api: APIClient
+struct SleevyAPIClient {
+    private let api: HTTPClient
     private let captureClient: SleevyCaptureClient
     private let decoder: JSONDecoder
     private let tokenStore: SessionTokenStore
 
-    init(api: APIClient, captureClient: SleevyCaptureClient, decoder: JSONDecoder, tokenStore: SessionTokenStore) {
+    init(api: HTTPClient, captureClient: SleevyCaptureClient, decoder: JSONDecoder, tokenStore: SessionTokenStore) {
         self.api = api
         self.captureClient = captureClient
         self.decoder = decoder
@@ -26,7 +26,7 @@ struct SleevyAPI {
 
     /// Convenience for call sites (and tests) that hold a static token and don't
     /// need rotation persisted anywhere.
-    init(api: APIClient, captureClient: SleevyCaptureClient, decoder: JSONDecoder, token: String) {
+    init(api: HTTPClient, captureClient: SleevyCaptureClient, decoder: JSONDecoder, token: String) {
         self.init(
             api: api,
             captureClient: captureClient,

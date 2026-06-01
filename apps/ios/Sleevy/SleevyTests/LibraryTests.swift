@@ -3,7 +3,7 @@ import Testing
 @testable import Sleevy
 
 /// Exercises the `Library` coordination layer end-to-end against stubbed
-/// collaborators: a `URLProtocol`-backed `SleevyAPI`, temp-dir queues and
+/// collaborators: a `URLProtocol`-backed `SleevyAPIClient`, temp-dir queues and
 /// cache, and a fake connectivity monitor. This covers the logic the
 /// extracted-collaborator unit tests can't — the optimistic updates, queue
 /// draining, derived views, and persistence the store orchestrates on top of
@@ -190,7 +190,7 @@ struct LibraryTests {
         let cache: SavedItemCache
         let readStateQueue: ReadStateQueue
         let pendingCaptureQueue: PendingCaptureQueue
-        private let sleevyAPI: SleevyAPI
+        private let sleevyAPI: SleevyAPIClient
         private let statusDefaults: UserDefaults
         private let userId = "store-test-user"
 
@@ -210,7 +210,7 @@ struct LibraryTests {
             configuration.protocolClasses = [StoreStubURLProtocol.self]
             let session = URLSession(configuration: configuration)
             let baseURL = URL(string: "https://test.local")!
-            let api = APIClient(baseURL: baseURL, origin: nil, session: session, encoder: .sharedISO8601, decoder: .sharedISO8601)
+            let api = HTTPClient(baseURL: baseURL, origin: nil, session: session, encoder: .sharedISO8601, decoder: .sharedISO8601)
             let captureClient = SleevyCaptureClient(
                 apiBaseURL: baseURL,
                 apiOrigin: "https://test.local",
@@ -218,7 +218,7 @@ struct LibraryTests {
                 encoder: .sharedISO8601,
                 decoder: .sharedISO8601
             )
-            sleevyAPI = SleevyAPI(api: api, captureClient: captureClient, decoder: .sharedISO8601, token: "test-token")
+            sleevyAPI = SleevyAPIClient(api: api, captureClient: captureClient, decoder: .sharedISO8601, token: "test-token")
         }
 
         @MainActor func makeStore() -> Library {

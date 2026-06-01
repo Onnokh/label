@@ -54,7 +54,7 @@ final class Library {
     private let session: AppSession
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
-    private let api: SleevyAPI
+    private let api: SleevyAPIClient
     private let pendingCaptureQueue: PendingCaptureQueue
     private let readStateQueue: ReadStateQueue
     private let savedItemCache: SavedItemCache
@@ -73,7 +73,7 @@ final class Library {
         session: AppSession,
         tokenStore: SessionTokenStore? = nil,
         connectivityMonitor: any ConnectivityMonitoring = LiveConnectivityMonitor(),
-        api: SleevyAPI? = nil,
+        api: SleevyAPIClient? = nil,
         pendingCaptureQueue: PendingCaptureQueue? = nil,
         readStateQueue: ReadStateQueue? = nil,
         savedItemCache: SavedItemCache? = nil,
@@ -569,15 +569,15 @@ final class Library {
 
     // MARK: - Construction helpers
 
-    /// The production `SleevyAPI`, wired to the live API base URL and shared
+    /// The production `SleevyAPIClient`, wired to the live API base URL and shared
     /// URL session. Extracted so the initializer can fall back to it when no API
     /// is injected.
     private static func makeAPI(
         tokenStore: SessionTokenStore,
         encoder: JSONEncoder,
         decoder: JSONDecoder
-    ) -> SleevyAPI {
-        let api = APIClient(
+    ) -> SleevyAPIClient {
+        let api = HTTPClient(
             baseURL: AppConfig.apiBaseURL,
             origin: AppConfig.apiOrigin,
             session: AppConfig.apiSession,
@@ -591,7 +591,7 @@ final class Library {
             encoder: encoder,
             decoder: decoder
         )
-        return SleevyAPI(
+        return SleevyAPIClient(
             api: api,
             captureClient: captureClient,
             decoder: decoder,

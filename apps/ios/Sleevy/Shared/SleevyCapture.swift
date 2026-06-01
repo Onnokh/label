@@ -7,8 +7,8 @@ struct SleevyCaptureClient {
     let encoder: JSONEncoder
     let decoder: JSONDecoder
 
-    private var api: APIClient {
-        APIClient(baseURL: apiBaseURL, origin: apiOrigin, session: urlSession, encoder: encoder, decoder: decoder)
+    private var api: HTTPClient {
+        HTTPClient(baseURL: apiBaseURL, origin: apiOrigin, session: urlSession, encoder: encoder, decoder: decoder)
     }
 
     /// Returns the full `APIResponse` (not just the body) so callers can read the

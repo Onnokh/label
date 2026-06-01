@@ -2,12 +2,12 @@ import Foundation
 import Testing
 @testable import Sleevy
 
-/// Drives `SleevyAPI` against a stubbed `URLSession` to lock in the
+/// Drives `SleevyAPIClient` against a stubbed `URLSession` to lock in the
 /// status-code → domain-error policy. Serialized because the stub routes
 /// requests through a process-wide `URLProtocol` handler.
 @MainActor
 @Suite(.serialized)
-struct SleevyAPITests {
+struct SleevyAPIClientTests {
 
     // MARK: - Success
 
@@ -141,7 +141,7 @@ struct SleevyAPITests {
         body: Data,
         headers: [String: String] = [:],
         tokenStore: SessionTokenStore? = nil
-    ) -> SleevyAPI {
+    ) -> SleevyAPIClient {
         StubURLProtocol.handler = { request in
             let response = HTTPURLResponse(
                 url: request.url!,
@@ -157,7 +157,7 @@ struct SleevyAPITests {
         let session = URLSession(configuration: configuration)
 
         let baseURL = URL(string: "https://test.local")!
-        let api = APIClient(baseURL: baseURL, origin: nil, session: session, encoder: .sharedISO8601, decoder: .sharedISO8601)
+        let api = HTTPClient(baseURL: baseURL, origin: nil, session: session, encoder: .sharedISO8601, decoder: .sharedISO8601)
         let captureClient = SleevyCaptureClient(
             apiBaseURL: baseURL,
             apiOrigin: "https://test.local",
@@ -166,9 +166,9 @@ struct SleevyAPITests {
             decoder: .sharedISO8601
         )
         if let tokenStore {
-            return SleevyAPI(api: api, captureClient: captureClient, decoder: .sharedISO8601, tokenStore: tokenStore)
+            return SleevyAPIClient(api: api, captureClient: captureClient, decoder: .sharedISO8601, tokenStore: tokenStore)
         }
-        return SleevyAPI(api: api, captureClient: captureClient, decoder: .sharedISO8601, token: "test-token")
+        return SleevyAPIClient(api: api, captureClient: captureClient, decoder: .sharedISO8601, token: "test-token")
     }
 
     private func errorThrown(_ work: () async throws -> Void) async -> Error? {
