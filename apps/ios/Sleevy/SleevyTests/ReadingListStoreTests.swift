@@ -91,6 +91,110 @@ struct ReadingListStoreTests {
         #expect(env.cache.load()?.isEmpty == true)
     }
 
+    // MARK: - Normalized-projection invariants (#3)
+
+    /// The same unfiled item lives in both the inbox feed and the library root.
+    /// A local read-state toggle is one write to the canonical store; both
+    /// projections must reflect it without per-collection fan-out.
+    @Test func readStateTogglePropagatesAcrossInboxAndLibraryRoot() async throws {
+        StoreStubURLProtocol.handler = { request in
+            if request.url?.path == "/v1/folders" { return Self.respond(status: 200, json: #"{"folders":[]}"#) }
+            return Self.respond(to: request, savedItems: [Self.itemJSON(id: "a", isRead: false)])
+        }
+        let env = Environment()
+        let store = env.makeStore()
+        await store.load()
+        await store.loadLibraryRoot()
+        env.connectivity.emit(false) // keep the toggle local — no server reconciliation
+
+        let item = try #require(store.savedItems.first)
+        await store.setRead(item, isRead: true)
+
+        #expect(store.savedItems.first(where: { $0.id == "a" })?.isRead == true)
+        #expect(store.libraryRootItems.first(where: { $0.id == "a" })?.isRead == true)
+    }
+
+    /// Same invariant for an item that lives in the inbox and a loaded folder.
+    @Test func readStateTogglePropagatesAcrossInboxAndFolder() async throws {
+        StoreStubURLProtocol.handler = { request in
+            if request.url?.path == "/v1/folders" {
+                return Self.respond(status: 200, json: #"{"folders":[\#(Self.folderJSON(id: "f", name: "Work"))]}"#)
+            }
+            let filed = Self.itemJSON(id: "b", isRead: false, folderId: "f")
+            return Self.respond(to: request, savedItems: Self.folderQuery(request) == "none" ? [] : [filed])
+        }
+        let env = Environment()
+        let store = env.makeStore()
+        await store.load()
+        await store.loadLibraryRoot()
+        let folder = try #require(store.folders.first)
+        await store.loadFolderItems(folder)
+        env.connectivity.emit(false)
+
+        let item = try #require(store.savedItems.first)
+        await store.setRead(item, isRead: true)
+
+        #expect(store.savedItems.first(where: { $0.id == "b" })?.isRead == true)
+        #expect(store.folderItems["f"]?.first(where: { $0.id == "b" })?.isRead == true)
+    }
+
+    /// Filing an unfiled item drops it from the library root, adds it to the
+    /// loaded destination folder, and updates the shared inbox copy's folder —
+    /// all from one canonical write plus a projection-membership shuffle.
+    @Test func moveFilesItemAndUpdatesEveryProjection() async throws {
+        StoreStubURLProtocol.handler = { request in
+            if request.url?.path == "/v1/folders" {
+                return Self.respond(status: 200, json: #"{"folders":[\#(Self.folderJSON(id: "f", name: "Work"))]}"#)
+            }
+            if request.httpMethod == "PUT", request.url?.path.hasSuffix("/folder") == true {
+                return Self.respond(status: 200, json: Self.itemJSON(id: "a", isRead: false, folderId: "f"))
+            }
+            switch Self.folderQuery(request) {
+            case "none": return Self.respond(to: request, savedItems: [Self.itemJSON(id: "a", isRead: false)])
+            case "f": return Self.respond(to: request, savedItems: [])
+            default: return Self.respond(to: request, savedItems: [Self.itemJSON(id: "a", isRead: false)])
+            }
+        }
+        let env = Environment()
+        let store = env.makeStore()
+        await store.load()
+        await store.loadLibraryRoot()
+        let folder = try #require(store.folders.first)
+        await store.loadFolderItems(folder)
+        let item = try #require(store.savedItems.first)
+
+        try await store.move(item, to: folder)
+
+        #expect(store.libraryRootItems.contains { $0.id == "a" } == false)
+        #expect(store.folderItems["f"]?.contains { $0.id == "a" } == true)
+        #expect(store.savedItems.first(where: { $0.id == "a" })?.folder?.id == "f")
+    }
+
+    /// Renaming a folder rewrites the embedded folder summary on every item that
+    /// belongs to it, across both the inbox and the loaded folder projection.
+    @Test func renameFolderUpdatesSummaryOnEveryProjection() async throws {
+        StoreStubURLProtocol.handler = { request in
+            if request.url?.path == "/v1/folders", request.httpMethod == "GET" {
+                return Self.respond(status: 200, json: #"{"folders":[\#(Self.folderJSON(id: "f", name: "Work"))]}"#)
+            }
+            if request.httpMethod == "PATCH", request.url?.path.hasPrefix("/v1/folders/") == true {
+                return Self.respond(status: 200, json: Self.folderJSON(id: "f", name: "Career", emoji: "💼", color: "blue"))
+            }
+            return Self.respond(to: request, savedItems: [Self.itemJSON(id: "b", isRead: false, folderId: "f")])
+        }
+        let env = Environment()
+        let store = env.makeStore()
+        await store.load()
+        await store.loadLibraryRoot()
+        let folder = try #require(store.folders.first)
+        await store.loadFolderItems(folder)
+
+        try await store.renameFolder(folder, to: "Career", emoji: "💼", color: "blue")
+
+        #expect(store.savedItems.first(where: { $0.id == "b" })?.folder?.name == "Career")
+        #expect(store.folderItems["f"]?.first(where: { $0.id == "b" })?.folder?.emoji == "💼")
+    }
+
     // MARK: - Environment
 
     /// Owns the per-test temp directory and the stubbed collaborators so a test
@@ -174,8 +278,11 @@ struct ReadingListStoreTests {
         return (response, Data(json.utf8))
     }
 
-    private static func itemJSON(id: String, isRead: Bool) -> String {
-        """
+    private static func itemJSON(id: String, isRead: Bool, folderId: String? = nil, folderName: String = "Work") -> String {
+        let folderField = folderId.map {
+            #""folder": {"id": "\#($0)", "name": "\#(folderName)", "emoji": null, "color": null},"#
+        } ?? ""
+        return """
         {
           "id": "\(id)",
           "originalUrl": "https://example.com/\(id)",
@@ -184,12 +291,23 @@ struct ReadingListStoreTests {
           "type": "article",
           "tags": [],
           "enrichmentStatus": "enriched",
+          \(folderField)
           "isRead": \(isRead),
           "lastSavedAt": "2026-05-13T10:11:12.345Z",
           "createdAt": "2026-05-13T10:11:12.345Z",
           "updatedAt": "2026-05-13T10:11:12.345Z"
         }
         """
+    }
+
+    private static func folderJSON(id: String, name: String, emoji: String? = nil, color: String? = nil) -> String {
+        func quoted(_ value: String?) -> String { value.map { "\"\($0)\"" } ?? "null" }
+        return #"{"id": "\#(id)", "name": "\#(name)", "emoji": \#(quoted(emoji)), "color": \#(quoted(color))}"#
+    }
+
+    private static func folderQuery(_ request: URLRequest) -> String? {
+        URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
+            .queryItems?.first { $0.name == "folder" }?.value
     }
 }
 

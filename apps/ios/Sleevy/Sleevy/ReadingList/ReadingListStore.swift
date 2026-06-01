@@ -5,11 +5,35 @@ import UIKit
 @MainActor
 @Observable
 final class ReadingListStore {
-    private(set) var savedItems: [SavedItem] = []
+    /// Canonical, de-duplicated store of every saved item we know about, keyed by
+    /// id. Item *data* lives here exactly once; the inbox/library/folder
+    /// collections below are ordered *projections* of ids into this dictionary.
+    /// A read-state toggle or folder rename is therefore a single write here that
+    /// every projection reflects automatically — no cross-collection fan-out.
+    private var itemsById: [String: SavedItem] = [:]
+    /// Ids in inbox-feed order (the `/v1/saved-items` response). The inbox holds
+    /// every item; library/folder are subsets loaded from their own endpoints.
+    private var inboxOrder: [String] = []
+    /// Ids of unfiled items shown at the library root.
+    private var rootOrder: [String] = []
+    /// Ids per loaded folder. A missing key means the folder hasn't been loaded
+    /// yet; the views read this to distinguish "empty" from "not loaded".
+    private var folderOrder: [String: [String]] = [:]
+
+    /// The inbox feed: every saved item, in server order.
+    var savedItems: [SavedItem] { inboxOrder.compactMap { itemsById[$0] } }
+    /// Unfiled items shown at the library root.
+    var libraryRootItems: [SavedItem] { rootOrder.compactMap { itemsById[$0] } }
+    /// Loaded folders' items, keyed by folder id. A missing key means the folder
+    /// hasn't been loaded yet.
+    var folderItems: [String: [SavedItem]] {
+        folderOrder.reduce(into: [:]) { result, entry in
+            result[entry.key] = entry.value.compactMap { itemsById[$0] }
+        }
+    }
+
     private(set) var pendingSavedItems: [PendingSavedItem] = []
     private(set) var folders: [Folder] = []
-    private(set) var libraryRootItems: [SavedItem] = []
-    private(set) var folderItems: [String: [SavedItem]] = [:]
     private(set) var isLoadingLibrary = false
     var libraryErrorMessage: String?
     private(set) var isLoading = false
@@ -179,7 +203,9 @@ final class ReadingListStore {
                 responseType: SavedItemsResponse.self
             )
             folders = foldersResponse.folders
-            libraryRootItems = rootResponse.savedItems
+            ingest(rootResponse.savedItems)
+            rootOrder = rootResponse.savedItems.map(\.id)
+            pruneOrphans()
             libraryErrorMessage = nil
         } catch {
             handleLibraryError(error)
@@ -193,7 +219,8 @@ final class ReadingListStore {
                 queryItems: [URLQueryItem(name: "folder", value: folder.id)],
                 responseType: SavedItemsResponse.self
             )
-            folderItems[folder.id] = response.savedItems
+            ingest(response.savedItems)
+            folderOrder[folder.id] = response.savedItems.map(\.id)
             libraryErrorMessage = nil
         } catch {
             handleLibraryError(error)
@@ -222,17 +249,19 @@ final class ReadingListStore {
         folders.removeAll { $0.id == folder.id }
         folders.append(renamed)
         folders.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-        updateFolderSummary(from: folder, to: renamed)
+        applyFolderSummary(renamed)
         libraryErrorMessage = nil
     }
 
     func deleteFolder(_ folder: Folder) async throws {
         try await savedItemsAPI.requestNoContent(path: "/v1/folders/\(folder.id)", method: "DELETE")
         folders.removeAll { $0.id == folder.id }
-        let returningItems = (folderItems.removeValue(forKey: folder.id) ?? []).map { $0.withFolder(nil) }
-        libraryRootItems.append(contentsOf: returningItems)
-        savedItems = savedItems.map { item in
-            item.folder?.id == folder.id ? item.withFolder(nil) : item
+        let returningIds = folderOrder.removeValue(forKey: folder.id) ?? []
+        for (id, item) in itemsById where item.folder?.id == folder.id {
+            itemsById[id] = item.withFolder(nil)
+        }
+        for id in returningIds where !rootOrder.contains(id) {
+            rootOrder.append(id)
         }
         persistSavedItems()
         await loadLibraryRoot()
@@ -245,11 +274,18 @@ final class ReadingListStore {
             body: FolderAssignmentRequest(folderId: folder?.id),
             responseType: SavedItem.self
         )
-        replaceItemInLoadedCollections(updated, removingFromOtherDestinations: true)
-        if let index = savedItems.firstIndex(where: { $0.id == updated.id }) {
-            savedItems[index] = updated
-            persistSavedItems()
+        ingest([updated])
+        removeFromLibraryProjections(id: updated.id)
+        if let folderId = updated.folder?.id {
+            // Only insert into a folder that's been loaded; otherwise it loads
+            // fresh on next open.
+            if folderOrder[folderId] != nil {
+                folderOrder[folderId]?.insert(updated.id, at: 0)
+            }
+        } else {
+            rootOrder.insert(updated.id, at: 0)
         }
+        persistSavedItems()
         libraryErrorMessage = nil
     }
 
@@ -316,9 +352,8 @@ final class ReadingListStore {
                     readStateQueue.remove(itemId: updated.id)
                 }
 
-                if currentReadState(for: updated.id) == true,
-                   let index = savedItems.firstIndex(where: { $0.id == updated.id }) {
-                    savedItems[index] = updated
+                if currentReadState(for: updated.id) == true {
+                    ingest([updated])
                     persistSavedItems()
                 }
 
@@ -350,9 +385,8 @@ final class ReadingListStore {
                 readStateQueue.remove(itemId: updated.id)
             }
 
-            if currentReadState(for: updated.id) == isRead,
-               let index = savedItems.firstIndex(where: { $0.id == updated.id }) {
-                savedItems[index] = updated
+            if currentReadState(for: updated.id) == isRead {
+                ingest([updated])
                 persistSavedItems()
             }
 
@@ -370,11 +404,7 @@ final class ReadingListStore {
     func delete(_ item: SavedItem) async {
         do {
             try await savedItemsAPI.requestNoContent(path: "/v1/saved-items/\(item.id)", method: "DELETE")
-            savedItems.removeAll { $0.id == item.id }
-            libraryRootItems.removeAll { $0.id == item.id }
-            for key in Array(folderItems.keys) {
-                folderItems[key]?.removeAll { $0.id == item.id }
-            }
+            removeItem(id: item.id)
             persistSavedItems()
         } catch {
             handleRequestError(error)
@@ -415,7 +445,9 @@ final class ReadingListStore {
                 path: "/v1/saved-items",
                 responseType: SavedItemsResponse.self
             )
-            savedItems = readStateQueue.apply(to: response.savedItems)
+            ingest(response.savedItems)
+            inboxOrder = response.savedItems.map(\.id)
+            pruneOrphans()
             persistSavedItems()
             lastSuccessfulSyncAt = Date()
             statusDefaults.set(lastSuccessfulSyncAt, forKey: Self.lastSyncDefaultsKey(for: session.userId))
@@ -528,8 +560,8 @@ final class ReadingListStore {
                     isRead: pendingUpdate.isRead
                 )
 
-                if let savedItemIndex = savedItems.firstIndex(where: { $0.id == updated.id }) {
-                    savedItems[savedItemIndex] = updated
+                if itemsById[updated.id] != nil {
+                    ingest([updated])
                     didUpdateSavedItems = true
                 }
             } catch {
@@ -581,7 +613,8 @@ final class ReadingListStore {
     private func restoreCachedItems() {
         guard let cachedItems = savedItemCache.load() else { return }
 
-        savedItems = readStateQueue.apply(to: cachedItems)
+        ingest(cachedItems)
+        inboxOrder = cachedItems.map(\.id)
     }
 
     private func refreshPendingCaptureState() {
@@ -594,17 +627,50 @@ final class ReadingListStore {
         savedItemCache.save(savedItems)
     }
 
-    private func updateLocalReadState(for itemId: String, isRead: Bool) {
-        updateReadStateInLoadedCollections(for: itemId, isRead: isRead)
-        if let index = savedItems.firstIndex(where: { $0.id == itemId }),
-           savedItems[index].isRead != isRead {
-            savedItems[index] = savedItems[index].withReadState(isRead)
-            persistSavedItems()
+    /// Upserts item *data* into the canonical store, applying any pending offline
+    /// read-state overrides so a freshly-fetched item never clobbers a local
+    /// toggle that hasn't synced yet — regardless of which endpoint it arrived
+    /// from. Every projection that references the id reflects the change.
+    private func ingest(_ items: [SavedItem]) {
+        for item in readStateQueue.apply(to: items) {
+            itemsById[item.id] = item
         }
     }
 
+    /// Removes an item entirely: its data and every projection that referenced it.
+    private func removeItem(id: String) {
+        itemsById[id] = nil
+        inboxOrder.removeAll { $0 == id }
+        removeFromLibraryProjections(id: id)
+    }
+
+    /// Removes an id from the library root and every loaded folder, leaving the
+    /// inbox feed untouched. Used when an item changes folder destination.
+    private func removeFromLibraryProjections(id: String) {
+        rootOrder.removeAll { $0 == id }
+        for key in folderOrder.keys {
+            folderOrder[key]?.removeAll { $0 == id }
+        }
+    }
+
+    /// Drops canonical entries no projection references anymore (e.g. items
+    /// deleted server-side that fell out of every loaded collection), so
+    /// `itemsById` can't grow without bound across a long session.
+    private func pruneOrphans() {
+        var referenced = Set(inboxOrder)
+        referenced.formUnion(rootOrder)
+        for ids in folderOrder.values { referenced.formUnion(ids) }
+        itemsById = itemsById.filter { referenced.contains($0.key) }
+    }
+
+    private func updateLocalReadState(for itemId: String, isRead: Bool) {
+        guard let item = itemsById[itemId], item.isRead != isRead else { return }
+        itemsById[itemId] = item.withReadState(isRead)
+        persistSavedItems()
+    }
+
     private func currentReadState(for itemId: String) -> Bool? {
-        savedItems.first(where: { $0.id == itemId })?.isRead
+        itemsById[itemId]?.isRead
     }
 
     private func enqueuePendingCapture(url: String) {
@@ -613,51 +679,22 @@ final class ReadingListStore {
     }
 
     private func upsertCapturedSavedItem(_ savedItem: SavedItem) {
-        savedItems.removeAll { $0.id == savedItem.id }
-        savedItems.insert(savedItem, at: 0)
+        ingest([savedItem])
+        inboxOrder.removeAll { $0 == savedItem.id }
+        inboxOrder.insert(savedItem.id, at: 0)
         if hasAttemptedLibraryLoad && savedItem.folder == nil {
-            libraryRootItems.removeAll { $0.id == savedItem.id }
-            libraryRootItems.insert(savedItem, at: 0)
+            rootOrder.removeAll { $0 == savedItem.id }
+            rootOrder.insert(savedItem.id, at: 0)
         }
         persistSavedItems()
     }
 
-    private func updateReadStateInLoadedCollections(for itemId: String, isRead: Bool) {
-        if let index = libraryRootItems.firstIndex(where: { $0.id == itemId }) {
-            libraryRootItems[index] = libraryRootItems[index].withReadState(isRead)
-        }
-
-        for key in Array(folderItems.keys) {
-            if let index = folderItems[key]?.firstIndex(where: { $0.id == itemId }) {
-                folderItems[key]?[index] = folderItems[key]?[index].withReadState(isRead) ?? folderItems[key]![index]
-            }
-        }
-    }
-
-    private func replaceItemInLoadedCollections(_ item: SavedItem, removingFromOtherDestinations: Bool) {
-        if removingFromOtherDestinations {
-            libraryRootItems.removeAll { $0.id == item.id }
-            for key in Array(folderItems.keys) {
-                folderItems[key]?.removeAll { $0.id == item.id }
-            }
-        }
-
-        if let folderId = item.folder?.id {
-            guard folderItems[folderId] != nil else { return }
-            folderItems[folderId]?.insert(item, at: 0)
-        } else {
-            libraryRootItems.insert(item, at: 0)
-        }
-    }
-
-    private func updateFolderSummary(from oldFolder: Folder, to renamed: Folder) {
-        let summary = FolderSummary(id: renamed.id, name: renamed.name, emoji: renamed.emoji, color: renamed.color)
-        libraryRootItems = libraryRootItems.map {
-            $0.folder?.id == oldFolder.id ? $0.withFolder(summary) : $0
-        }
-        folderItems[oldFolder.id] = folderItems[oldFolder.id]?.map { $0.withFolder(summary) }
-        savedItems = savedItems.map {
-            $0.folder?.id == oldFolder.id ? $0.withFolder(summary) : $0
+    /// Reassigns the (renamed) folder's summary onto every item that belongs to
+    /// it. One write per item in the canonical store; all projections follow.
+    private func applyFolderSummary(_ folder: Folder) {
+        let summary = FolderSummary(id: folder.id, name: folder.name, emoji: folder.emoji, color: folder.color)
+        for (id, item) in itemsById where item.folder?.id == folder.id {
+            itemsById[id] = item.withFolder(summary)
         }
         persistSavedItems()
     }
