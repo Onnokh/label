@@ -1,6 +1,5 @@
 import Combine
 import Foundation
-import Network
 import UIKit
 
 @MainActor
@@ -31,8 +30,7 @@ final class ReadingListStore: ObservableObject {
     private let readStateQueue: ReadStateQueue
     private let savedItemCache: SavedItemCache
     private let statusDefaults: UserDefaults
-    private let pathMonitor = NWPathMonitor()
-    private let pathMonitorQueue = DispatchQueue(label: "app.sleevy.ReadingListStore.pathMonitor")
+    private let connectivityMonitor: any ConnectivityMonitoring
     private var hasAttemptedInitialLoad = false
     private var hasAttemptedLibraryLoad = false
     private var isSyncingPendingReadStateUpdates = false
@@ -40,8 +38,12 @@ final class ReadingListStore: ObservableObject {
         SleevyUserPreferences.sourceName
     }
 
-    init(session: AppSession) {
+    init(
+        session: AppSession,
+        connectivityMonitor: any ConnectivityMonitoring = LiveConnectivityMonitor()
+    ) {
         self.session = session
+        self.connectivityMonitor = connectivityMonitor
         self.decoder = JSONDecoder()
         self.decoder.dateDecodingStrategy = .sleevyISO8601
         self.encoder = JSONEncoder()
@@ -488,29 +490,29 @@ final class ReadingListStore: ObservableObject {
     }
 
     private func startMonitoringConnectivity() {
-        pathMonitor.pathUpdateHandler = { [weak self] path in
-            let satisfied = path.status == .satisfied
-            Task { @MainActor in
-                guard let self else { return }
-                self.isOnline = satisfied
-                guard satisfied else { return }
-
-                self.refreshPendingCaptureState()
-                let hasPendingReadStateUpdates = self.readStateQueue.hasPending
-                let hasPendingCaptures = self.pendingCaptureCount > 0
-                guard hasPendingCaptures || hasPendingReadStateUpdates else { return }
-
-                if hasPendingCaptures {
-                    await self.syncPendingCapturesIfNeeded()
-                }
-                await self.syncPendingReadStateUpdatesIfNeeded()
-
-                guard !self.isLoading, !self.isRefreshing else { return }
-                await self.performLoad()
-            }
+        connectivityMonitor.start { [weak self] isOnline in
+            self?.handleConnectivityChange(isOnline: isOnline)
         }
+    }
 
-        pathMonitor.start(queue: pathMonitorQueue)
+    private func handleConnectivityChange(isOnline: Bool) {
+        self.isOnline = isOnline
+        guard isOnline else { return }
+
+        refreshPendingCaptureState()
+        let hasPendingReadStateUpdates = readStateQueue.hasPending
+        let hasPendingCaptures = pendingCaptureCount > 0
+        guard hasPendingCaptures || hasPendingReadStateUpdates else { return }
+
+        Task {
+            if hasPendingCaptures {
+                await syncPendingCapturesIfNeeded()
+            }
+            await syncPendingReadStateUpdatesIfNeeded()
+
+            guard !isLoading, !isRefreshing else { return }
+            await performLoad()
+        }
     }
 
     private func syncPendingCapturesIfNeeded() async {
@@ -764,9 +766,6 @@ final class ReadingListStore: ObservableObject {
         "reading-list-last-sync.\(userId)"
     }
 
-    deinit {
-        pathMonitor.cancel()
-    }
 }
 
 private struct ReadStateUpdateRequest: Encodable {
