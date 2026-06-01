@@ -37,58 +37,87 @@ final class ReadingListStore: ObservableObject {
         SleevyUserPreferences.sourceName
     }
 
+    /// Collaborators default to their production construction (live API session,
+    /// app-group queues, application-support cache, standard defaults). Tests
+    /// inject stubbed versions — a `URLProtocol`-backed `SavedItemsAPI`, temp-dir
+    /// queues/cache — to drive the store's coordination logic deterministically,
+    /// the same way `connectivityMonitor` is already substituted.
     init(
         session: AppSession,
-        connectivityMonitor: any ConnectivityMonitoring = LiveConnectivityMonitor()
+        connectivityMonitor: any ConnectivityMonitoring = LiveConnectivityMonitor(),
+        savedItemsAPI: SavedItemsAPI? = nil,
+        pendingCaptureQueue: PendingCaptureQueue? = nil,
+        readStateQueue: ReadStateQueue? = nil,
+        savedItemCache: SavedItemCache? = nil,
+        statusDefaults: UserDefaults = .standard
     ) {
         self.session = session
         self.connectivityMonitor = connectivityMonitor
-        self.decoder = JSONDecoder()
-        self.decoder.dateDecodingStrategy = .sleevyISO8601
-        self.encoder = JSONEncoder()
-        self.encoder.dateEncodingStrategy = .iso8601
-        let api = APIClient(
-            baseURL: AppConfig.apiBaseURL,
-            origin: AppConfig.apiOrigin,
-            session: AppConfig.apiSession,
-            encoder: self.encoder,
-            decoder: self.decoder
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .sleevyISO8601
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        self.decoder = decoder
+        self.encoder = encoder
+
+        self.savedItemsAPI = savedItemsAPI ?? Self.makeSavedItemsAPI(
+            token: session.token,
+            encoder: encoder,
+            decoder: decoder
         )
-        let captureClient = SleevyCaptureClient(
-            apiBaseURL: AppConfig.apiBaseURL,
-            apiOrigin: AppConfig.apiOrigin,
-            urlSession: AppConfig.apiSession,
-            encoder: self.encoder,
-            decoder: self.decoder
-        )
-        self.savedItemsAPI = SavedItemsAPI(
-            api: api,
-            captureClient: captureClient,
-            decoder: self.decoder,
-            token: session.token
-        )
-        self.pendingCaptureQueue = PendingCaptureQueue(
+        self.pendingCaptureQueue = pendingCaptureQueue ?? PendingCaptureQueue(
             userId: session.userId,
             store: SleevyPendingCaptureStore(appGroupIdentifier: AppConfig.appGroupIdentifier)
         )
-        self.readStateQueue = ReadStateQueue(
+        self.readStateQueue = readStateQueue ?? ReadStateQueue(
             userId: session.userId,
             containerURL: FileManager.default.containerURL(
                 forSecurityApplicationGroupIdentifier: AppConfig.appGroupIdentifier
             )
         )
-        self.savedItemCache = SavedItemCache(
+        self.savedItemCache = savedItemCache ?? SavedItemCache(
             userId: session.userId,
             directory: Self.applicationSupportDirectory(),
-            encoder: self.encoder,
-            decoder: self.decoder
+            encoder: encoder,
+            decoder: decoder
         )
-        self.statusDefaults = UserDefaults.standard
+        self.statusDefaults = statusDefaults
         self.lastSuccessfulSyncAt = statusDefaults.object(forKey: Self.lastSyncDefaultsKey(for: session.userId)) as? Date
-        let pendingItems = pendingCaptureQueue.pendingSavedItems()
+        let pendingItems = self.pendingCaptureQueue.pendingSavedItems()
         self.pendingCaptureCount = pendingItems.count
         self.pendingSavedItems = pendingItems
         startMonitoringConnectivity()
+    }
+
+    /// The production `SavedItemsAPI`, wired to the live API base URL and shared
+    /// URL session. Extracted so the initializer can fall back to it when no API
+    /// is injected.
+    private static func makeSavedItemsAPI(
+        token: String,
+        encoder: JSONEncoder,
+        decoder: JSONDecoder
+    ) -> SavedItemsAPI {
+        let api = APIClient(
+            baseURL: AppConfig.apiBaseURL,
+            origin: AppConfig.apiOrigin,
+            session: AppConfig.apiSession,
+            encoder: encoder,
+            decoder: decoder
+        )
+        let captureClient = SleevyCaptureClient(
+            apiBaseURL: AppConfig.apiBaseURL,
+            apiOrigin: AppConfig.apiOrigin,
+            urlSession: AppConfig.apiSession,
+            encoder: encoder,
+            decoder: decoder
+        )
+        return SavedItemsAPI(
+            api: api,
+            captureClient: captureClient,
+            decoder: decoder,
+            token: token
+        )
     }
 
     func loadIfNeeded() async {
