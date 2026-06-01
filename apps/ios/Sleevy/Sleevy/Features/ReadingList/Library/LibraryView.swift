@@ -8,7 +8,6 @@ struct LibraryView: View {
     @State private var isShowingFilters = false
     @State private var folderEditor: FolderEditor?
     @State private var folderToDelete: Folder?
-    @State private var folderToOpen: Folder?
     @State private var itemToMove: SavedItem?
 
     var body: some View {
@@ -76,9 +75,6 @@ struct LibraryView: View {
                 types: typeFilters
             )
         }
-        .navigationDestination(item: $folderToOpen) { folder in
-            FolderLibraryView(folder: folder, store: store)
-        }
         .sheet(item: $itemToMove) { item in
             MoveToFolderSheet(item: item, folders: store.folders) { destination in
                 try await store.move(item, to: destination)
@@ -109,8 +105,6 @@ struct LibraryView: View {
                 Section {
                     ForEach(Array(previewFolders.enumerated()), id: \.element.id) { index, folder in
                         FolderListRow(folder: folder) {
-                            folderToOpen = folder
-                        } onRename: {
                             folderEditor = .rename(folder)
                         } onDelete: {
                             folderToDelete = folder
@@ -132,9 +126,7 @@ struct LibraryView: View {
                         Spacer()
 
                         if store.folders.count > folderPreviewLimit {
-                            NavigationLink {
-                                AllFoldersView(store: store)
-                            } label: {
+                            NavigationLink(value: AppRoute.allFolders) {
                                 Text("Show all (\(store.folders.count))")
                                     .font(.footnote.weight(.semibold))
                                     .textCase(nil)

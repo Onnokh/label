@@ -138,10 +138,6 @@ private struct FolderRow: View {
                 .lineLimit(1)
 
             Spacer(minLength: 8)
-
-            Image(systemName: "chevron.forward")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.tertiary)
         }
         .contentShape(Rectangle())
         .padding(.vertical, 8)
@@ -150,15 +146,13 @@ private struct FolderRow: View {
 
 struct FolderListRow: View {
     let folder: Folder
-    let onOpen: @MainActor () -> Void
     let onRename: @MainActor () -> Void
     let onDelete: @MainActor () -> Void
 
     var body: some View {
-        Button(action: onOpen) {
+        NavigationLink(value: AppRoute.folder(folder)) {
             FolderRow(folder: folder)
         }
-        .buttonStyle(.plain)
         .contextMenu {
             Button(action: onRename) {
                 Label("Rename", systemImage: "pencil")
@@ -185,14 +179,11 @@ struct AllFoldersView: View {
     var store: ReadingListStore
     @State private var folderEditor: FolderEditor?
     @State private var folderToDelete: Folder?
-    @State private var folderToOpen: Folder?
 
     var body: some View {
         List {
             ForEach(store.folders) { folder in
                 FolderListRow(folder: folder) {
-                    folderToOpen = folder
-                } onRename: {
                     folderEditor = .rename(folder)
                 } onDelete: {
                     folderToDelete = folder
@@ -215,9 +206,6 @@ struct AllFoldersView: View {
                 }
                 .accessibilityLabel("New Folder")
             }
-        }
-        .navigationDestination(item: $folderToOpen) { folder in
-            FolderLibraryView(folder: folder, store: store)
         }
         .folderActions(store: store, editor: $folderEditor, folderToDelete: $folderToDelete)
         .refreshable {
