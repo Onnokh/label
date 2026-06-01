@@ -101,7 +101,7 @@ final class AuthStore {
         do {
             let googleTokens = try await googleSignInClient.signIn()
             let session = try await exchangeSocialTokensForSession(
-                provider: "google",
+                provider: .google,
                 idToken: googleTokens.idToken,
                 accessToken: googleTokens.accessToken
             )
@@ -125,7 +125,7 @@ final class AuthStore {
         do {
             let appleTokens = try await appleSignInClient.signIn()
             let session = try await exchangeSocialTokensForSession(
-                provider: "apple",
+                provider: .apple,
                 idToken: appleTokens.idToken,
                 nonce: appleTokens.nonce
             )
@@ -183,7 +183,7 @@ final class AuthStore {
     }
 
     private func exchangeSocialTokensForSession(
-        provider: String,
+        provider: AuthProvider,
         idToken: String,
         accessToken: String? = nil,
         nonce: String? = nil
@@ -194,7 +194,7 @@ final class AuthStore {
                 "/api/auth/sign-in/social",
                 method: .post,
                 body: NativeSocialSignInRequest(
-                    provider: provider,
+                    provider: provider.rawValue,
                     disableRedirect: true,
                     idToken: .init(
                         token: idToken,

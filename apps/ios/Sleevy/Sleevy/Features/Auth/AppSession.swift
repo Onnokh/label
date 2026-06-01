@@ -5,7 +5,7 @@ struct AppSession: Codable, Equatable {
     let userId: String
     let email: String
     let name: String
-    let provider: String?
+    let provider: AuthProvider?
 
     var displayName: String {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -13,7 +13,7 @@ struct AppSession: Codable, Equatable {
             return trimmedName
         }
 
-        if provider == "apple" {
+        if provider == .apple {
             return "Apple account"
         }
 
@@ -21,17 +21,10 @@ struct AppSession: Codable, Equatable {
     }
 
     var providerName: String? {
-        switch provider {
-        case "apple":
-            return "Apple"
-        case "google":
-            return "Google"
-        default:
-            return nil
-        }
+        provider?.displayName
     }
 
-    func withProvider(_ provider: String?) -> AppSession {
+    func withProvider(_ provider: AuthProvider?) -> AppSession {
         AppSession(
             token: token,
             userId: userId,

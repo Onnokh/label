@@ -25,7 +25,7 @@ enum PendingReadStateSyncError: LocalizedError {
 ///
 /// Owns persistence, the optimistic overrides applied to freshly loaded items,
 /// and the retry policy. The network submission and applying synced results to
-/// the in-memory item list stay with `ReadingListStore`, which drives the loop.
+/// the in-memory item list stay with `Library`, which drives the loop.
 struct ReadStateQueue {
     let userId: String
     private let fileURL: URL?

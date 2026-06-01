@@ -7,7 +7,7 @@ extension AppRoute {
     /// `AppRoute` enum itself stays in `Core`, pushable by features that must not
     /// depend on App.
     @ViewBuilder @MainActor
-    func destination(store: ReadingListStore, session: AppSession) -> some View {
+    func destination(store: Library, session: AppSession) -> some View {
         switch self {
         case .settings:
             SettingsView(session: session)

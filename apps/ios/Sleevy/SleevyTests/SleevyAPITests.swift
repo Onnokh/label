@@ -2,12 +2,12 @@ import Foundation
 import Testing
 @testable import Sleevy
 
-/// Drives `SavedItemsAPI` against a stubbed `URLSession` to lock in the
+/// Drives `SleevyAPI` against a stubbed `URLSession` to lock in the
 /// status-code → domain-error policy. Serialized because the stub routes
 /// requests through a process-wide `URLProtocol` handler.
 @MainActor
 @Suite(.serialized)
-struct SavedItemsAPITests {
+struct SleevyAPITests {
 
     // MARK: - Success
 
@@ -111,7 +111,7 @@ struct SavedItemsAPITests {
 
     // MARK: - Helpers
 
-    private func makeAPI(status: Int, body: Data) -> SavedItemsAPI {
+    private func makeAPI(status: Int, body: Data) -> SleevyAPI {
         StubURLProtocol.handler = { request in
             let response = HTTPURLResponse(
                 url: request.url!,
@@ -135,7 +135,7 @@ struct SavedItemsAPITests {
             encoder: .sharedISO8601,
             decoder: .sharedISO8601
         )
-        return SavedItemsAPI(api: api, captureClient: captureClient, decoder: .sharedISO8601, token: "test-token")
+        return SleevyAPI(api: api, captureClient: captureClient, decoder: .sharedISO8601, token: "test-token")
     }
 
     private func errorThrown(_ work: () async throws -> Void) async -> Error? {

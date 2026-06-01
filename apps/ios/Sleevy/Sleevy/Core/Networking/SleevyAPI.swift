@@ -1,17 +1,17 @@
 import Foundation
 
-/// The reading list's REST surface: the transport calls plus the policy that
+/// The Sleevy REST surface: the typed reading-list verbs plus the policy that
 /// maps transport-level `APIClientError`s to the store's domain errors.
 ///
 /// `APIClient` deliberately stays policy-free — it only knows 2xx-vs-not. This
-/// type owns the decisions that are specific to saved-items endpoints: a
+/// type owns the decisions that are specific to Sleevy's endpoints: a
 /// `401/403` means the session expired, an HTML error body means a proxy/CDN is
 /// unreachable, and read-state writes distinguish retriable (`429`/`5xx`) from
 /// permanent failures so they can be queued for later.
 ///
 /// Extracting it from the store lets these mappings be unit-tested with a
 /// stubbed `URLSession`, without standing up the whole store.
-struct SavedItemsAPI {
+struct SleevyAPI {
     private let api: APIClient
     private let captureClient: SleevyCaptureClient
     private let decoder: JSONDecoder
@@ -26,14 +26,14 @@ struct SavedItemsAPI {
 
     func request<T: Decodable>(
         path: String,
-        method: String = "GET",
+        method: HTTPMethod = .get,
         queryItems: [URLQueryItem] = [],
         responseType: T.Type
     ) async throws -> T {
         do {
             return try await api.send(
                 path,
-                method: HTTPMethod(rawValue: method) ?? .get,
+                method: method,
                 query: queryItems,
                 token: token,
                 as: T.self
@@ -47,7 +47,7 @@ struct SavedItemsAPI {
 
     func request<T: Decodable, Body: Encodable>(
         path: String,
-        method: String = "GET",
+        method: HTTPMethod = .get,
         queryItems: [URLQueryItem] = [],
         body: Body,
         responseType: T.Type
@@ -55,7 +55,7 @@ struct SavedItemsAPI {
         do {
             return try await api.send(
                 path,
-                method: HTTPMethod(rawValue: method) ?? .get,
+                method: method,
                 query: queryItems,
                 token: token,
                 body: body,
@@ -68,11 +68,11 @@ struct SavedItemsAPI {
         }
     }
 
-    func requestNoContent(path: String, method: String) async throws {
+    func requestNoContent(path: String, method: HTTPMethod) async throws {
         do {
             try await api.send(
                 path,
-                method: HTTPMethod(rawValue: method) ?? .get,
+                method: method,
                 token: token
             )
         } catch let APIClientError.unacceptableStatus(code, data) {
@@ -119,6 +119,57 @@ struct SavedItemsAPI {
         }
     }
 
+    // MARK: - Reading list verbs
+
+    /// The full saved-item set (the inbox), in the server's canonical order.
+    func loadSavedItems() async throws -> [SavedItem] {
+        try await request(path: "/v1/saved-items", responseType: SavedItemsResponse.self).savedItems
+    }
+
+    func loadFolders() async throws -> [Folder] {
+        try await request(path: "/v1/folders", responseType: FoldersResponse.self).folders
+    }
+
+    func createFolder(name: String, emoji: String?, color: String?) async throws -> Folder {
+        try await request(
+            path: "/v1/folders",
+            method: .post,
+            body: FolderNameRequest(name: name, emoji: emoji, color: color),
+            responseType: Folder.self
+        )
+    }
+
+    func renameFolder(id: String, name: String, emoji: String?, color: String?) async throws -> Folder {
+        try await request(
+            path: "/v1/folders/\(id)",
+            method: .patch,
+            body: FolderNameRequest(name: name, emoji: emoji, color: color),
+            responseType: Folder.self
+        )
+    }
+
+    func deleteFolder(id: String) async throws {
+        try await requestNoContent(path: "/v1/folders/\(id)", method: .delete)
+    }
+
+    func moveItem(id: String, toFolder folderId: String?) async throws -> SavedItem {
+        try await request(
+            path: "/v1/saved-items/\(id)/folder",
+            method: .put,
+            body: FolderAssignmentRequest(folderId: folderId),
+            responseType: SavedItem.self
+        )
+    }
+
+    /// Records that the item was opened, returning it with read state applied.
+    func markOpened(id: String) async throws -> SavedItem {
+        try await request(path: "/v1/saved-items/\(id)/open", method: .post, responseType: SavedItem.self)
+    }
+
+    func deleteItem(id: String) async throws {
+        try await requestNoContent(path: "/v1/saved-items/\(id)", method: .delete)
+    }
+
     private func mapStatusError(code: Int, data: Data) -> Error {
         if code == 401 || code == 403 {
             return AuthError.sessionExpired
@@ -159,6 +210,42 @@ struct SavedItemsAPI {
 
 private struct ReadStateUpdateRequest: Encodable {
     let isRead: Bool
+}
+
+private struct FolderNameRequest: Encodable {
+    let name: String
+    let emoji: String?
+    let color: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case name
+        case emoji
+        case color
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encode(emoji, forKey: .emoji)
+        try container.encode(color, forKey: .color)
+    }
+}
+
+private struct FolderAssignmentRequest: Encodable {
+    let folderId: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case folderId
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        if let folderId {
+            try container.encode(folderId, forKey: .folderId)
+        } else {
+            try container.encodeNil(forKey: .folderId)
+        }
+    }
 }
 
 private struct CaptureResponse: Decodable {

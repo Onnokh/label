@@ -7,7 +7,7 @@ struct SignedInTabView: View {
     @Environment(AuthStore.self) private var authStore
     @Environment(\.scenePhase) private var scenePhase
     let session: AppSession
-    @State private var store: ReadingListStore
+    @State private var store: Library
     @State private var selectedTab: AppTab = .sleevy
     @State private var sleevyPath: [AppRoute] = []
     @State private var libraryPath: [AppRoute] = []
@@ -15,7 +15,7 @@ struct SignedInTabView: View {
 
     init(session: AppSession) {
         self.session = session
-        _store = State(wrappedValue: ReadingListStore(session: session))
+        _store = State(wrappedValue: Library(session: session))
     }
 
     var body: some View {
@@ -126,7 +126,7 @@ private struct AccountToolbarModifier: ViewModifier {
                     } label: {
                         AccountAvatarButton(
                             name: session.displayName,
-                            imageURL: session.provider == "google" ? authStore.googleUserProfile?.imageURL : nil
+                            imageURL: session.provider == .google ? authStore.googleUserProfile?.imageURL : nil
                         )
                     }
                     .accessibilityLabel("\(session.displayName) account")

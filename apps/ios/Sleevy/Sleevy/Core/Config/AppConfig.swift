@@ -23,56 +23,8 @@ enum AppConfig {
         return URLSession(configuration: configuration)
     }()
 
-    static let apiBaseURL: URL = {
-        if
-            let value = Bundle.main.object(forInfoDictionaryKey: "SleevyAPIBaseURL") as? String,
-            let url = URL(string: value),
-            !value.isEmpty,
-            !value.contains("REPLACE_WITH")
-        {
-            return validatedAPIBaseURL(url)
-        }
-
-        if
-            let value = ProcessInfo.processInfo.environment["SLEEVY_API_BASE_URL"],
-            let url = URL(string: value)
-        {
-            return validatedAPIBaseURL(url)
-        }
-
-        #if DEBUG
-        return URL(string: "http://localhost:4001")!
-        #else
-        fatalError("SLEEVY_API_BASE_URL must be configured for Release builds.")
-        #endif
-    }()
-
-    private static func validatedAPIBaseURL(_ url: URL) -> URL {
-        #if DEBUG
-        return url
-        #else
-        guard url.scheme == "https" else {
-            fatalError("SLEEVY_API_BASE_URL must use HTTPS for Release builds.")
-        }
-
-        return url
-        #endif
-    }
-
-    static let apiOrigin: String = {
-        guard
-            let scheme = apiBaseURL.scheme,
-            let host = apiBaseURL.host
-        else {
-            return apiBaseURL.absoluteString
-        }
-
-        if let port = apiBaseURL.port {
-            return "\(scheme)://\(host):\(port)"
-        }
-
-        return "\(scheme)://\(host)"
-    }()
+    static let apiBaseURL = SleevyAPIEnvironment.baseURL
+    static let apiOrigin = SleevyAPIEnvironment.origin
 
     static func userFacingNetworkMessage(for error: Error) -> String? {
         guard let urlError = error as? URLError else {

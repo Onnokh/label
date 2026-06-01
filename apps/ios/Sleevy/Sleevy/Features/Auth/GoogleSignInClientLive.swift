@@ -70,7 +70,10 @@ struct LiveGoogleSignInClient: GoogleSignInClient {
         return value
     }
 
-    private func profile(for user: GIDGoogleUser) -> GoogleUserProfile {
+    // `nonisolated` so it can be called straight from GoogleSignIn's completion
+    // callback without sending the non-Sendable `user` across an actor hop. It
+    // only reads its argument and touches no main-actor state.
+    private nonisolated func profile(for user: GIDGoogleUser) -> GoogleUserProfile {
         let dimension: UInt = 84
         let imageURL = user.profile?.hasImage == true
             ? user.profile?.imageURL(withDimension: dimension)

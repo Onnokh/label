@@ -21,7 +21,7 @@ struct ConnectivityMonitorTests {
 
     @Test func storeReflectsConnectivityTransitions() {
         let monitor = StubConnectivityMonitor()
-        let store = ReadingListStore(session: makeSession(), connectivityMonitor: monitor)
+        let store = Library(session: makeSession(), connectivityMonitor: monitor)
 
         #expect(store.isOnline == true) // default before any path update
 

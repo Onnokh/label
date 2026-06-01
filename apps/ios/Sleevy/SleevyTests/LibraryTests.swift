@@ -2,20 +2,19 @@ import Foundation
 import Testing
 @testable import Sleevy
 
-/// Exercises the `ReadingListStore` coordination layer end-to-end against
-/// stubbed collaborators: a `URLProtocol`-backed `SavedItemsAPI`, temp-dir
-/// queues and cache, and a fake connectivity monitor. This covers the logic the
+/// Exercises the `Library` coordination layer end-to-end against stubbed
+/// collaborators: a `URLProtocol`-backed `SleevyAPI`, temp-dir queues and
+/// cache, and a fake connectivity monitor. This covers the logic the
 /// extracted-collaborator unit tests can't — the optimistic updates, queue
-/// draining, and persistence the store orchestrates on top of them.
+/// draining, derived views, and persistence the store orchestrates on top of
+/// them.
 ///
 /// Serialized because the URL stub (`StoreStubURLProtocol`) routes through a
 /// process-wide handler; serialization keeps these tests from clobbering each
-/// other's canned responses. The dedicated protocol class (rather than reusing
-/// `SavedItemsAPITests`' `StubURLProtocol`) keeps the two suites independent so
-/// they can run in parallel.
+/// other's canned responses.
 @MainActor
 @Suite(.serialized)
-struct ReadingListStoreTests {
+struct LibraryTests {
 
     @Test func loadFetchesPersistsAndMarksReachable() async {
         StoreStubURLProtocol.handler = { request in
@@ -26,7 +25,7 @@ struct ReadingListStoreTests {
 
         await store.load()
 
-        #expect(store.savedItems.map(\.id) == ["a"])
+        #expect(store.savedItems().map(\.id) == ["a"])
         #expect(store.isAPIReachable)
         #expect(store.lastSuccessfulSyncAt != nil)
         #expect(env.cache.load()?.map(\.id) == ["a"]) // persisted through the injected cache
@@ -42,7 +41,7 @@ struct ReadingListStoreTests {
 
         #expect(outcome == .queued)
         #expect(store.pendingCaptureCount == 1)
-        #expect(store.savedItems.isEmpty)
+        #expect(store.savedItems().isEmpty)
     }
 
     @Test func loadAppliesAndDrainsQueuedReadState() async {
@@ -62,9 +61,9 @@ struct ReadingListStoreTests {
 
         await store.load()
 
-        #expect(store.savedItems.first?.isRead == true) // override applied, then synced and confirmed
-        #expect(env.readStateQueue.all().isEmpty)        // queue drained after the server confirmed it
-        #expect(server.isRead)                           // the optimistic change was pushed to the server
+        #expect(store.savedItems().first?.isRead == true) // override applied, then synced and confirmed
+        #expect(env.readStateQueue.all().isEmpty)          // queue drained after the server confirmed it
+        #expect(server.isRead)                             // the optimistic change was pushed to the server
     }
 
     /// Mutable server-side state captured by a stub handler so a read-state write
@@ -83,19 +82,19 @@ struct ReadingListStoreTests {
         let env = Environment()
         let store = env.makeStore()
         await store.load()
-        let item = try #require(store.savedItems.first)
+        let item = try #require(store.savedItems().first)
 
         await store.delete(item)
 
-        #expect(store.savedItems.isEmpty)
+        #expect(store.savedItems().isEmpty)
         #expect(env.cache.load()?.isEmpty == true)
     }
 
-    // MARK: - Normalized-projection invariants (#3)
+    // MARK: - Derived-view invariants
 
-    /// The same unfiled item lives in both the inbox feed and the library root.
-    /// A local read-state toggle is one write to the canonical store; both
-    /// projections must reflect it without per-collection fan-out.
+    /// The same unfiled item is surfaced by both the Inbox (`.all`) and the
+    /// Library root (`.unfiled`). A local read-state toggle is one write to the
+    /// canonical store; both derived views must reflect it.
     @Test func readStateTogglePropagatesAcrossInboxAndLibraryRoot() async throws {
         StoreStubURLProtocol.handler = { request in
             if request.url?.path == "/v1/folders" { return Self.respond(status: 200, json: #"{"folders":[]}"#) }
@@ -104,44 +103,39 @@ struct ReadingListStoreTests {
         let env = Environment()
         let store = env.makeStore()
         await store.load()
-        await store.loadLibraryRoot()
         env.connectivity.emit(false) // keep the toggle local — no server reconciliation
 
-        let item = try #require(store.savedItems.first)
+        let item = try #require(store.savedItems().first)
         await store.setRead(item, isRead: true)
 
-        #expect(store.savedItems.first(where: { $0.id == "a" })?.isRead == true)
-        #expect(store.libraryRootItems.first(where: { $0.id == "a" })?.isRead == true)
+        #expect(store.savedItems(.all).first(where: { $0.id == "a" })?.isRead == true)
+        #expect(store.savedItems(.unfiled).first(where: { $0.id == "a" })?.isRead == true)
     }
 
-    /// Same invariant for an item that lives in the inbox and a loaded folder.
+    /// Same invariant for an item that lives in the Inbox and a folder.
     @Test func readStateTogglePropagatesAcrossInboxAndFolder() async throws {
         StoreStubURLProtocol.handler = { request in
             if request.url?.path == "/v1/folders" {
                 return Self.respond(status: 200, json: #"{"folders":[\#(Self.folderJSON(id: "f", name: "Work"))]}"#)
             }
-            let filed = Self.itemJSON(id: "b", isRead: false, folderId: "f")
-            return Self.respond(to: request, savedItems: Self.folderQuery(request) == "none" ? [] : [filed])
+            return Self.respond(to: request, savedItems: [Self.itemJSON(id: "b", isRead: false, folderId: "f")])
         }
         let env = Environment()
         let store = env.makeStore()
         await store.load()
-        await store.loadLibraryRoot()
-        let folder = try #require(store.folders.first)
-        await store.loadFolderItems(folder)
         env.connectivity.emit(false)
 
-        let item = try #require(store.savedItems.first)
+        let item = try #require(store.savedItems().first)
         await store.setRead(item, isRead: true)
 
-        #expect(store.savedItems.first(where: { $0.id == "b" })?.isRead == true)
-        #expect(store.folderItems["f"]?.first(where: { $0.id == "b" })?.isRead == true)
+        #expect(store.savedItems(.all).first(where: { $0.id == "b" })?.isRead == true)
+        #expect(store.savedItems(.folder("f")).first(where: { $0.id == "b" })?.isRead == true)
     }
 
-    /// Filing an unfiled item drops it from the library root, adds it to the
-    /// loaded destination folder, and updates the shared inbox copy's folder —
-    /// all from one canonical write plus a projection-membership shuffle.
-    @Test func moveFilesItemAndUpdatesEveryProjection() async throws {
+    /// Filing an unfiled item drops it from the Library root and adds it to the
+    /// destination folder, with the shared canonical copy's folder updated — all
+    /// from one upsert, with every derived view following.
+    @Test func moveFilesItemAndUpdatesEveryView() async throws {
         StoreStubURLProtocol.handler = { request in
             if request.url?.path == "/v1/folders" {
                 return Self.respond(status: 200, json: #"{"folders":[\#(Self.folderJSON(id: "f", name: "Work"))]}"#)
@@ -149,30 +143,24 @@ struct ReadingListStoreTests {
             if request.httpMethod == "PUT", request.url?.path.hasSuffix("/folder") == true {
                 return Self.respond(status: 200, json: Self.itemJSON(id: "a", isRead: false, folderId: "f"))
             }
-            switch Self.folderQuery(request) {
-            case "none": return Self.respond(to: request, savedItems: [Self.itemJSON(id: "a", isRead: false)])
-            case "f": return Self.respond(to: request, savedItems: [])
-            default: return Self.respond(to: request, savedItems: [Self.itemJSON(id: "a", isRead: false)])
-            }
+            return Self.respond(to: request, savedItems: [Self.itemJSON(id: "a", isRead: false)])
         }
         let env = Environment()
         let store = env.makeStore()
         await store.load()
-        await store.loadLibraryRoot()
         let folder = try #require(store.folders.first)
-        await store.loadFolderItems(folder)
-        let item = try #require(store.savedItems.first)
+        let item = try #require(store.savedItems().first)
 
         try await store.move(item, to: folder)
 
-        #expect(store.libraryRootItems.contains { $0.id == "a" } == false)
-        #expect(store.folderItems["f"]?.contains { $0.id == "a" } == true)
-        #expect(store.savedItems.first(where: { $0.id == "a" })?.folder?.id == "f")
+        #expect(store.savedItems(.unfiled).contains { $0.id == "a" } == false)
+        #expect(store.savedItems(.folder("f")).contains { $0.id == "a" } == true)
+        #expect(store.savedItems(.all).first(where: { $0.id == "a" })?.folder?.id == "f")
     }
 
     /// Renaming a folder rewrites the embedded folder summary on every item that
-    /// belongs to it, across both the inbox and the loaded folder projection.
-    @Test func renameFolderUpdatesSummaryOnEveryProjection() async throws {
+    /// belongs to it, across both the Inbox and the folder view.
+    @Test func renameFolderUpdatesSummaryOnEveryView() async throws {
         StoreStubURLProtocol.handler = { request in
             if request.url?.path == "/v1/folders", request.httpMethod == "GET" {
                 return Self.respond(status: 200, json: #"{"folders":[\#(Self.folderJSON(id: "f", name: "Work"))]}"#)
@@ -185,14 +173,12 @@ struct ReadingListStoreTests {
         let env = Environment()
         let store = env.makeStore()
         await store.load()
-        await store.loadLibraryRoot()
         let folder = try #require(store.folders.first)
-        await store.loadFolderItems(folder)
 
         try await store.renameFolder(folder, to: "Career", emoji: "💼", color: "blue")
 
-        #expect(store.savedItems.first(where: { $0.id == "b" })?.folder?.name == "Career")
-        #expect(store.folderItems["f"]?.first(where: { $0.id == "b" })?.folder?.emoji == "💼")
+        #expect(store.savedItems(.all).first(where: { $0.id == "b" })?.folder?.name == "Career")
+        #expect(store.savedItems(.folder("f")).first(where: { $0.id == "b" })?.folder?.emoji == "💼")
     }
 
     // MARK: - Environment
@@ -204,7 +190,7 @@ struct ReadingListStoreTests {
         let cache: SavedItemCache
         let readStateQueue: ReadStateQueue
         let pendingCaptureQueue: PendingCaptureQueue
-        private let savedItemsAPI: SavedItemsAPI
+        private let sleevyAPI: SleevyAPI
         private let statusDefaults: UserDefaults
         private let userId = "store-test-user"
 
@@ -232,14 +218,14 @@ struct ReadingListStoreTests {
                 encoder: .sharedISO8601,
                 decoder: .sharedISO8601
             )
-            savedItemsAPI = SavedItemsAPI(api: api, captureClient: captureClient, decoder: .sharedISO8601, token: "test-token")
+            sleevyAPI = SleevyAPI(api: api, captureClient: captureClient, decoder: .sharedISO8601, token: "test-token")
         }
 
-        @MainActor func makeStore() -> ReadingListStore {
-            ReadingListStore(
+        @MainActor func makeStore() -> Library {
+            Library(
                 session: AppSession(token: "test-token", userId: userId, email: "a@b.c", name: "Tester", provider: nil),
                 connectivityMonitor: connectivity,
-                savedItemsAPI: savedItemsAPI,
+                api: sleevyAPI,
                 pendingCaptureQueue: pendingCaptureQueue,
                 readStateQueue: readStateQueue,
                 savedItemCache: cache,
@@ -304,15 +290,10 @@ struct ReadingListStoreTests {
         func quoted(_ value: String?) -> String { value.map { "\"\($0)\"" } ?? "null" }
         return #"{"id": "\#(id)", "name": "\#(name)", "emoji": \#(quoted(emoji)), "color": \#(quoted(color))}"#
     }
-
-    private static func folderQuery(_ request: URLRequest) -> String? {
-        URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
-            .queryItems?.first { $0.name == "folder" }?.value
-    }
 }
 
 /// Routes every request through `handler`, which returns the canned response.
-/// Distinct from `SavedItemsAPITests`' `StubURLProtocol` so the two suites own
+/// Distinct from `SleevyAPITests`' `StubURLProtocol` so the two suites own
 /// separate process-wide hooks and don't race.
 nonisolated final class StoreStubURLProtocol: URLProtocol {
     nonisolated(unsafe) static var handler: ((URLRequest) -> (HTTPURLResponse, Data))?

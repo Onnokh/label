@@ -204,13 +204,17 @@ extension JSONDecoder.DateDecodingStrategy {
 }
 
 private enum SleevyDateFormatter {
-    static let iso8601WithFractionalSeconds: ISO8601DateFormatter = {
+    // `ISO8601DateFormatter` is documented thread-safe for parsing and these are
+    // configured once and only ever read, so they're safe to reach from the
+    // `@Sendable` date-decoding closure. The type isn't `Sendable`, hence the
+    // explicit `nonisolated(unsafe)` rather than relying on inference.
+    nonisolated(unsafe) static let iso8601WithFractionalSeconds: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
 
-    static let iso8601: ISO8601DateFormatter = {
+    nonisolated(unsafe) static let iso8601: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         return formatter

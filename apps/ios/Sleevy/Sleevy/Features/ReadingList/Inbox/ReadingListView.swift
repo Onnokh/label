@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 struct ReadingListView: View {
-    var store: ReadingListStore
+    var store: Library
     @State private var isCaptureCapsuleOpen = false
     @State private var captureDraft = ""
     @State private var shouldFocusCaptureDraft = false
@@ -44,7 +44,7 @@ struct ReadingListView: View {
 
     private func readingList(emptyStateHeight: CGFloat) -> some View {
         List {
-            if store.isLoading && store.savedItems.isEmpty && store.pendingSavedItems.isEmpty {
+            if store.isLoading && store.savedItems().isEmpty && store.pendingSavedItems.isEmpty {
                 ReadingListLoadingRow(height: emptyStateHeight)
             } else if unreadItems.isEmpty && store.pendingSavedItems.isEmpty && !isCaptureCapsuleOpen {
                 EmptyReadingListRow(height: emptyStateHeight)
@@ -141,11 +141,11 @@ struct ReadingListView: View {
         }
         .animation(.snappy(duration: 0.24), value: isCaptureCapsuleOpen)
         .animation(.snappy(duration: 0.24), value: store.pendingSavedItems)
-        .animation(.snappy(duration: 0.24), value: store.savedItems)
+        .animation(.snappy(duration: 0.24), value: store.savedItems())
     }
 
     private var unreadItems: [SavedItem] {
-        store.savedItems.filter { !$0.isRead }
+        store.savedItems().filter { !$0.isRead }
     }
 
     private func markOpened(_ item: SavedItem) async {

@@ -199,7 +199,7 @@ extension SavedItem {
         guard let captureChannel else { return nil }
 
         switch captureChannel {
-        case "ios-app", "ios-share-extension":
+        case CaptureChannel.app.rawValue, CaptureChannel.shareExtension.rawValue:
             return "iOS"
         case "chrome-extension", "web-companion":
             return "Browser"

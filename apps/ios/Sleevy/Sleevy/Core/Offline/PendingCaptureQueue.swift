@@ -6,7 +6,7 @@ import Foundation
 ///
 /// Owns the user-scoped queue operations, the `PendingSavedItem` projection the
 /// inbox renders, and the retry policy. The network submission and applying
-/// synced results stay with `ReadingListStore`, which drives the drain loop.
+/// synced results stay with `Library`, which drives the drain loop.
 struct PendingCaptureQueue {
     let userId: String
     private let store: SleevyPendingCaptureStore

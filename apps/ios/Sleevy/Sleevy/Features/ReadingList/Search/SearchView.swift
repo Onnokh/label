@@ -2,16 +2,16 @@ import SwiftUI
 
 @MainActor
 struct SearchView: View {
-    var store: ReadingListStore
+    var store: Library
     @State private var query = ""
     @State private var isRetryingLoad = false
 
     var body: some View {
         Group {
-            if store.isLoading && store.savedItems.isEmpty {
+            if store.isLoading && store.savedItems().isEmpty {
                 ProgressView("Loading your Sleevy...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if store.savedItems.isEmpty, let loadFailureMessage {
+            } else if store.savedItems().isEmpty, let loadFailureMessage {
                 VStack(spacing: 16) {
                     ContentUnavailableView(
                         "Unable to Load Sleevy",
@@ -97,7 +97,7 @@ struct SearchView: View {
         let query = trimmedQuery.lowercased()
         guard !query.isEmpty else { return [] }
 
-        return store.savedItems.filter { item in
+        return store.savedItems().filter { item in
             item.searchableText.localizedCaseInsensitiveContains(query)
         }
     }

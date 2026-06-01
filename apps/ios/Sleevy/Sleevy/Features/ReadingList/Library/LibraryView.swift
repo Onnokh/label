@@ -2,7 +2,7 @@ import SwiftUI
 
 @MainActor
 struct LibraryView: View {
-    var store: ReadingListStore
+    var store: Library
     @State private var filter = LibraryFilter()
     @State private var sort = LibrarySort.newest
     @State private var isShowingFilters = false
@@ -12,10 +12,10 @@ struct LibraryView: View {
 
     var body: some View {
         Group {
-            if store.isLoadingLibrary && store.libraryRootItems.isEmpty && store.folders.isEmpty {
+            if store.isLoading && store.savedItems(.unfiled).isEmpty && store.folders.isEmpty {
                 ProgressView("Loading your library...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if store.libraryRootItems.isEmpty && store.folders.isEmpty && store.libraryErrorMessage == nil {
+            } else if store.savedItems(.unfiled).isEmpty && store.folders.isEmpty && store.libraryErrorMessage == nil {
                 ContentUnavailableView(
                     "Library",
                     systemImage: "books.vertical",
@@ -82,10 +82,10 @@ struct LibraryView: View {
         }
         .folderActions(store: store, editor: $folderEditor, folderToDelete: $folderToDelete)
         .task {
-            await store.loadLibraryRoot()
+            await store.loadIfNeeded()
         }
         .refreshable {
-            await store.loadLibraryRoot()
+            await store.refresh()
         }
     }
 
@@ -214,7 +214,7 @@ struct LibraryView: View {
     }
 
     private var visibleItems: [SavedItem] {
-        store.libraryRootItems
+        store.savedItems(.unfiled)
             .filter { item in
                 (filter.tag == nil || item.tags.contains(filter.tag ?? ""))
                     && (filter.source == nil || item.sourceGroup == filter.source)
@@ -224,15 +224,15 @@ struct LibraryView: View {
     }
 
     private var tagFilters: [LibraryFilterOption] {
-        countedOptions(store.libraryRootItems.flatMap(\.tags))
+        countedOptions(store.savedItems(.unfiled).flatMap(\.tags))
     }
 
     private var sourceFilters: [LibraryFilterOption] {
-        countedOptions(store.libraryRootItems.compactMap(\.sourceGroup))
+        countedOptions(store.savedItems(.unfiled).compactMap(\.sourceGroup))
     }
 
     private var typeFilters: [LibraryFilterOption] {
-        countedOptions(store.libraryRootItems.map(\.type))
+        countedOptions(store.savedItems(.unfiled).map(\.type))
     }
 
     private func countedOptions(_ values: [String]) -> [LibraryFilterOption] {

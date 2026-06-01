@@ -3,7 +3,7 @@ import SwiftUI
 @MainActor
 struct FolderLibraryView: View {
     let folder: Folder
-    var store: ReadingListStore
+    var store: Library
     @State private var filter = LibraryFilter()
     @State private var sort = LibrarySort.newest
     @State private var isShowingFilters = false
@@ -94,14 +94,14 @@ struct FolderLibraryView: View {
             }
         }
         .task(id: folder.id) {
-            await store.loadFolderItems(folder)
+            await store.loadIfNeeded()
         }
         .refreshable {
-            await store.loadFolderItems(folder)
+            await store.refresh()
         }
     }
 
-    private var items: [SavedItem] { store.folderItems[folder.id] ?? [] }
+    private var items: [SavedItem] { store.savedItems(.folder(folder.id)) }
     private var visibleItems: [SavedItem] {
         items.filter {
             (filter.tag == nil || $0.tags.contains(filter.tag ?? ""))
@@ -176,7 +176,7 @@ struct FolderListRow: View {
 }
 
 struct AllFoldersView: View {
-    var store: ReadingListStore
+    var store: Library
     @State private var folderEditor: FolderEditor?
     @State private var folderToDelete: Folder?
 
@@ -209,13 +209,13 @@ struct AllFoldersView: View {
         }
         .folderActions(store: store, editor: $folderEditor, folderToDelete: $folderToDelete)
         .refreshable {
-            await store.loadLibraryRoot()
+            await store.refresh()
         }
     }
 }
 
 private struct FolderActionsModifier: ViewModifier {
-    var store: ReadingListStore
+    var store: Library
     @Binding var editor: FolderEditor?
     @Binding var folderToDelete: Folder?
 
@@ -258,7 +258,7 @@ private struct FolderActionsModifier: ViewModifier {
 
 extension View {
     func folderActions(
-        store: ReadingListStore,
+        store: Library,
         editor: Binding<FolderEditor?>,
         folderToDelete: Binding<Folder?>
     ) -> some View {

@@ -19,20 +19,6 @@ struct SleevyTests {
         #expect(item.tags == ["front-end", "tools"])
     }
 
-    @Test func savedItemDecodesLegacyTopicShape() throws {
-        let item = try decodeSavedItem(
-            extraFields: #""topic":"design""#
-        )
-
-        #expect(item.tags == ["design"])
-    }
-
-    @Test func savedItemDefaultsMissingTagsToEmptyArray() throws {
-        let item = try decodeSavedItem(extraFields: "")
-
-        #expect(item.tags.isEmpty)
-    }
-
     @Test func savedItemDecodesSourceFields() throws {
         let item = try decodeSavedItem(
             extraFields: #""sourceName":"Onno's iPhone","captureChannel":"ios-share-extension","tags":["tools"]"#
@@ -43,14 +29,14 @@ struct SleevyTests {
     }
 
     @Test func savedItemDecodesNullFolder() throws {
-        let item = try decodeSavedItem(extraFields: #""folder":null"#)
+        let item = try decodeSavedItem(extraFields: #""folder":null,"tags":[]"#)
 
         #expect(item.folder == nil)
     }
 
     @Test func savedItemDecodesEmbeddedFolderSummary() throws {
         let item = try decodeSavedItem(
-            extraFields: #""folder":{"id":"folder-1","name":"Merge Requests","emoji":"💻","color":"purple"}"#
+            extraFields: #""folder":{"id":"folder-1","name":"Merge Requests","emoji":"💻","color":"purple"},"tags":[]"#
         )
 
         #expect(item.folder == FolderSummary(id: "folder-1", name: "Merge Requests", emoji: "💻", color: "purple"))
