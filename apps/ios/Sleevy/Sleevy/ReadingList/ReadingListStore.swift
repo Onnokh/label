@@ -29,7 +29,7 @@ final class ReadingListStore: ObservableObject {
     private let captureClient: SleevyCaptureClient
     private let pendingCaptureQueue: PendingCaptureQueue
     private let readStateQueue: ReadStateQueue
-    private let cacheURL: URL
+    private let savedItemCache: SavedItemCache
     private let statusDefaults: UserDefaults
     private let pathMonitor = NWPathMonitor()
     private let pathMonitorQueue = DispatchQueue(label: "app.sleevy.ReadingListStore.pathMonitor")
@@ -70,7 +70,12 @@ final class ReadingListStore: ObservableObject {
                 forSecurityApplicationGroupIdentifier: AppConfig.appGroupIdentifier
             )
         )
-        self.cacheURL = Self.makeCacheURL(for: session.userId)
+        self.savedItemCache = SavedItemCache(
+            userId: session.userId,
+            directory: Self.applicationSupportDirectory(),
+            encoder: self.encoder,
+            decoder: self.decoder
+        )
         self.statusDefaults = UserDefaults.standard
         self.lastSuccessfulSyncAt = statusDefaults.object(forKey: Self.lastSyncDefaultsKey(for: session.userId)) as? Date
         let pendingItems = pendingCaptureQueue.pendingSavedItems()
@@ -663,12 +668,7 @@ final class ReadingListStore: ObservableObject {
     }
 
     private func restoreCachedItems() {
-        guard
-            let data = try? Data(contentsOf: cacheURL),
-            let cachedItems = try? decoder.decode([SavedItem].self, from: data)
-        else {
-            return
-        }
+        guard let cachedItems = savedItemCache.load() else { return }
 
         savedItems = readStateQueue.apply(to: cachedItems)
     }
@@ -680,19 +680,7 @@ final class ReadingListStore: ObservableObject {
     }
 
     private func persistSavedItems() {
-        let directoryURL = cacheURL.deletingLastPathComponent()
-
-        do {
-            try FileManager.default.createDirectory(
-                at: directoryURL,
-                withIntermediateDirectories: true
-            )
-
-            let data = try encoder.encode(savedItems)
-            try data.write(to: cacheURL, options: .atomic)
-        } catch {
-            // Cache writes are best-effort so network-backed usage still works.
-        }
+        savedItemCache.save(savedItems)
     }
 
     private func updateLocalReadState(for itemId: String, isRead: Bool) {
@@ -763,17 +751,13 @@ final class ReadingListStore: ObservableObject {
         persistSavedItems()
     }
 
-    private static func makeCacheURL(for userId: String) -> URL {
-        let applicationSupportURL = try! FileManager.default.url(
+    private static func applicationSupportDirectory() -> URL {
+        try! FileManager.default.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,
             appropriateFor: nil,
             create: true
         )
-
-        return applicationSupportURL
-            .appendingPathComponent("ReadingListCache", isDirectory: true)
-            .appendingPathComponent("\(userId).json", isDirectory: false)
     }
 
     private static func lastSyncDefaultsKey(for userId: String) -> String {
