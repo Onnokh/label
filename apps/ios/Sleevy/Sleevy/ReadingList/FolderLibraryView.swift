@@ -3,7 +3,7 @@ import SwiftUI
 @MainActor
 struct FolderLibraryView: View {
     let folder: Folder
-    @ObservedObject var store: ReadingListStore
+    var store: ReadingListStore
     @State private var filter = LibraryFilter()
     @State private var sort = LibrarySort.newest
     @State private var isShowingFilters = false
@@ -182,7 +182,7 @@ struct FolderListRow: View {
 }
 
 struct AllFoldersView: View {
-    @ObservedObject var store: ReadingListStore
+    var store: ReadingListStore
     @State private var folderEditor: FolderEditor?
     @State private var folderToDelete: Folder?
     @State private var folderToOpen: Folder?
@@ -227,7 +227,7 @@ struct AllFoldersView: View {
 }
 
 private struct FolderActionsModifier: ViewModifier {
-    @ObservedObject var store: ReadingListStore
+    var store: ReadingListStore
     @Binding var editor: FolderEditor?
     @Binding var folderToDelete: Folder?
 

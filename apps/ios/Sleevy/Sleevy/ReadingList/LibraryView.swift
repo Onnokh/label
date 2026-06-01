@@ -2,7 +2,7 @@ import SwiftUI
 
 @MainActor
 struct LibraryView: View {
-    @ObservedObject var store: ReadingListStore
+    var store: ReadingListStore
     @State private var filter = LibraryFilter()
     @State private var sort = LibrarySort.newest
     @State private var isShowingFilters = false

@@ -1,15 +1,15 @@
-import Combine
 import SwiftUI
 
 @MainActor
-final class AppSettings: ObservableObject {
-    @Published var themePreference: SleevyThemePreference {
+@Observable
+final class AppSettings {
+    var themePreference: SleevyThemePreference {
         didSet {
             SleevyUserPreferences.defaults.set(themePreference.rawValue, forKey: SleevyUserPreferences.themeKey)
         }
     }
 
-    @Published var sourceName: String {
+    var sourceName: String {
         didSet {
             SleevyUserPreferences.defaults.set(sourceName, forKey: SleevyUserPreferences.sourceNameKey)
         }

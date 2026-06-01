@@ -12,14 +12,14 @@ import GoogleSignIn
 
 @main
 struct SleevyApp: App {
-    @StateObject private var authStore = AuthStore()
-    @StateObject private var appSettings = AppSettings()
+    @State private var authStore = AuthStore()
+    @State private var appSettings = AppSettings()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(authStore)
-                .environmentObject(appSettings)
+                .environment(authStore)
+                .environment(appSettings)
                 .preferredColorScheme(appSettings.preferredColorScheme)
                 .onOpenURL { url in
 #if canImport(GoogleSignIn)

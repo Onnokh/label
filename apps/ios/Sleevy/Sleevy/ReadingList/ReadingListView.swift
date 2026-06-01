@@ -1,9 +1,8 @@
-import Combine
 import SwiftUI
 import UIKit
 
 struct ReadingListView: View {
-    @ObservedObject var store: ReadingListStore
+    var store: ReadingListStore
     @State private var isCaptureCapsuleOpen = false
     @State private var captureDraft = ""
     @State private var shouldFocusCaptureDraft = false

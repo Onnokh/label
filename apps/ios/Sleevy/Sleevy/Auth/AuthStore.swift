@@ -1,13 +1,14 @@
-import Combine
 import Foundation
+import Observation
 
 @MainActor
-final class AuthStore: ObservableObject {
-    @Published private(set) var session: AppSession?
-    @Published private(set) var googleUserProfile: GoogleUserProfile?
-    @Published private(set) var isRestoringSession = false
-    @Published private(set) var isSigningIn = false
-    @Published var errorMessage: String?
+@Observable
+final class AuthStore {
+    private(set) var session: AppSession?
+    private(set) var googleUserProfile: GoogleUserProfile?
+    private(set) var isRestoringSession = false
+    private(set) var isSigningIn = false
+    var errorMessage: String?
 
     private let keychain = KeychainStore(
         service: AppConfig.keychainService,

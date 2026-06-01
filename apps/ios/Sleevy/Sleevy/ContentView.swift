@@ -9,7 +9,7 @@ import SwiftUI
 import UIKit
 
 struct ContentView: View {
-    @EnvironmentObject private var authStore: AuthStore
+    @Environment(AuthStore.self) private var authStore
 
     var body: some View {
         if let session = authStore.session {
@@ -100,10 +100,10 @@ struct ContentView: View {
 }
 
 private struct SignedInTabView: View {
-    @EnvironmentObject private var authStore: AuthStore
+    @Environment(AuthStore.self) private var authStore
     @Environment(\.scenePhase) private var scenePhase
     let session: AppSession
-    @StateObject private var store: ReadingListStore
+    @State private var store: ReadingListStore
     @State private var selectedTab: SignedInTab = .sleevy
     @State private var sleevyPath: [SignedInRoute] = []
     @State private var libraryPath: [SignedInRoute] = []
@@ -111,7 +111,7 @@ private struct SignedInTabView: View {
 
     init(session: AppSession) {
         self.session = session
-        _store = StateObject(wrappedValue: ReadingListStore(session: session))
+        _store = State(wrappedValue: ReadingListStore(session: session))
     }
 
     var body: some View {
@@ -213,7 +213,7 @@ private enum SignedInRoute: Hashable {
 }
 
 private struct AccountToolbarModifier: ViewModifier {
-    @EnvironmentObject private var authStore: AuthStore
+    @Environment(AuthStore.self) private var authStore
     let session: AppSession
     let onSettings: () -> Void
 
@@ -281,5 +281,5 @@ private struct LandingButtonStyle: ButtonStyle {
 
 #Preview {
     ContentView()
-        .environmentObject(AuthStore())
+        .environment(AuthStore())
 }

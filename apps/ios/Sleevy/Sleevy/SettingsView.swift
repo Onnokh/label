@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @EnvironmentObject private var authStore: AuthStore
-    @EnvironmentObject private var appSettings: AppSettings
+    @Environment(AuthStore.self) private var authStore
+    @Environment(AppSettings.self) private var appSettings
     @State private var isShowingDeleteConfirmation = false
     @State private var isDeletingAccount = false
     @State private var deleteAccountErrorMessage: String?
@@ -10,6 +10,7 @@ struct SettingsView: View {
     let session: AppSession
 
     var body: some View {
+        @Bindable var appSettings = appSettings
         Form {
             Section("Theme") {
                 Picker("Appearance", selection: $appSettings.themePreference) {

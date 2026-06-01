@@ -1,4 +1,3 @@
-import Combine
 import SwiftUI
 import UIKit
 import WebKit
@@ -43,7 +42,7 @@ private struct RemoteRasterImage<Content: View, Fallback: View>: View {
     let content: (Image) -> Content
     let fallback: () -> Fallback
 
-    @StateObject private var loader: RemoteRasterImageLoader
+    @State private var loader: RemoteRasterImageLoader
 
     init(
         url: URL,
@@ -53,7 +52,7 @@ private struct RemoteRasterImage<Content: View, Fallback: View>: View {
         self.url = url
         self.content = content
         self.fallback = fallback
-        _loader = StateObject(wrappedValue: RemoteRasterImageLoader(url: url))
+        _loader = State(wrappedValue: RemoteRasterImageLoader(url: url))
     }
 
     var body: some View {
@@ -72,8 +71,9 @@ private struct RemoteRasterImage<Content: View, Fallback: View>: View {
 }
 
 @MainActor
-private final class RemoteRasterImageLoader: ObservableObject {
-    @Published private(set) var image: UIImage?
+@Observable
+private final class RemoteRasterImageLoader {
+    private(set) var image: UIImage?
 
     private let url: URL
     private var hasStarted = false
@@ -110,7 +110,7 @@ private struct SVGRemoteImage<Fallback: View>: View {
     let colorScheme: ColorScheme
     let fallback: () -> Fallback
 
-    @StateObject private var loader: SVGSnapshotLoader
+    @State private var loader: SVGSnapshotLoader
 
     init(
         url: URL,
@@ -120,7 +120,7 @@ private struct SVGRemoteImage<Fallback: View>: View {
         self.url = url
         self.colorScheme = colorScheme
         self.fallback = fallback
-        _loader = StateObject(
+        _loader = State(
             wrappedValue: SVGSnapshotLoader(url: url, size: 30, colorScheme: colorScheme)
         )
     }
@@ -143,8 +143,9 @@ private struct SVGRemoteImage<Fallback: View>: View {
 }
 
 @MainActor
-private final class SVGSnapshotLoader: ObservableObject {
-    @Published private(set) var image: UIImage?
+@Observable
+private final class SVGSnapshotLoader {
+    private(set) var image: UIImage?
 
     private let url: URL
     private let size: CGFloat

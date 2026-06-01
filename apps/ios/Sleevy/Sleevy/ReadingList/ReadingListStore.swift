@@ -1,24 +1,25 @@
-import Combine
 import Foundation
+import Observation
 import UIKit
 
 @MainActor
-final class ReadingListStore: ObservableObject {
-    @Published private(set) var savedItems: [SavedItem] = []
-    @Published private(set) var pendingSavedItems: [PendingSavedItem] = []
-    @Published private(set) var folders: [Folder] = []
-    @Published private(set) var libraryRootItems: [SavedItem] = []
-    @Published private(set) var folderItems: [String: [SavedItem]] = [:]
-    @Published private(set) var isLoadingLibrary = false
-    @Published var libraryErrorMessage: String?
-    @Published private(set) var isLoading = false
-    @Published private(set) var isRefreshing = false
-    @Published private(set) var isOnline = true
-    @Published private(set) var isAPIReachable = true
-    @Published private(set) var lastSuccessfulSyncAt: Date?
-    @Published private(set) var pendingCaptureCount = 0
-    @Published private(set) var isSyncingPendingCaptures = false
-    @Published var errorMessage: String?
+@Observable
+final class ReadingListStore {
+    private(set) var savedItems: [SavedItem] = []
+    private(set) var pendingSavedItems: [PendingSavedItem] = []
+    private(set) var folders: [Folder] = []
+    private(set) var libraryRootItems: [SavedItem] = []
+    private(set) var folderItems: [String: [SavedItem]] = [:]
+    private(set) var isLoadingLibrary = false
+    var libraryErrorMessage: String?
+    private(set) var isLoading = false
+    private(set) var isRefreshing = false
+    private(set) var isOnline = true
+    private(set) var isAPIReachable = true
+    private(set) var lastSuccessfulSyncAt: Date?
+    private(set) var pendingCaptureCount = 0
+    private(set) var isSyncingPendingCaptures = false
+    var errorMessage: String?
     var onAuthenticationInvalid: ((String) -> Void)?
 
     private let session: AppSession
