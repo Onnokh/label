@@ -19,6 +19,20 @@ struct SleevyTests {
         #expect(item.tags == ["front-end", "tools"])
     }
 
+    @Test func savedItemDefaultsMissingTagsToEmptyArray() throws {
+        let item = try decodeSavedItem(extraFields: "")
+
+        #expect(item.tags == [])
+    }
+
+    @Test func savedItemDecodesLegacyTopicShape() throws {
+        let item = try decodeSavedItem(
+            extraFields: #""topic":"productivity""#
+        )
+
+        #expect(item.tags == ["productivity"])
+    }
+
     @Test func savedItemDecodesSourceFields() throws {
         let item = try decodeSavedItem(
             extraFields: #""sourceName":"Onno's iPhone","captureChannel":"ios-share-extension","tags":["tools"]"#

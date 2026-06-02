@@ -126,6 +126,83 @@ struct LibrarySyncTests {
         #expect(urls.contains("https://example.com/a") == false) // processed → removed
     }
 
+    // MARK: - Reconnect reconciles the inbox
+
+    /// Bug 4 regression: returning online with *empty* queues must still pull the
+    /// inbox, so items captured on web / read elsewhere reconcile on reconnect —
+    /// not just when there's local queued work.
+    @Test func returningOnlineWithEmptyQueuesPullsInbox() async {
+        let env = Environment()
+        env.network.items["server-side"] = .fixture(id: "server-side", isRead: false)
+        let library = env.makeLibrary()
+
+        // No local pending work at all.
+        #expect(library.pendingCaptureCount == 0)
+        #expect(env.readState.hasPending == false)
+
+        env.connectivity.emit(false)         // go offline
+        env.connectivity.emit(true)          // ...then genuinely back online
+        await env.settle()
+
+        #expect(env.network.calls.contains("loadSavedItems")) // reconciled despite empty queues
+        #expect(library.savedItems().map(\.id) == ["server-side"])
+    }
+
+    /// Bug 4 guard: repeated same-value path updates while already online must not
+    /// each kick a reconcile — only a genuine offline→online transition does.
+    @Test func repeatedOnlinePathUpdatesDoNotChurnSync() async {
+        let env = Environment()
+        env.network.items["a"] = .fixture(id: "a", isRead: false)
+        let library = env.makeLibrary()
+
+        env.connectivity.emit(true)  // first genuine online observation → one reconcile
+        await env.settle()
+        let callsAfterFirst = env.network.calls.filter { $0 == "loadSavedItems" }.count
+
+        env.connectivity.emit(true)  // repeated identical update → no extra reconcile
+        env.connectivity.emit(true)
+        await env.settle()
+
+        let callsAfterRepeats = env.network.calls.filter { $0 == "loadSavedItems" }.count
+        #expect(callsAfterRepeats == callsAfterFirst)
+        _ = library
+    }
+
+    // MARK: - Refresh during an in-flight sync
+
+    /// Bug 5 regression: a user-initiated `refresh()` issued while a sync cycle is
+    /// already running must NOT silently no-op. It awaits the in-flight cycle and
+    /// resolves only once fresh data has loaded — without starting a second
+    /// overlapping network pass that would corrupt the queues.
+    @Test func refreshDuringInFlightSyncResolvesWithFreshData() async {
+        let env = Environment()
+        env.network.items["a"] = .fixture(id: "a", isRead: false)
+        let library = env.makeLibrary()
+
+        // Hold the first sync's pull open until a second refresh has provably
+        // registered as awaiting the in-flight cycle, so the interleaving is
+        // deterministic rather than racing the cycle's completion.
+        var second: Task<Void, Never>?
+        env.network.onLoadSavedItems = { [weak library] in
+            guard second == nil, let library else { return }
+            // Fire the concurrent refresh and let it reach its `syncTask` await...
+            second = Task { await library.refresh() }
+            for _ in 0..<5 { await Task.yield() }
+            // ...then release the first pull. The second must NOT have started its
+            // own pull; it awaits this same cycle.
+        }
+
+        await library.refresh()
+        await second?.value
+        await env.settle()
+
+        // Both refreshes resolved (neither hung) and fresh data is present.
+        #expect(library.savedItems().map(\.id) == ["a"])
+        // Exactly one pull: the concurrent refresh awaited the in-flight cycle
+        // rather than launching a second overlapping pass.
+        #expect(env.network.calls.filter { $0 == "loadSavedItems" }.count == 1)
+    }
+
     // MARK: - The single retry authority
 
     /// The headline regression: a *permanent* failure must DROP the pending
@@ -270,6 +347,13 @@ struct LibrarySyncTests {
                 connectivity: connectivity
             )
         }
+
+        /// Lets any detached `Task { await sync() }` spawned by a connectivity
+        /// transition run to completion. The in-memory network never truly
+        /// suspends, so a few main-actor hops drain the work deterministically.
+        @MainActor func settle() async {
+            for _ in 0..<10 { await Task.yield() }
+        }
     }
 }
 
@@ -288,8 +372,18 @@ final class InMemoryNetworkAdapter: ReadingListNetworkPort {
         if let fault = faults.removeValue(forKey: verb) { throw fault }
     }
 
+    /// Awaited after a `loadSavedItems` call is recorded but before it returns,
+    /// letting a test hold the pull open at its suspension point and deterministically
+    /// interleave a concurrent refresh while the cycle is provably in flight.
+    var onLoadSavedItems: (@MainActor () async -> Void)?
+
     func loadSavedItems() async throws(SyncFault) -> [SavedItem] {
         try record("loadSavedItems")
+        // `throws(SyncFault)` forbids a non-typed-throwing await in the body, so the
+        // gate runs in a detached step that cannot throw.
+        if let gate = onLoadSavedItems {
+            await Task { @MainActor in await gate() }.value
+        }
         return Array(items.values)
     }
 

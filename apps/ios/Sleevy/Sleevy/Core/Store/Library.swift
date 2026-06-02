@@ -81,6 +81,15 @@ final class Library {
     /// Serializes sync cycles (and the standalone retry pull) so two never run at
     /// once — the single re-entrancy guard for all server coordination.
     private var isSyncing = false
+    /// The in-flight sync cycle, if one is running. A user-initiated `refresh()`
+    /// awaits this instead of no-op'ing on the `isSyncing` guard, so pull-to-refresh
+    /// resolves only once fresh data has actually loaded — without ever starting a
+    /// second overlapping network pass that would corrupt the queues.
+    private var syncTask: Task<Void, Never>?
+    /// The last connectivity value we acted on, so a genuine offline→online
+    /// transition can be told apart from the repeated same-value path updates
+    /// `NWPathMonitor` delivers while already online. `nil` until the first report.
+    private var lastObservedOnline: Bool?
     private static var sourceName: String { SleevyUserPreferences.sourceName }
 
     /// Designated initializer: everything that crosses a boundary is injected, so
@@ -232,7 +241,10 @@ final class Library {
         await sync()
     }
 
-    /// User-initiated refresh (pull-to-refresh, scene activation): a full sync.
+    /// User-initiated refresh (pull-to-refresh, scene activation): a full sync that
+    /// actually refreshes. `sync()` either runs a fresh cycle or — if one is already
+    /// in flight — awaits that cycle's completion, so the SwiftUI `.refreshable`
+    /// spinner resolves only once fresh data has loaded rather than no-op'ing.
     func refresh() async {
         await sync()
     }
@@ -248,15 +260,36 @@ final class Library {
     /// One sync cycle — push local pending changes (queued captures, then queued
     /// read-state), then pull the canonical state back. Serialized via
     /// `isSyncing`, and skipped while the initial load holds the screen.
+    ///
+    /// The cycle runs inside a tracked `syncTask` so a concurrent user-initiated
+    /// `refresh()` can await *this* cycle's completion instead of being swallowed by
+    /// the `isSyncing` guard. Re-entrant callers await the same in-flight task
+    /// rather than starting a second overlapping pass.
     private func sync() async {
-        guard !status.isInitialLoad, !isSyncing else { return }
-        isSyncing = true
-        defer { isSyncing = false }
+        guard !status.isInitialLoad else { return }
+        // A tracked sync is in flight: await it rather than start a second pass.
+        if let inFlight = syncTask {
+            await inFlight.value
+            return
+        }
+        // A standalone `retryLoad()` holds the serialization flag (it doesn't run as
+        // a tracked `syncTask`); don't overlap a sync cycle on top of it.
+        guard !isSyncing else { return }
 
-        refreshPendingCaptureState()
-        await drainPendingCaptures()
-        await drainPendingReadState()
-        await performLoad()
+        let task = Task { @MainActor in
+            self.isSyncing = true
+            defer {
+                self.isSyncing = false
+                self.syncTask = nil
+            }
+
+            self.refreshPendingCaptureState()
+            await self.drainPendingCaptures()
+            await self.drainPendingReadState()
+            await self.performLoad()
+        }
+        syncTask = task
+        await task.value
     }
 
     /// Fetches the full item set (the inbox) and folder list. The item fetch is
@@ -495,12 +528,19 @@ final class Library {
 
     private func handleConnectivityChange(isOnline: Bool) {
         status.isOnline = isOnline
-        guard isOnline else { return }
 
-        // Coming back online: reconcile only if there's queued work to push.
-        refreshPendingCaptureState()
-        guard pendingCaptureCount > 0 || readStateQueue.hasPending else { return }
+        // Only act on a genuine offline→online transition. `NWPathMonitor` reports
+        // the same value repeatedly while a flaky connection settles; reconciling on
+        // every such update would churn the network. `nil` (first report) counts as a
+        // transition only when we come up online.
+        let wasOnline = lastObservedOnline
+        lastObservedOnline = isOnline
+        guard isOnline, wasOnline != true else { return }
 
+        // Back online: always reconcile so the server-side inbox (items captured on
+        // web, read elsewhere) is pulled, even with no local queued work. `sync()`
+        // drains any pending captures/read-state first, then pulls the canonical
+        // state via `performLoad()`.
         Task { await sync() }
     }
 
@@ -606,9 +646,21 @@ final class Library {
         switch fault {
         case .authInvalid:
             invalidateAuthentication()
-        case .transient(let reason), .permanent(let reason), .unreachable(let reason):
-            status.libraryErrorMessage = reason.isEmpty ? nil : reason
+        case .transient, .permanent, .unreachable:
+            status.libraryErrorMessage = curatedLibraryMessage(for: fault)
         }
+    }
+
+    /// Restores the friendly, curated banner copy the old `handleLibraryError` path
+    /// produced. Routes the fault through `AppConfig.userFacingNetworkMessage(for:)`
+    /// — the same curator the auth and request paths use for offline/DNS/host copy —
+    /// and falls back to the fault's own reason when the curator has no opinion. An
+    /// empty reason (the adapter's "offline, suppress" signal) surfaces nothing.
+    private func curatedLibraryMessage(for fault: SyncFault) -> String? {
+        if let curated = AppConfig.userFacingNetworkMessage(for: fault) {
+            return curated
+        }
+        return fault.reason.isEmpty ? nil : fault.reason
     }
 
     private func invalidateAuthentication() {
