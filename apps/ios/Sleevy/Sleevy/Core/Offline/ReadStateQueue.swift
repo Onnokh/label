@@ -1,7 +1,7 @@
 import Foundation
 
 /// One queued read-state change awaiting sync to the server.
-struct PendingReadStateUpdate: Codable, Equatable {
+struct PendingReadStateUpdate: Codable, Equatable, Hashable {
     let itemId: String
     let isRead: Bool
     let queuedAt: Date
@@ -91,6 +91,22 @@ struct ReadStateQueue {
 
     func remove(itemId: String) {
         persist(all().filter { $0.itemId != itemId })
+    }
+
+    /// Removes the exact entries a drain processed by re-reading the *current*
+    /// on-disk queue and persisting the remainder. Unlike `persist(_:)` (which
+    /// overwrites with a whole-list snapshot), this preserves any entries enqueued
+    /// concurrently — e.g. while a drain was suspended awaiting the network — so a
+    /// confirmed drain only ever removes exactly the changes it processed.
+    ///
+    /// Matching on the whole entry (item, state, and `queuedAt`) — not just the
+    /// item id — means a *newer* change re-enqueued for the same item mid-drain
+    /// survives, since `enqueue` stamps a fresh `queuedAt` and replaces the prior
+    /// entry rather than mutating it in place.
+    func removeProcessed(_ processed: [PendingReadStateUpdate]) {
+        guard !processed.isEmpty else { return }
+        let toRemove = Set(processed)
+        persist(all().filter { !toRemove.contains($0) })
     }
 
     func persist(_ updates: [PendingReadStateUpdate]) {

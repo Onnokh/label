@@ -6,8 +6,9 @@ import Foundation
 /// `HTTPClient` deliberately stays policy-free — it only knows 2xx-vs-not. This
 /// type owns the decisions that are specific to Sleevy's endpoints: a
 /// `401/403` means the session expired, an HTML error body means a proxy/CDN is
-/// unreachable, and read-state writes distinguish retriable (`429`/`5xx`) from
-/// permanent failures so they can be queued for later.
+/// unreachable, and `429`/`5xx` are retriable (so the change can be queued for
+/// later) while other `4xx` are permanent. Every verb funnels through one
+/// `mapStatusError(code:data:)` so this classification is uniform.
 ///
 /// Extracting it from the store lets these mappings be unit-tested with a
 /// stubbed `URLSession`, without standing up the whole store.
@@ -113,9 +114,11 @@ struct SleevyAPIClient {
         return try decoder.decode(CaptureResponse.self, from: response.data).savedItem
     }
 
-    /// Writes a saved item's read state. A `401/403` is mapped to
-    /// `AuthError.sessionExpired`; `429`/`5xx` to `.retriable` (safe to queue);
-    /// everything else to `.unretriable`.
+    /// Writes a saved item's read state. Status codes are classified by the
+    /// shared `mapStatusError(code:data:)` policy — `401/403` →
+    /// `AuthError.sessionExpired`, `429`/`5xx` → `.retriable` (safe to queue),
+    /// everything else → permanent — so read-state writes and the generic verbs
+    /// agree on which failures are retriable.
     func setReadState(itemId: String, isRead: Bool) async throws -> SavedItem {
         do {
             let response = try await api.send(
@@ -127,17 +130,7 @@ struct SleevyAPIClient {
             applyRotation(from: response.http)
             return try decoder.decode(SavedItem.self, from: response.data)
         } catch let APIClientError.unacceptableStatus(code, data) {
-            if code == 401 || code == 403 {
-                throw AuthError.sessionExpired
-            }
-
-            let message = serverMessage(data) ?? "Sleevy could not update this saved item right now."
-
-            if code == 429 || (500 ..< 600).contains(code) {
-                throw PendingReadStateSyncError.retriable(message)
-            }
-
-            throw PendingReadStateSyncError.unretriable(message)
+            throw mapStatusError(code: code, data: data)
         } catch APIClientError.invalidResponse {
             throw AuthError.invalidServerResponse
         }
@@ -199,15 +192,25 @@ struct SleevyAPIClient {
             return AuthError.sessionExpired
         }
 
+        // An HTML body is a proxy/CDN error page, not an API response — surface it
+        // as unreachable regardless of the status code (it usually rides on a 5xx).
+        if let body = utf8Body(data), body.hasPrefix("<") {
+            return APIError.unreachable
+        }
+
+        // `429`/`5xx` are self-resolving: classify them retriable so `fault(from:)`
+        // maps them to `.transient` and the change stays queued. This must hold for
+        // every verb, not just read-state — they all funnel through here.
+        if code == 429 || (500 ..< 600).contains(code) {
+            let message = serverMessage(data) ?? "Sleevy is temporarily unavailable (status \(code))."
+            return PendingReadStateSyncError.retriable(message)
+        }
+
         return messageError(data: data, fallback: "Request failed with status \(code).")
     }
 
     private func messageError(data: Data, fallback: String) -> Error {
-        guard
-            let body = String(data: data, encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-            !body.isEmpty
-        else {
+        guard let body = utf8Body(data) else {
             return AuthError.authenticationFailed(fallback)
         }
 
@@ -217,6 +220,17 @@ struct SleevyAPIClient {
         }
 
         return AuthError.authenticationFailed(body)
+    }
+
+    private func utf8Body(_ data: Data) -> String? {
+        guard
+            let body = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+            !body.isEmpty
+        else {
+            return nil
+        }
+        return body
     }
 
     private func serverMessage(_ data: Data) -> String? {

@@ -291,6 +291,20 @@ final class Library {
 
     // MARK: - Folder commands
 
+    /// Routes a failed *user-initiated* mutation through the single classify
+    /// authority and converts the outcome into a thrown `ReadingListError`. Folder
+    /// and move commands have no offline queue, so unlike captures/read-state there
+    /// is nothing to retain: every fault surfaces to the caller (so the UI can show
+    /// the failure), and an `.authInvalid` fault additionally invalidates the
+    /// session — the same authority `capture`/`setRead` use via `classify`.
+    private func faultThrowing(_ error: any Error) -> ReadingListError {
+        let fault = asFault(error)
+        if case .signOut = classify(fault) {
+            invalidateAuthentication()
+        }
+        return ReadingListError(reason: fault.reason)
+    }
+
     func createFolder(named name: String, emoji: String?, color: String?) async throws {
         do {
             let folder = try await network.createFolder(name: name, emoji: emoji, color: color)
@@ -298,7 +312,7 @@ final class Library {
             sortFolders()
             status.libraryErrorMessage = nil
         } catch {
-            throw ReadingListError(reason: asFault(error).reason)
+            throw faultThrowing(error)
         }
     }
 
@@ -311,7 +325,7 @@ final class Library {
             applyFolderSummary(renamed)
             status.libraryErrorMessage = nil
         } catch {
-            throw ReadingListError(reason: asFault(error).reason)
+            throw faultThrowing(error)
         }
     }
 
@@ -324,7 +338,7 @@ final class Library {
             mutateItems(where: { $0.folder?.id == folder.id }) { $0 = $0.withFolder(nil) }
             persistItems()
         } catch {
-            throw ReadingListError(reason: asFault(error).reason)
+            throw faultThrowing(error)
         }
     }
 
@@ -335,7 +349,7 @@ final class Library {
             persistItems()
             status.libraryErrorMessage = nil
         } catch {
-            throw ReadingListError(reason: asFault(error).reason)
+            throw faultThrowing(error)
         }
     }
 
@@ -495,25 +509,33 @@ final class Library {
     /// invalidate the session and stop; `.drop` skips the item and keeps going.
     /// `push` returns the `SyncFault` on failure (having already applied any
     /// per-item success side effect), or `nil` on success.
+    ///
+    /// Returns the items it *processed* — those pushed successfully and those
+    /// dropped as permanently failed — so the caller removes exactly those from
+    /// the live queue by id. Items it retained (the `.retain`/`.signOut` tail) and
+    /// anything enqueued concurrently while a push was suspended are left intact.
     private func drain<Item>(
         _ pending: [Item],
         push: (Item) async -> SyncFault?
     ) async -> [Item] {
-        var remaining: [Item] = []
-        for (index, item) in pending.enumerated() {
-            guard let fault = await push(item) else { continue }
+        var processed: [Item] = []
+        for item in pending {
+            guard let fault = await push(item) else {
+                processed.append(item)
+                continue
+            }
             switch classify(fault) {
             case .signOut:
                 invalidateAuthentication()
-                return remaining
+                return processed
             case .retain:
-                remaining.append(contentsOf: pending[index...])
-                return remaining
+                return processed
             case .drop:
+                processed.append(item)
                 continue
             }
         }
-        return remaining
+        return processed
     }
 
     /// Pushes queued captures (made offline, or that failed to sync) to the
@@ -522,7 +544,7 @@ final class Library {
         let pending = pendingCaptureQueue.load()
         guard !pending.isEmpty else { return }
 
-        let remaining = await drain(pending) { capture in
+        let processed = await drain(pending) { capture in
             do {
                 _ = try await self.network.capture(url: capture.url, sourceName: capture.sourceName, captureChannel: capture.captureChannel)
                 return nil
@@ -531,7 +553,7 @@ final class Library {
             }
         }
 
-        pendingCaptureQueue.persist(remaining)
+        pendingCaptureQueue.removeProcessed(ids: Set(processed.map(\.id)))
         refreshPendingCaptureState()
         status.errorMessage = nil
     }
@@ -543,7 +565,7 @@ final class Library {
         guard !pending.isEmpty else { return }
 
         var didUpdate = false
-        let remaining = await drain(pending) { update in
+        let processed = await drain(pending) { update in
             do {
                 let updated = try await self.network.setReadState(itemId: update.itemId, isRead: update.isRead)
                 if self.items.contains(where: { $0.id == updated.id }) {
@@ -556,7 +578,7 @@ final class Library {
             }
         }
 
-        readStateQueue.persist(remaining)
+        readStateQueue.removeProcessed(processed)
         if didUpdate { persistItems() }
         status.errorMessage = nil
     }

@@ -33,6 +33,16 @@ struct PendingCaptureQueue {
         store.remove(id: id, for: userId)
     }
 
+    /// Removes the given capture ids by re-reading the *current* on-disk queue and
+    /// persisting the remainder. Unlike `persist(_:)` (which overwrites with a
+    /// whole-list snapshot), this preserves any captures enqueued concurrently —
+    /// e.g. while a drain was suspended awaiting the network — so a confirmed
+    /// drain only ever removes exactly the captures it processed.
+    func removeProcessed(ids: Set<UUID>) {
+        guard !ids.isEmpty else { return }
+        try? store.persist(load().filter { !ids.contains($0.id) }, for: userId)
+    }
+
     func persist(_ captures: [SleevyPendingCapture]) {
         try? store.persist(captures, for: userId)
     }

@@ -46,6 +46,18 @@ struct PendingCaptureQueueTests {
         #expect(queue.load().isEmpty)
     }
 
+    @Test func removeProcessedDropsOnlyTheGivenIdsAndKeepsTheRest() {
+        let queue = makeQueue()
+        queue.enqueue(url: "https://example.com/a", sourceName: nil, captureChannel: nil)
+        queue.enqueue(url: "https://example.com/b", sourceName: nil, captureChannel: nil)
+        let processedId = queue.load().first(where: { $0.url == "https://example.com/a" })!.id
+
+        queue.removeProcessed(ids: [processedId])
+
+        let urls = queue.load().map(\.url)
+        #expect(urls == ["https://example.com/b"]) // "a" dropped, "b" preserved
+    }
+
     @Test func persistReplacesQueueContents() {
         let queue = makeQueue()
         queue.enqueue(url: "https://example.com/a", sourceName: nil, captureChannel: nil)

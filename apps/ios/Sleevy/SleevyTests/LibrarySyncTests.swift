@@ -83,6 +83,49 @@ struct LibrarySyncTests {
         #expect(env.network.calls.contains("setReadState"))
     }
 
+    /// Regression for the drain-clobbers-concurrent-enqueue data loss: a read-state
+    /// change enqueued *while a drain is suspended* mid-network-call must survive.
+    /// The drain may only remove the entries it actually processed, never overwrite
+    /// the live queue with its stale pre-await snapshot.
+    @Test func concurrentEnqueueDuringReadStateDrainSurvives() async {
+        let env = Environment()
+        env.network.items["a"] = .fixture(id: "a", isRead: false)
+        env.network.items["b"] = .fixture(id: "b", isRead: false)
+        env.readState.enqueue(itemId: "a", isRead: true)
+        let library = env.makeLibrary()
+
+        // While "a" is draining, simulate a concurrent main-actor toggle on "b".
+        env.network.onSetReadState = { [readState = env.readState] in
+            guard readState.override(for: "b") == nil else { return }
+            readState.enqueue(itemId: "b", isRead: true)
+        }
+
+        await library.refresh()
+
+        #expect(env.readState.override(for: "a") == nil)   // processed → removed
+        #expect(env.readState.override(for: "b") == true)  // concurrently enqueued → preserved
+    }
+
+    /// Same data-loss regression for the capture queue: a capture enqueued while a
+    /// drain is suspended mid-network-call must survive the drain's cleanup.
+    @Test func concurrentEnqueueDuringCaptureDrainSurvives() async {
+        let env = Environment()
+        env.captures.enqueue(url: "https://example.com/a", sourceName: nil, captureChannel: nil)
+        let library = env.makeLibrary()
+
+        // While the "a" capture is draining, simulate a concurrent enqueue of "b".
+        env.network.onCapture = { [captures = env.captures] in
+            guard captures.load().count == 1 else { return }
+            captures.enqueue(url: "https://example.com/b", sourceName: nil, captureChannel: nil)
+        }
+
+        await library.refresh()
+
+        let urls = env.captures.load().map(\.url)
+        #expect(urls.contains("https://example.com/b"))          // concurrently enqueued → preserved
+        #expect(urls.contains("https://example.com/a") == false) // processed → removed
+    }
+
     // MARK: - The single retry authority
 
     /// The headline regression: a *permanent* failure must DROP the pending
@@ -126,6 +169,55 @@ struct LibrarySyncTests {
         await library.refresh()
 
         #expect(signedOut)
+    }
+
+    // MARK: - Folder mutations route through the classify authority
+
+    /// Regression for the auth bypass: a folder mutation that fails with an
+    /// `.authInvalid` fault must invalidate the session (so the app routes back to
+    /// sign-in) *and* still throw so the UI surfaces the failure.
+    @Test func folderMutationAuthInvalidInvalidatesAndThrows() async {
+        let env = Environment()
+        let library = env.makeLibrary()
+        var signedOut = false
+        library.onAuthenticationInvalid = { _ in signedOut = true }
+        env.network.faults["createFolder"] = .authInvalid(reason: "session expired")
+
+        await #expect(throws: ReadingListError.self) {
+            try await library.createFolder(named: "Work", emoji: nil, color: nil)
+        }
+        #expect(signedOut)
+    }
+
+    /// `move` is also a user mutation and must honor the same authority.
+    @Test func moveAuthInvalidInvalidatesAndThrows() async {
+        let env = Environment()
+        env.network.items["a"] = .fixture(id: "a", isRead: false)
+        let library = env.makeLibrary()
+        await library.load()
+        var signedOut = false
+        library.onAuthenticationInvalid = { _ in signedOut = true }
+        env.network.faults["moveItem"] = .authInvalid(reason: "session expired")
+
+        let item = library.savedItems().first!
+        await #expect(throws: ReadingListError.self) {
+            try await library.move(item, to: nil)
+        }
+        #expect(signedOut)
+    }
+
+    /// A non-auth fault still throws but does NOT sign the user out.
+    @Test func folderMutationPermanentFaultThrowsWithoutSignOut() async {
+        let env = Environment()
+        let library = env.makeLibrary()
+        var signedOut = false
+        library.onAuthenticationInvalid = { _ in signedOut = true }
+        env.network.faults["createFolder"] = .permanent(reason: "Folder name taken")
+
+        await #expect(throws: ReadingListError.self) {
+            try await library.createFolder(named: "Work", emoji: nil, color: nil)
+        }
+        #expect(signedOut == false)
     }
 
     // MARK: - Derived views from one canonical store
@@ -206,15 +298,27 @@ final class InMemoryNetworkAdapter: ReadingListNetworkPort {
         return Array(folders.values)
     }
 
+    /// Fires after a `capture` call is recorded but before it returns, letting a
+    /// test inject a concurrent enqueue at the suspension point a real main-actor
+    /// caller could interleave at.
+    var onCapture: (@MainActor () -> Void)?
+
     func capture(url: String, sourceName: String?, captureChannel: String?) async throws(SyncFault) -> SavedItem {
         try record("capture")
+        onCapture?()
         let item = SavedItem.fixture(id: "captured-\(items.count)", isRead: false, url: url)
         items[item.id] = item
         return item
     }
 
+    /// Fires after a `setReadState` call is recorded but before it returns,
+    /// letting a test inject a concurrent enqueue at the exact suspension point a
+    /// real main-actor caller (e.g. an offline toggle) could interleave at.
+    var onSetReadState: (@MainActor () -> Void)?
+
     func setReadState(itemId: String, isRead: Bool) async throws(SyncFault) -> SavedItem {
         try record("setReadState")
+        onSetReadState?()
         let updated = (items[itemId] ?? .fixture(id: itemId, isRead: !isRead)).withReadState(isRead)
         items[itemId] = updated
         return updated

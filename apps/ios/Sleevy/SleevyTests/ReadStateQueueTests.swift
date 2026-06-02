@@ -38,6 +38,35 @@ struct ReadStateQueueTests {
         #expect(queue.override(for: "b") == false)
     }
 
+    @Test func removeProcessedDropsOnlyTheProcessedEntries() {
+        let queue = makeQueue()
+        queue.enqueue(itemId: "a", isRead: true)
+        queue.enqueue(itemId: "b", isRead: false)
+        let processed = queue.all().filter { $0.itemId == "a" }
+
+        queue.removeProcessed(processed)
+
+        #expect(queue.override(for: "a") == nil)
+        #expect(queue.override(for: "b") == false)
+    }
+
+    /// The drain captures a processed snapshot, then a *newer* change for the same
+    /// item is re-enqueued before cleanup runs. `removeProcessed` matches on the
+    /// whole entry (incl. `queuedAt`), so the newer change survives.
+    @Test func removeProcessedPreservesARequeuedNewerEntry() {
+        let queue = makeQueue()
+        queue.enqueue(itemId: "a", isRead: true)
+        let processed = queue.all() // the snapshot a drain would carry
+
+        // A concurrent toggle re-enqueues "a" with a fresh stamp + flipped state.
+        queue.enqueue(itemId: "a", isRead: false)
+
+        queue.removeProcessed(processed)
+
+        #expect(queue.override(for: "a") == false) // the newer change survived
+        #expect(queue.all().count == 1)
+    }
+
     @Test func persistEmptyClearsTheQueue() {
         let queue = makeQueue()
         queue.enqueue(itemId: "a", isRead: true)

@@ -76,8 +76,35 @@ struct SleevyAPIClientTests {
         #expect(error is APIError)
     }
 
-    @Test func plainTextErrorBodyMapsToAuthenticationFailed() async {
-        let api = makeAPI(status: 500, body: Data("Server exploded".utf8))
+    @Test func serverErrorOnGenericRequestIsRetriable() async {
+        let api = makeAPI(status: 503, body: Data(#"{"message":"down for maintenance"}"#.utf8))
+
+        let error = await errorThrown {
+            _ = try await api.request(path: "/v1/folders", method: .post, body: ["name": "Reads"], responseType: Folder.self)
+        }
+
+        guard case PendingReadStateSyncError.retriable(let message)? = error else {
+            Issue.record("expected retriable, got \(String(describing: error))")
+            return
+        }
+        #expect(message == "down for maintenance")
+    }
+
+    @Test func tooManyRequestsOnGenericRequestIsRetriable() async {
+        let api = makeAPI(status: 429, body: Data())
+
+        let error = await errorThrown {
+            _ = try await api.request(path: "/v1/saved-items", responseType: SavedItemsResponse.self)
+        }
+
+        guard case PendingReadStateSyncError.retriable? = error else {
+            Issue.record("expected retriable, got \(String(describing: error))")
+            return
+        }
+    }
+
+    @Test func plainTextClientErrorMapsToAuthenticationFailed() async {
+        let api = makeAPI(status: 400, body: Data("Bad request".utf8))
 
         let error = await errorThrown {
             _ = try await api.request(path: "/v1/saved-items", responseType: SavedItemsResponse.self)
@@ -87,7 +114,7 @@ struct SleevyAPIClientTests {
             Issue.record("expected authenticationFailed, got \(String(describing: error))")
             return
         }
-        #expect(message == "Server exploded")
+        #expect(message == "Bad request")
     }
 
     // MARK: - setReadState(...) error mapping
@@ -123,13 +150,16 @@ struct SleevyAPIClientTests {
         }
     }
 
-    @Test func setReadStateClientErrorIsUnretriable() async {
-        let api = makeAPI(status: 400, body: Data())
+    @Test func setReadStateClientErrorIsPermanent() async {
+        let api = makeAPI(status: 400, body: Data("rejected".utf8))
 
         let error = await errorThrown { _ = try await api.setReadState(itemId: "x", isRead: true) }
 
-        guard case PendingReadStateSyncError.unretriable? = error else {
-            Issue.record("expected unretriable, got \(String(describing: error))")
+        // A 4xx is a permanent rejection. After unifying classification, read-state
+        // writes share the generic mapping, so this surfaces as `authenticationFailed`
+        // (→ `.permanent`) rather than the old `PendingReadStateSyncError.unretriable`.
+        guard case AuthError.authenticationFailed? = error else {
+            Issue.record("expected authenticationFailed, got \(String(describing: error))")
             return
         }
     }
