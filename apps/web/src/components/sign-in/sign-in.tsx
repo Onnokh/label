@@ -147,16 +147,19 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 
 function SignInBokeh() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const particlesRef = useRef<BokehParticle[]>(createParticles())
-  const iconPathsRef = useRef<Map<string, Path2D>>(new Map())
+  const particlesRef = useRef<BokehParticle[] | null>(null)
+  if (particlesRef.current === null) particlesRef.current = createParticles()
+  const iconPathsRef = useRef<Map<string, Path2D> | null>(null)
+  if (iconPathsRef.current === null) iconPathsRef.current = new Map()
   const rafRef = useRef<number>(0)
   const startRef = useRef<number>(0)
 
   const getIconPath2D = useCallback((d: string): Path2D => {
-    let p = iconPathsRef.current.get(d)
+    const paths = iconPathsRef.current!
+    let p = paths.get(d)
     if (!p) {
       p = new Path2D(d)
-      iconPathsRef.current.set(d, p)
+      paths.set(d, p)
     }
     return p
   }, [])
@@ -176,7 +179,7 @@ function SignInBokeh() {
     resize()
     window.addEventListener("resize", resize)
 
-    const particles = particlesRef.current
+    const particles = particlesRef.current!
     const useFilterBlur = "filter" in ctx && !isAppleMobileBrowser()
 
     const draw = (now: number) => {
@@ -235,5 +238,5 @@ function SignInBokeh() {
     }
   }, [getIconPath2D])
 
-  return <canvas ref={canvasRef} className={styles.bokeh} aria-hidden="true" />
+  return <canvas ref={canvasRef} className={styles.bokeh} aria-hidden="true" tabIndex={-1} />
 }

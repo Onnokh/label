@@ -1,11 +1,6 @@
 /// <reference types="vite/client" />
-import type { ReactNode } from "react"
-import { Outlet, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { ThemeProvider } from "../contexts/theme-context"
-import "../styles/base.css"
-
-const queryClient = new QueryClient()
+import { createRootRoute } from "@tanstack/react-router"
+import { RootComponent } from "./-root-component"
 
 export const Route = createRootRoute({
   head: () => ({
@@ -21,29 +16,3 @@ export const Route = createRootRoute({
   }),
   component: RootComponent,
 })
-
-function RootComponent() {
-  return (
-    <RootDocument>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <Outlet />
-        </ThemeProvider>
-      </QueryClientProvider>
-    </RootDocument>
-  )
-}
-
-function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
-  return (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  )
-}

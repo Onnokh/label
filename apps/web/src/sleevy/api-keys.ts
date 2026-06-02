@@ -24,15 +24,6 @@ export function connectedClientOf(key: ApiKey): ConnectedClientId | null {
     : null
 }
 
-export function scopesOf(key: ApiKey): string[] {
-  if (!key.permissions) return []
-  const out: string[] = []
-  for (const [resource, actions] of Object.entries(key.permissions)) {
-    for (const action of actions) out.push(`${resource}:${action}`)
-  }
-  return out
-}
-
 type CreateResult = {
   readonly key: string
 }

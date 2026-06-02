@@ -29,15 +29,6 @@ function resolveTheme(theme: ThemePreference): ResolvedTheme {
   return theme === "system" ? systemTheme() : theme
 }
 
-function applyTheme(theme: ThemePreference) {
-  if (isServer) return
-  document.documentElement.dataset.theme = resolveTheme(theme)
-}
-
-export function applyInitialTheme() {
-  applyTheme(storedTheme())
-}
-
 type ThemeProviderProps = {
   readonly children: ReactNode
 }

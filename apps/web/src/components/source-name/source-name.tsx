@@ -3,12 +3,7 @@ import { Check, Save } from "lucide-react"
 
 import { Button } from "../ui/button/button"
 import { InputField } from "../ui/input-field/input-field"
-
-const STORAGE_KEY = "sleeve:sourceName"
-
-export function getSourceName(): string {
-  return localStorage.getItem(STORAGE_KEY) || ""
-}
+import { getSourceName, setSourceName } from "./source-name-storage"
 
 export function SourceNamePanel() {
   const [value, setValue] = useState(() => getSourceName())
@@ -16,12 +11,7 @@ export function SourceNamePanel() {
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const trimmed = value.trim()
-    if (trimmed) {
-      localStorage.setItem(STORAGE_KEY, trimmed)
-    } else {
-      localStorage.removeItem(STORAGE_KEY)
-    }
+    setSourceName(value.trim())
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }

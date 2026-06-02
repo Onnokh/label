@@ -9,7 +9,7 @@ import type {
   Topic,
 } from "@sleevy/contract"
 
-import { getSourceName } from "../components/source-name/source-name"
+import { getSourceName } from "../components/source-name/source-name-storage"
 import { apiFetch } from "./api"
 
 export type { SavedItemSort, Topic }
