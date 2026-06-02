@@ -1,41 +1,7 @@
-import { Outlet, createFileRoute } from "@tanstack/react-router"
-import { Link } from "@tanstack/react-router"
-import { MarketingNav } from "../components/marketing-nav"
-import { Logo } from "../Logo"
+import { createFileRoute } from "@tanstack/react-router"
+import { MarketingLayout } from "./-marketing-layout"
 import "../styles/marketing.css"
 
 export const Route = createFileRoute("/_marketing")({
   component: MarketingLayout,
 })
-
-function MarketingLayout() {
-  return (
-    <main className="marketing-page">
-      <MarketingNav />
-      <Outlet />
-      <footer className="marketing-footer">
-        <div className="marketing-footer-inner">
-          <div className="marketing-footer-brand">
-            <Logo size={42} />
-            <p>
-              A scriptable bookmark manager app for saving links, keeping your reading list in sync, and coming
-              back when you are ready.
-            </p>
-          </div>
-
-          <nav className="marketing-footer-products" aria-label="Products">
-            <Link to="/inbox">Web Companion</Link>
-            <span className="disabled">Raycast Extension</span>
-            <a href="https://chromewebstore.google.com/detail/sleevy/ogffdakffimomfahfpihfmgdaincemjj">Chrome Extension</a>
-          </nav>
-
-          <nav className="marketing-footer-links" aria-label="Footer">
-            <Link to="/docs">Docs</Link>
-            <Link to="/privacy">Privacy</Link>
-            <Link to="/support">Support</Link>
-          </nav>
-        </div>
-      </footer>
-    </main>
-  )
-}

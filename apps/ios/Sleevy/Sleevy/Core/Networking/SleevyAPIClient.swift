@@ -1,0 +1,302 @@
+import Foundation
+
+/// The Sleevy REST surface: the typed reading-list verbs plus the policy that
+/// maps transport-level `APIClientError`s to the store's domain errors.
+///
+/// `HTTPClient` deliberately stays policy-free — it only knows 2xx-vs-not. This
+/// type owns the decisions that are specific to Sleevy's endpoints: a
+/// `401/403` means the session expired, an HTML error body means a proxy/CDN is
+/// unreachable, and `429`/`5xx` are retriable (so the change can be queued for
+/// later) while other `4xx` are permanent. Every verb funnels through one
+/// `mapStatusError(code:data:)` so this classification is uniform.
+///
+/// Extracting it from the store lets these mappings be unit-tested with a
+/// stubbed `URLSession`, without standing up the whole store.
+struct SleevyAPIClient {
+    private let api: HTTPClient
+    private let captureClient: SleevyCaptureClient
+    private let decoder: JSONDecoder
+    private let tokenStore: SessionTokenStore
+
+    init(api: HTTPClient, captureClient: SleevyCaptureClient, decoder: JSONDecoder, tokenStore: SessionTokenStore) {
+        self.api = api
+        self.captureClient = captureClient
+        self.decoder = decoder
+        self.tokenStore = tokenStore
+    }
+
+    /// Convenience for call sites (and tests) that hold a static token and don't
+    /// need rotation persisted anywhere.
+    init(api: HTTPClient, captureClient: SleevyCaptureClient, decoder: JSONDecoder, token: String) {
+        self.init(
+            api: api,
+            captureClient: captureClient,
+            decoder: decoder,
+            tokenStore: SessionTokenStore(initial: token)
+        )
+    }
+
+    /// Picks up a rotated bearer token from the response, if the server sent one,
+    /// so the next request (on any path) uses the fresh token rather than a stale
+    /// snapshot that would eventually 401 and force a spurious sign-out.
+    private func applyRotation(from http: HTTPURLResponse) {
+        guard let rotated = http.value(forHTTPHeaderField: "set-auth-token") else { return }
+        tokenStore.rotate(to: rotated)
+    }
+
+    func request<T: Decodable>(
+        path: String,
+        method: HTTPMethod = .get,
+        queryItems: [URLQueryItem] = [],
+        responseType: T.Type
+    ) async throws -> T {
+        do {
+            let response = try await api.send(
+                path,
+                method: method,
+                query: queryItems,
+                token: tokenStore.current
+            )
+            applyRotation(from: response.http)
+            return try decoder.decode(T.self, from: response.data)
+        } catch let APIClientError.unacceptableStatus(code, data) {
+            throw mapStatusError(code: code, data: data)
+        } catch APIClientError.invalidResponse {
+            throw AuthError.invalidServerResponse
+        }
+    }
+
+    func request<T: Decodable, Body: Encodable>(
+        path: String,
+        method: HTTPMethod = .get,
+        queryItems: [URLQueryItem] = [],
+        body: Body,
+        responseType: T.Type
+    ) async throws -> T {
+        do {
+            let response = try await api.send(
+                path,
+                method: method,
+                query: queryItems,
+                token: tokenStore.current,
+                body: body
+            )
+            applyRotation(from: response.http)
+            return try decoder.decode(T.self, from: response.data)
+        } catch let APIClientError.unacceptableStatus(code, data) {
+            throw mapStatusError(code: code, data: data)
+        } catch APIClientError.invalidResponse {
+            throw AuthError.invalidServerResponse
+        }
+    }
+
+    func requestNoContent(path: String, method: HTTPMethod) async throws {
+        do {
+            let response = try await api.send(
+                path,
+                method: method,
+                token: tokenStore.current
+            )
+            applyRotation(from: response.http)
+        } catch let APIClientError.unacceptableStatus(code, data) {
+            throw mapStatusError(code: code, data: data)
+        } catch APIClientError.invalidResponse {
+            throw AuthError.invalidServerResponse
+        }
+    }
+
+    /// Submits a capture and returns the created saved item. Errors propagate as
+    /// `SleevyCaptureError` (from `SleevyCaptureClient`) so the store's
+    /// retry/auth handling can classify them.
+    func capture(url: String, sourceName: String? = nil, captureChannel: String? = nil) async throws -> SavedItem {
+        let response = try await captureClient.capture(url: url, token: tokenStore.current, sourceName: sourceName, captureChannel: captureChannel)
+        applyRotation(from: response.http)
+        return try decoder.decode(CaptureResponse.self, from: response.data).savedItem
+    }
+
+    /// Writes a saved item's read state. Status codes are classified by the
+    /// shared `mapStatusError(code:data:)` policy — `401/403` →
+    /// `AuthError.sessionExpired`, `429`/`5xx` → `.retriable` (safe to queue),
+    /// everything else → permanent — so read-state writes and the generic verbs
+    /// agree on which failures are retriable.
+    func setReadState(itemId: String, isRead: Bool) async throws -> SavedItem {
+        do {
+            let response = try await api.send(
+                "/v1/saved-items/\(itemId)/read-state",
+                method: .post,
+                token: tokenStore.current,
+                body: ReadStateUpdateRequest(isRead: isRead)
+            )
+            applyRotation(from: response.http)
+            return try decoder.decode(SavedItem.self, from: response.data)
+        } catch let APIClientError.unacceptableStatus(code, data) {
+            throw mapStatusError(code: code, data: data)
+        } catch APIClientError.invalidResponse {
+            throw AuthError.invalidServerResponse
+        }
+    }
+
+    // MARK: - Reading list verbs
+
+    /// The full saved-item set (the inbox), in the server's canonical order.
+    func loadSavedItems() async throws -> [SavedItem] {
+        try await request(path: "/v1/saved-items", responseType: SavedItemsResponse.self).savedItems
+    }
+
+    func loadFolders() async throws -> [Folder] {
+        try await request(path: "/v1/folders", responseType: FoldersResponse.self).folders
+    }
+
+    func createFolder(name: String, emoji: String?, color: String?) async throws -> Folder {
+        try await request(
+            path: "/v1/folders",
+            method: .post,
+            body: FolderNameRequest(name: name, emoji: emoji, color: color),
+            responseType: Folder.self
+        )
+    }
+
+    func renameFolder(id: String, name: String, emoji: String?, color: String?) async throws -> Folder {
+        try await request(
+            path: "/v1/folders/\(id)",
+            method: .patch,
+            body: FolderNameRequest(name: name, emoji: emoji, color: color),
+            responseType: Folder.self
+        )
+    }
+
+    func deleteFolder(id: String) async throws {
+        try await requestNoContent(path: "/v1/folders/\(id)", method: .delete)
+    }
+
+    func moveItem(id: String, toFolder folderId: String?) async throws -> SavedItem {
+        try await request(
+            path: "/v1/saved-items/\(id)/folder",
+            method: .put,
+            body: FolderAssignmentRequest(folderId: folderId),
+            responseType: SavedItem.self
+        )
+    }
+
+    /// Records that the item was opened, returning it with read state applied.
+    func markOpened(id: String) async throws -> SavedItem {
+        try await request(path: "/v1/saved-items/\(id)/open", method: .post, responseType: SavedItem.self)
+    }
+
+    func deleteItem(id: String) async throws {
+        try await requestNoContent(path: "/v1/saved-items/\(id)", method: .delete)
+    }
+
+    private func mapStatusError(code: Int, data: Data) -> Error {
+        if code == 401 || code == 403 {
+            return AuthError.sessionExpired
+        }
+
+        // An HTML body is a proxy/CDN error page, not an API response — surface it
+        // as unreachable regardless of the status code (it usually rides on a 5xx).
+        if let body = utf8Body(data), body.hasPrefix("<") {
+            return APIError.unreachable
+        }
+
+        // `429`/`5xx` are self-resolving: classify them retriable so `fault(from:)`
+        // maps them to `.transient` and the change stays queued. This must hold for
+        // every verb, not just read-state — they all funnel through here.
+        if code == 429 || (500 ..< 600).contains(code) {
+            let message = serverMessage(data) ?? "Sleevy is temporarily unavailable (status \(code))."
+            return PendingReadStateSyncError.retriable(message)
+        }
+
+        return messageError(data: data, fallback: "Request failed with status \(code).")
+    }
+
+    private func messageError(data: Data, fallback: String) -> Error {
+        guard let body = utf8Body(data) else {
+            return AuthError.authenticationFailed(fallback)
+        }
+
+        // HTML response means a proxy/CDN error page, not an auth failure
+        if body.hasPrefix("<") {
+            return APIError.unreachable
+        }
+
+        return AuthError.authenticationFailed(body)
+    }
+
+    private func utf8Body(_ data: Data) -> String? {
+        guard
+            let body = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+            !body.isEmpty
+        else {
+            return nil
+        }
+        return body
+    }
+
+    private func serverMessage(_ data: Data) -> String? {
+        guard
+            let payload = try? decoder.decode(ServerErrorResponse.self, from: data),
+            let message = payload.message,
+            !message.isEmpty
+        else {
+            return nil
+        }
+
+        return message
+    }
+}
+
+private struct ReadStateUpdateRequest: Encodable {
+    let isRead: Bool
+}
+
+private struct FolderNameRequest: Encodable {
+    let name: String
+    let emoji: String?
+    let color: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case name
+        case emoji
+        case color
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encode(emoji, forKey: .emoji)
+        try container.encode(color, forKey: .color)
+    }
+}
+
+private struct FolderAssignmentRequest: Encodable {
+    let folderId: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case folderId
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        if let folderId {
+            try container.encode(folderId, forKey: .folderId)
+        } else {
+            try container.encodeNil(forKey: .folderId)
+        }
+    }
+}
+
+private struct CaptureResponse: Decodable {
+    let savedItem: SavedItem
+    let captureResult: String
+}
+
+private struct ServerErrorResponse: Decodable {
+    let message: String?
+}
+
+/// A non-auth, non-decodable failure (e.g. an HTML proxy error page) signalling
+/// the API is unreachable. The store reads this to flip `isAPIReachable`.
+enum APIError: Error {
+    case unreachable
+}

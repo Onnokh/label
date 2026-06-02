@@ -28,6 +28,8 @@ type KeyboardNavContextValue = {
 
 const KeyboardNavContext = createContext<KeyboardNavContextValue | null>(null)
 
+const overlappingHotkeyOptions = { conflictBehavior: "allow" as const }
+
 export function useKeyboardNav() {
   const ctx = use(KeyboardNavContext)
   if (!ctx) throw new Error("useKeyboardNav must be used within KeyboardNavProvider")
@@ -123,8 +125,6 @@ export function KeyboardNavProvider({ children }: { children: ReactNode }) {
   useHotkey({ key: "3", shift: true }, () => {
     if (itemActionsRef.current) setPendingDelete(true)
   }, { enabled: !suppressGlobal && !pendingDelete })
-
-  const overlappingHotkeyOptions = { conflictBehavior: "allow" as const }
 
   useHotkey("Y", () => {
     itemActionsRef.current?.onDelete()

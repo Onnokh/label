@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { MoreVertical } from "lucide-react"
 
 import type { ApiKey } from "../../sleevy/api-keys"
@@ -25,24 +25,22 @@ function formatTimestamp(value: string | Date | null | undefined) {
 
 export function ApiKeyRow({ apiKey, isDeleting, onDelete }: Props) {
   const [copied, setCopied] = useState(false)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const label = apiKey.name?.trim() || "Unnamed key"
   const prefix = apiKey.start || apiKey.prefix
   const createdAt = formatTimestamp(apiKey.createdAt)
 
   useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }
-  }, [])
+    if (!copied) return
+    const id = setTimeout(() => setCopied(false), 1500)
+    return () => clearTimeout(id)
+  }, [copied])
 
   const copyPrefix = async () => {
     if (!prefix) return
     try {
       await navigator.clipboard.writeText(prefix)
       setCopied(true)
-      timerRef.current = setTimeout(() => setCopied(false), 1500)
     } catch {
       /* clipboard not available */
     }

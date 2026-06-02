@@ -219,6 +219,7 @@ export function ConnectPage() {
             value={label}
             onChange={(event) => setLabel(event.target.value)}
             placeholder="Name this device"
+            aria-label="Name this device"
           />
           <svg
             className={styles.labelInputIcon}

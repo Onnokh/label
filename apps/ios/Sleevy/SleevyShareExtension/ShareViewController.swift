@@ -26,8 +26,8 @@ final class ShareViewController: UIViewController {
     private var hasStarted = false
     private var captureClient: SleevyCaptureClient {
         SleevyCaptureClient(
-            apiBaseURL: apiBaseURL,
-            apiOrigin: apiOrigin,
+            apiBaseURL: SleevyAPIEnvironment.baseURL,
+            apiOrigin: SleevyAPIEnvironment.origin,
             urlSession: Self.apiSession,
             encoder: Self.encoder,
             decoder: Self.decoder
@@ -110,12 +110,13 @@ final class ShareViewController: UIViewController {
             let sharedURL = try await loadSharedURL()
             let token = try loadSharedAuthToken()
             do {
-                _ = try await captureClient.capture(
+                let response = try await captureClient.capture(
                     url: sharedURL.absoluteString,
                     token: token,
                     sourceName: Self.sourceName,
-                    captureChannel: "ios-share-extension"
+                    captureChannel: CaptureChannel.shareExtension.rawValue
                 )
+                persistRotatedToken(from: response.http)
                 extensionContext?.completeRequest(returningItems: nil)
             } catch {
                 guard shouldQueueCapture(after: error) else {
@@ -166,6 +167,20 @@ final class ShareViewController: UIViewController {
         return false
     }
 
+    /// Mirrors a rotated `set-auth-token` back to the shared keychain so the main
+    /// app and the next share see the fresh token instead of a stale snapshot.
+    private func persistRotatedToken(from http: HTTPURLResponse) {
+        guard
+            let rotated = http.value(forHTTPHeaderField: "set-auth-token")?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+            !rotated.isEmpty
+        else {
+            return
+        }
+
+        try? keychain.write(rotated, account: Self.authTokenAccount)
+    }
+
     private func loadSharedAuthToken() throws -> String {
         guard
             let token = try keychain.read(account: Self.authTokenAccount),
@@ -185,20 +200,21 @@ final class ShareViewController: UIViewController {
         for item in extensionItems {
             for provider in item.attachments ?? [] {
                 if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
-                    let value = try await provider.loadItem(forTypeIdentifier: UTType.url.identifier)
-                    if let url = value as? URL {
+                    switch try await provider.loadSharedItem(forTypeIdentifier: UTType.url.identifier) {
+                    case .url(let url):
                         return url
-                    }
-                    if let data = value as? Data,
-                       let text = String(data: data, encoding: .utf8),
-                       let url = URL(string: text) {
-                        return url
+                    case .data(let data):
+                        if let text = String(data: data, encoding: .utf8),
+                           let url = URL(string: text) {
+                            return url
+                        }
+                    case .text, .unsupported:
+                        break
                     }
                 }
 
                 if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
-                    let value = try await provider.loadItem(forTypeIdentifier: UTType.plainText.identifier)
-                    if let text = value as? String,
+                    if case .text(let text) = try await provider.loadSharedItem(forTypeIdentifier: UTType.plainText.identifier),
                        let url = URL(string: text.trimmingCharacters(in: .whitespacesAndNewlines)),
                        url.scheme?.hasPrefix("http") == true {
                         return url
@@ -216,7 +232,7 @@ final class ShareViewController: UIViewController {
             url: sharedURL.absoluteString,
             for: session.userId,
             sourceName: Self.sourceName,
-            captureChannel: "ios-share-extension"
+            captureChannel: CaptureChannel.shareExtension.rawValue
         )
     }
 
@@ -232,45 +248,6 @@ final class ShareViewController: UIViewController {
         return session
     }
 
-    private var apiBaseURL: URL {
-        guard
-            let value = Bundle.main.object(forInfoDictionaryKey: "SleevyAPIBaseURL") as? String,
-            let url = URL(string: value),
-            !value.isEmpty,
-            !value.contains("REPLACE_WITH")
-        else {
-            #if DEBUG
-            return URL(string: "http://localhost:4001")!
-            #else
-            fatalError("SLEEVY_API_BASE_URL must be configured for Release builds.")
-            #endif
-        }
-
-        #if DEBUG
-        return url
-        #else
-        guard url.scheme == "https" else {
-            fatalError("SLEEVY_API_BASE_URL must use HTTPS for Release builds.")
-        }
-
-        return url
-        #endif
-    }
-
-    private var apiOrigin: String {
-        guard
-            let scheme = apiBaseURL.scheme,
-            let host = apiBaseURL.host
-        else {
-            return apiBaseURL.absoluteString
-        }
-
-        if let port = apiBaseURL.port {
-            return "\(scheme)://\(host):\(port)"
-        }
-
-        return "\(scheme)://\(host)"
-    }
 }
 
 private enum ShareExtensionError: LocalizedError {
@@ -287,8 +264,31 @@ private enum ShareExtensionError: LocalizedError {
     }
 }
 
+/// A `Sendable` projection of the non-`Sendable` `NSSecureCoding` value a shared
+/// item can carry. The legacy value is coerced inside the load callback so only
+/// this value type ever crosses the continuation boundary.
+private nonisolated enum SharedItemValue: Sendable {
+    case url(URL)
+    case data(Data)
+    case text(String)
+    case unsupported
+
+    init(_ item: NSSecureCoding?) {
+        switch item {
+        case let url as URL:
+            self = .url(url)
+        case let data as Data:
+            self = .data(data)
+        case let text as String:
+            self = .text(text)
+        default:
+            self = .unsupported
+        }
+    }
+}
+
 private extension NSItemProvider {
-    func loadItem(forTypeIdentifier typeIdentifier: String) async throws -> NSSecureCoding? {
+    func loadSharedItem(forTypeIdentifier typeIdentifier: String) async throws -> SharedItemValue {
         try await withCheckedThrowingContinuation { continuation in
             loadItem(forTypeIdentifier: typeIdentifier, options: nil) { item, error in
                 if let error {
@@ -296,7 +296,7 @@ private extension NSItemProvider {
                     return
                 }
 
-                continuation.resume(returning: item)
+                continuation.resume(returning: SharedItemValue(item))
             }
         }
     }

@@ -7,41 +7,35 @@ struct SleevyCaptureClient {
     let encoder: JSONEncoder
     let decoder: JSONDecoder
 
-    func capture(url: String, token: String, sourceName: String? = nil, captureChannel: String? = nil) async throws -> Data {
-        var request = URLRequest(url: endpoint("/v1/captures"))
-        request.httpMethod = "POST"
-        request.httpShouldHandleCookies = false
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(apiOrigin, forHTTPHeaderField: "Origin")
-        request.httpBody = try encoder.encode(SleevyCaptureRequest(url: url, sourceName: sourceName, captureChannel: captureChannel))
+    private var api: HTTPClient {
+        HTTPClient(baseURL: apiBaseURL, origin: apiOrigin, session: urlSession, encoder: encoder, decoder: decoder)
+    }
 
-        let (data, response) = try await urlSession.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw SleevyCaptureError.invalidServerResponse
-        }
+    /// Returns the full `APIResponse` (not just the body) so callers can read the
+    /// rotated `set-auth-token` header and keep their bearer token fresh.
+    func capture(url: String, token: String, sourceName: String? = nil, captureChannel: String? = nil) async throws -> APIResponse {
+        do {
+            return try await api.send(
+                "/v1/captures",
+                method: .post,
+                token: token,
+                body: SleevyCaptureRequest(url: url, sourceName: sourceName, captureChannel: captureChannel)
+            )
+        } catch let APIClientError.unacceptableStatus(code, data) {
+            if code == 401 || code == 403 {
+                throw SleevyCaptureError.sessionExpired
+            }
 
-        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-            throw SleevyCaptureError.sessionExpired
-        }
-
-        guard (200 ..< 300).contains(httpResponse.statusCode) else {
             let message = serverMessage(data)
 
-            if httpResponse.statusCode == 429 || (500 ..< 600).contains(httpResponse.statusCode) {
+            if code == 429 || (500 ..< 600).contains(code) {
                 throw SleevyCaptureError.temporarilyUnavailable(message ?? "Sleevy could not sync this saved link right now.")
             }
 
             throw SleevyCaptureError.failed(message ?? "Sleevy could not sync this saved link right now.")
+        } catch APIClientError.invalidResponse {
+            throw SleevyCaptureError.invalidServerResponse
         }
-
-        return data
-    }
-
-    private func endpoint(_ path: String) -> URL {
-        var components = URLComponents(url: apiBaseURL, resolvingAgainstBaseURL: false)!
-        components.path = path
-        return components.url!
     }
 
     private func serverMessage(_ data: Data) -> String? {
@@ -79,6 +73,8 @@ enum SleevyCaptureError: LocalizedError {
 
 struct SleevyPendingCaptureStore {
     let appGroupIdentifier: String
+    /// Overrides the app group container; used by tests to point at a temp directory.
+    var containerURLOverride: URL? = nil
 
     func enqueue(url: String, for userId: String, sourceName: String? = nil, captureChannel: String? = nil) throws {
         var pendingCaptures = load(for: userId)
@@ -131,8 +127,9 @@ struct SleevyPendingCaptureStore {
     }
 
     private func pendingCapturesURL(for userId: String) -> URL? {
-        FileManager.default
-            .containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?
+        let container = containerURLOverride
+            ?? FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)
+        return container?
             .appendingPathComponent("PendingCaptures", isDirectory: true)
             .appendingPathComponent("\(userId).json", isDirectory: false)
     }
@@ -208,13 +205,17 @@ extension JSONDecoder.DateDecodingStrategy {
 }
 
 private enum SleevyDateFormatter {
-    static let iso8601WithFractionalSeconds: ISO8601DateFormatter = {
+    // `ISO8601DateFormatter` is documented thread-safe for parsing and these are
+    // configured once and only ever read, so they're safe to reach from the
+    // `@Sendable` date-decoding closure. The type isn't `Sendable`, hence the
+    // explicit `nonisolated(unsafe)` rather than relying on inference.
+    nonisolated(unsafe) static let iso8601WithFractionalSeconds: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
 
-    static let iso8601: ISO8601DateFormatter = {
+    nonisolated(unsafe) static let iso8601: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         return formatter
