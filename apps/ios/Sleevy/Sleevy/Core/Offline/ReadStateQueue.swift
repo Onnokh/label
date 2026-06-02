@@ -23,9 +23,10 @@ enum PendingReadStateSyncError: LocalizedError {
 /// File-backed queue of read-state changes made while offline (or that failed to
 /// sync), persisted in the app group so the app and share extension stay aligned.
 ///
-/// Owns persistence, the optimistic overrides applied to freshly loaded items,
-/// and the retry policy. The network submission and applying synced results to
-/// the in-memory item list stay with `Library`, which drives the loop.
+/// Owns persistence and the optimistic overrides applied to freshly loaded
+/// items. Retry classification lives in one place (`HTTPReadingListAdapter` maps
+/// failures to `SyncFault`; `Library` decides what to do), and the network
+/// submission and applying synced results stay with `Library`.
 struct ReadStateQueue {
     let userId: String
     private let fileURL: URL?
@@ -111,31 +112,5 @@ struct ReadStateQueue {
         } catch {
             // Queue persistence is best-effort and should not break the main reading flow.
         }
-    }
-
-    func shouldRetry(after error: Error) -> Bool {
-        if error is URLError {
-            return true
-        }
-
-        if let authError = error as? AuthError {
-            switch authError {
-            case .sessionExpired:
-                return false
-            default:
-                break
-            }
-        }
-
-        if let syncError = error as? PendingReadStateSyncError {
-            switch syncError {
-            case .retriable:
-                return true
-            case .unretriable:
-                return false
-            }
-        }
-
-        return false
     }
 }

@@ -75,19 +75,6 @@ struct PendingCaptureQueueTests {
         #expect(otherUser.load().isEmpty)
     }
 
-    // MARK: - Retry policy
-
-    @Test func shouldRetryClassifiesErrors() {
-        let queue = makeQueue()
-
-        #expect(queue.shouldRetry(after: URLError(.timedOut)) == true)
-        #expect(queue.shouldRetry(after: SleevyCaptureError.temporarilyUnavailable("x")) == true)
-        #expect(queue.shouldRetry(after: SleevyCaptureError.invalidServerResponse) == true)
-        #expect(queue.shouldRetry(after: SleevyCaptureError.sessionExpired) == false)
-        #expect(queue.shouldRetry(after: SleevyCaptureError.failed("x")) == false)
-        #expect(queue.shouldRetry(after: AuthError.sessionExpired) == false)
-    }
-
     // MARK: - Helpers
 
     private func makeContainer() -> URL {

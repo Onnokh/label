@@ -4,9 +4,10 @@ import Foundation
 /// persisted in the app group via `SleevyPendingCaptureStore` so the app and the
 /// share extension stay aligned.
 ///
-/// Owns the user-scoped queue operations, the `PendingSavedItem` projection the
-/// inbox renders, and the retry policy. The network submission and applying
-/// synced results stay with `Library`, which drives the drain loop.
+/// Owns the user-scoped queue operations and the `PendingSavedItem` projection
+/// the inbox renders. Retry classification lives in one place
+/// (`HTTPReadingListAdapter` → `SyncFault` → `Library`); the network submission
+/// and applying synced results stay with `Library`.
 struct PendingCaptureQueue {
     let userId: String
     private let store: SleevyPendingCaptureStore
@@ -34,36 +35,6 @@ struct PendingCaptureQueue {
 
     func persist(_ captures: [SleevyPendingCapture]) {
         try? store.persist(captures, for: userId)
-    }
-
-    func shouldRetry(after error: Error) -> Bool {
-        if error is URLError {
-            return true
-        }
-
-        if let captureError = error as? SleevyCaptureError {
-            switch captureError {
-            case .temporarilyUnavailable:
-                return true
-            case .sessionExpired:
-                return false
-            case .invalidServerResponse:
-                return true
-            case .failed:
-                return false
-            }
-        }
-
-        if let authError = error as? AuthError {
-            switch authError {
-            case .sessionExpired:
-                return false
-            default:
-                break
-            }
-        }
-
-        return false
     }
 }
 

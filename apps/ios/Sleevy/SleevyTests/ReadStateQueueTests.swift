@@ -111,17 +111,9 @@ struct ReadStateQueueTests {
         #expect(queue.apply(to: [original]) == [original])
     }
 
-    // MARK: - Retry policy
-
-    @Test func shouldRetryClassifiesErrors() {
-        let queue = makeQueue()
-
-        #expect(queue.shouldRetry(after: URLError(.timedOut)) == true)
-        #expect(queue.shouldRetry(after: PendingReadStateSyncError.retriable("x")) == true)
-        #expect(queue.shouldRetry(after: PendingReadStateSyncError.unretriable("x")) == false)
-        #expect(queue.shouldRetry(after: AuthError.sessionExpired) == false)
-        #expect(queue.shouldRetry(after: AuthError.invalidServerResponse) == false)
-    }
+    // Retry classification no longer lives on the queue — it is unified in
+    // `HTTPReadingListAdapter.fault(from:)` + `Library.classify`,
+    // covered by `HTTPReadingListAdapterTests` and `LibrarySyncTests`.
 
     // MARK: - Helpers
 

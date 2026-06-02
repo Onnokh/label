@@ -14,62 +14,103 @@ enum FolderSelector: Equatable {
     case folder(String)
 }
 
-/// The reading list's single source of truth.
+/// A folder/move command that failed against the server, surfaced to the caller
+/// with the human-facing reason. Folder operations have no offline queue, so
+/// (unlike captures and read-state) their failures are thrown rather than
+/// silently retried.
+struct ReadingListError: LocalizedError {
+    let reason: String
+    var errorDescription: String? { reason }
+}
+
+/// The reading list's single source of truth and offline-sync coordinator.
 ///
 /// One canonical `items` array holds every saved item we know about. The Inbox,
 /// Library root, and each Folder are *derived* by `savedItems(_:)` — pure
 /// filter + sort, never stored — so a read-state toggle, move, or rename is one
-/// write to `items` that every view reflects automatically. There are no
-/// per-view projections to keep coherent.
+/// write to `items` that every view reflects automatically.
 ///
-/// Because the server returns every list with the same deterministic order
-/// (`desc(lastSavedAt, id)`) and no pagination, the inbox snapshot is the full
-/// set: the Library root and folders are subsets of it, reproduced locally
-/// rather than re-fetched.
-///
-/// Offline behavior is delegated to focused collaborators: `ReadStateQueue`
-/// (read-state edits made offline) and `PendingCaptureQueue` (captures made in
-/// the app or the share extension). This store composes them and owns the
-/// coordination — optimistic updates, queue draining, persistence, and error
-/// classification.
+/// The network is a `ReadingListNetworkPort`: production wires the HTTP adapter
+/// (`HTTPReadingListAdapter`), tests wire an in-memory one, and — crucially —
+/// every network failure arrives already classified as a `SyncFault`, so
+/// "should I re-queue this?" is answered in exactly one place (`classify(_:)`).
+/// Persistence stays the concrete per-user file stores (`SavedItemCache`,
+/// `ReadStateQueue`, `PendingCaptureQueue`) shared with the share extension.
 @MainActor
 @Observable
 final class Library {
-    /// The one truth: every saved item, in no particular stored order.
+    /// The one truth: every saved item, in no particular stored order. The Inbox,
+    /// Library root, and folders are *derived* by `savedItems(_:)`.
     private(set) var items: [SavedItem] = []
     private(set) var folders: [Folder] = []
-
     private(set) var pendingSavedItems: [PendingSavedItem] = []
-    /// Drives the full-screen "loading" spinner: true only during the very first
-    /// fetch, when there is nothing to show yet.
-    private(set) var isLoading = false
-    private(set) var isOnline = true
-    private(set) var isAPIReachable = true
-    private(set) var lastSuccessfulSyncAt: Date?
     private(set) var pendingCaptureCount = 0
-    var errorMessage: String?
-    var libraryErrorMessage: String?
+    private(set) var status = SyncStatus()
+
+    /// Invoked when the session is found to be invalid (`401/403`), so the app
+    /// shell can route back to sign-in.
     var onAuthenticationInvalid: ((String) -> Void)?
 
-    private let session: AppSession
-    private let decoder: JSONDecoder
-    private let encoder: JSONEncoder
-    private let api: SleevyAPIClient
-    private let pendingCaptureQueue: PendingCaptureQueue
+    // View-facing projections of the single `status` value, so SwiftUI binds to
+    // stable property names while the flags live in one place.
+    var isLoading: Bool { status.isInitialLoad }
+    var isOnline: Bool { status.isOnline }
+    var isAPIReachable: Bool { status.isAPIReachable }
+    var lastSuccessfulSyncAt: Date? { status.lastSuccessfulSyncAt }
+
+    /// Settable so a view can clear a dismissed banner.
+    var errorMessage: String? {
+        get { status.errorMessage }
+        set { status.errorMessage = newValue }
+    }
+
+    var libraryErrorMessage: String? {
+        get { status.libraryErrorMessage }
+        set { status.libraryErrorMessage = newValue }
+    }
+
+    private let userId: String
+    private let network: any ReadingListNetworkPort
+    private let connectivity: any ConnectivityMonitoring
+    private let cache: SavedItemCache
     private let readStateQueue: ReadStateQueue
-    private let savedItemCache: SavedItemCache
+    private let pendingCaptureQueue: PendingCaptureQueue
     private let statusDefaults: UserDefaults
-    private let connectivityMonitor: any ConnectivityMonitoring
+
     private var hasAttemptedInitialLoad = false
     /// Serializes sync cycles (and the standalone retry pull) so two never run at
     /// once — the single re-entrancy guard for all server coordination.
     private var isSyncing = false
     private static var sourceName: String { SleevyUserPreferences.sourceName }
 
-    /// Collaborators default to their production construction (live API session,
-    /// app-group queues, application-support cache, standard defaults). Tests
-    /// inject stubbed versions to drive the coordination logic deterministically.
+    /// Designated initializer: everything that crosses a boundary is injected, so
+    /// tests can drive the whole coordinator with an in-memory network and
+    /// temp-directory stores.
     init(
+        userId: String,
+        network: any ReadingListNetworkPort,
+        cache: SavedItemCache,
+        readStateQueue: ReadStateQueue,
+        pendingCaptureQueue: PendingCaptureQueue,
+        statusDefaults: UserDefaults,
+        connectivity: any ConnectivityMonitoring
+    ) {
+        self.userId = userId
+        self.network = network
+        self.cache = cache
+        self.readStateQueue = readStateQueue
+        self.pendingCaptureQueue = pendingCaptureQueue
+        self.statusDefaults = statusDefaults
+        self.connectivity = connectivity
+        self.status.lastSuccessfulSyncAt = statusDefaults.object(forKey: Self.lastSyncDefaultsKey(for: userId)) as? Date
+        refreshPendingCaptureState()
+        startMonitoringConnectivity()
+    }
+
+    /// Production convenience initializer. Collaborators default to their live
+    /// construction (API session, app-group queues, application-support cache,
+    /// standard defaults); tests inject stubbed versions.
+    convenience init(
         session: AppSession,
         tokenStore: SessionTokenStore? = nil,
         connectivityMonitor: any ConnectivityMonitoring = LiveConnectivityMonitor(),
@@ -79,50 +120,80 @@ final class Library {
         savedItemCache: SavedItemCache? = nil,
         statusDefaults: UserDefaults = .standard
     ) {
-        self.session = session
-        self.connectivityMonitor = connectivityMonitor
-
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .sleevyISO8601
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        self.decoder = decoder
-        self.encoder = encoder
 
-        self.api = api ?? Self.makeAPI(
+        let apiClient = api ?? Self.makeAPI(
             tokenStore: tokenStore ?? SessionTokenStore(initial: session.token),
             encoder: encoder,
             decoder: decoder
         )
-        self.pendingCaptureQueue = pendingCaptureQueue ?? PendingCaptureQueue(
+        let captureQueue = pendingCaptureQueue ?? PendingCaptureQueue(
             userId: session.userId,
             store: SleevyPendingCaptureStore(appGroupIdentifier: AppConfig.appGroupIdentifier)
         )
-        self.readStateQueue = readStateQueue ?? ReadStateQueue(
+        let readState = readStateQueue ?? ReadStateQueue(
             userId: session.userId,
             containerURL: FileManager.default.containerURL(
                 forSecurityApplicationGroupIdentifier: AppConfig.appGroupIdentifier
             )
         )
-        self.savedItemCache = savedItemCache ?? SavedItemCache(
+        let cache = savedItemCache ?? SavedItemCache(
             userId: session.userId,
             directory: Self.applicationSupportDirectory(),
             encoder: encoder,
             decoder: decoder
         )
-        self.statusDefaults = statusDefaults
-        self.lastSuccessfulSyncAt = statusDefaults.object(forKey: Self.lastSyncDefaultsKey(for: session.userId)) as? Date
-        let pendingItems = self.pendingCaptureQueue.pendingSavedItems()
-        self.pendingCaptureCount = pendingItems.count
-        self.pendingSavedItems = pendingItems
-        startMonitoringConnectivity()
+
+        self.init(
+            userId: session.userId,
+            network: HTTPReadingListAdapter(api: apiClient),
+            cache: cache,
+            readStateQueue: readState,
+            pendingCaptureQueue: captureQueue,
+            statusDefaults: statusDefaults,
+            connectivity: connectivityMonitor
+        )
+    }
+
+    // MARK: - Classification (the single authority)
+
+    private enum Disposition {
+        /// Keep the change queued and stop draining for now.
+        case retain
+        /// Drop the change — it will never succeed.
+        case drop
+        /// The session is dead; stop everything and sign out.
+        case signOut
+    }
+
+    /// Normalizes a caught error to a `SyncFault`. The network port is typed
+    /// `throws(SyncFault)`, so at runtime this is always the `as?` branch; the
+    /// fallback exists only because Swift 5 language mode binds `catch` to
+    /// `any Error` rather than the declared thrown type.
+    private func asFault(_ error: any Error) -> SyncFault {
+        error as? SyncFault ?? .permanent(reason: error.localizedDescription)
+    }
+
+    /// The one place a `SyncFault` becomes a sync decision. Replaces the three
+    /// divergent `shouldRetry(after:)` implementations.
+    private func classify(_ fault: SyncFault) -> Disposition {
+        switch fault {
+        case .transient, .unreachable:
+            return .retain
+        case .permanent:
+            return .drop
+        case .authInvalid:
+            return .signOut
+        }
     }
 
     // MARK: - Derived views
 
-    /// The items for a view, derived from the single `items` truth. Returned in
-    /// the server's canonical "newest" order; views layer their own sort/filter
-    /// on top.
+    /// The items for a view, derived from the single `items` truth, in the
+    /// server's canonical "newest" order; views layer their own sort/filter on top.
     func savedItems(_ selector: FolderSelector = .all) -> [SavedItem] {
         let filtered: [SavedItem]
         switch selector {
@@ -151,11 +222,11 @@ final class Library {
     /// Initial load: one fast pull for first paint (with the loading spinner),
     /// then a full sync to push queued changes and surface anything new.
     func load() async {
-        guard !isLoading, !isSyncing else { return }
-        isLoading = true
+        guard !status.isInitialLoad, !isSyncing else { return }
+        status.isInitialLoad = true
         refreshPendingCaptureState()
         let didLoad = await performLoad()
-        isLoading = false
+        status.isInitialLoad = false
 
         guard didLoad else { return }
         await sync()
@@ -168,19 +239,17 @@ final class Library {
 
     /// Retry after a failed load: just attempt the pull again.
     func retryLoad() async {
-        guard !isLoading, !isSyncing else { return }
+        guard !status.isInitialLoad, !isSyncing else { return }
         isSyncing = true
         defer { isSyncing = false }
         await performLoad()
     }
 
-    /// One sync cycle — the heart of the load logic: push local pending changes
-    /// to the server (queued captures, then queued read-state), then pull the
-    /// canonical state back so freshly-synced items surface. Serialized via
-    /// `isSyncing`, and skipped while the initial load holds the screen, so
-    /// cycles never overlap or race a load.
+    /// One sync cycle — push local pending changes (queued captures, then queued
+    /// read-state), then pull the canonical state back. Serialized via
+    /// `isSyncing`, and skipped while the initial load holds the screen.
     private func sync() async {
-        guard !isLoading, !isSyncing else { return }
+        guard !status.isInitialLoad, !isSyncing else { return }
         isSyncing = true
         defer { isSyncing = false }
 
@@ -191,67 +260,83 @@ final class Library {
     }
 
     /// Fetches the full item set (the inbox) and folder list. The item fetch is
-    /// the critical path — its failure fails the load; folders load best-effort
-    /// so the inbox still renders if only the folder endpoint is down.
+    /// the critical path; folders load best-effort.
     @discardableResult
     private func performLoad() async -> Bool {
         do {
-            let savedItems = try await api.loadSavedItems()
+            let savedItems = try await network.loadSavedItems()
             items = readStateQueue.apply(to: savedItems)
             persistItems()
-            lastSuccessfulSyncAt = Date()
-            statusDefaults.set(lastSuccessfulSyncAt, forKey: Self.lastSyncDefaultsKey(for: session.userId))
-            isAPIReachable = true
-            errorMessage = nil
+            let now = Date()
+            status.lastSuccessfulSyncAt = now
+            statusDefaults.set(now, forKey: Self.lastSyncDefaultsKey(for: userId))
+            status.isAPIReachable = true
+            status.errorMessage = nil
             await loadFolders()
             return true
         } catch {
-            handleRequestError(error)
+            handleRequestFault(asFault(error))
             return false
         }
     }
 
     private func loadFolders() async {
         do {
-            folders = try await api.loadFolders()
-            libraryErrorMessage = nil
+            folders = try await network.loadFolders()
+            status.libraryErrorMessage = nil
         } catch {
-            handleLibraryError(error)
+            handleLibraryFault(asFault(error))
         }
     }
 
     // MARK: - Folder commands
 
     func createFolder(named name: String, emoji: String?, color: String?) async throws {
-        let folder = try await api.createFolder(name: name, emoji: emoji, color: color)
-        folders.append(folder)
-        sortFolders()
-        libraryErrorMessage = nil
+        do {
+            let folder = try await network.createFolder(name: name, emoji: emoji, color: color)
+            folders.append(folder)
+            sortFolders()
+            status.libraryErrorMessage = nil
+        } catch {
+            throw ReadingListError(reason: asFault(error).reason)
+        }
     }
 
     func renameFolder(_ folder: Folder, to name: String, emoji: String?, color: String?) async throws {
-        let renamed = try await api.renameFolder(id: folder.id, name: name, emoji: emoji, color: color)
-        folders.removeAll { $0.id == folder.id }
-        folders.append(renamed)
-        sortFolders()
-        applyFolderSummary(renamed)
-        libraryErrorMessage = nil
+        do {
+            let renamed = try await network.renameFolder(id: folder.id, name: name, emoji: emoji, color: color)
+            folders.removeAll { $0.id == folder.id }
+            folders.append(renamed)
+            sortFolders()
+            applyFolderSummary(renamed)
+            status.libraryErrorMessage = nil
+        } catch {
+            throw ReadingListError(reason: asFault(error).reason)
+        }
     }
 
     func deleteFolder(_ folder: Folder) async throws {
-        try await api.deleteFolder(id: folder.id)
-        folders.removeAll { $0.id == folder.id }
-        // Detaching the summary returns these items to the Library root — the
-        // `.unfiled` view picks them up automatically, no re-fetch needed.
-        mutateItems(where: { $0.folder?.id == folder.id }) { $0 = $0.withFolder(nil) }
-        persistItems()
+        do {
+            try await network.deleteFolder(id: folder.id)
+            folders.removeAll { $0.id == folder.id }
+            // Detaching the summary returns these items to the Library root — the
+            // `.unfiled` view picks them up automatically, no re-fetch needed.
+            mutateItems(where: { $0.folder?.id == folder.id }) { $0 = $0.withFolder(nil) }
+            persistItems()
+        } catch {
+            throw ReadingListError(reason: asFault(error).reason)
+        }
     }
 
     func move(_ item: SavedItem, to folder: Folder?) async throws {
-        let updated = try await api.moveItem(id: item.id, toFolder: folder?.id)
-        upsert([updated])
-        persistItems()
-        libraryErrorMessage = nil
+        do {
+            let updated = try await network.moveItem(id: item.id, toFolder: folder?.id)
+            upsert([updated])
+            persistItems()
+            status.libraryErrorMessage = nil
+        } catch {
+            throw ReadingListError(reason: asFault(error).reason)
+        }
     }
 
     // MARK: - Item commands
@@ -259,27 +344,29 @@ final class Library {
     func capture(_ rawURL: String) async throws -> CaptureSubmissionOutcome {
         let url = rawURL.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard isOnline else {
+        guard status.isOnline else {
             enqueuePendingCapture(url: url)
             return .queued
         }
 
         do {
-            let savedItem = try await api.capture(url: url, sourceName: Self.sourceName, captureChannel: CaptureChannel.app.rawValue)
+            let savedItem = try await network.capture(url: url, sourceName: Self.sourceName, captureChannel: CaptureChannel.app.rawValue)
             upsert([savedItem])
             persistItems()
-            isAPIReachable = true
-            errorMessage = nil
+            status.isAPIReachable = true
+            status.errorMessage = nil
             return .saved(savedItem)
         } catch {
-            if pendingCaptureQueue.shouldRetry(after: error) {
+            let fault = asFault(error)
+            switch classify(fault) {
+            case .retain:
                 enqueuePendingCapture(url: url)
-                errorMessage = nil
+                status.errorMessage = nil
                 return .queued
+            case .drop, .signOut:
+                handleRequestFault(fault)
+                throw ReadingListError(reason: fault.reason)
             }
-
-            handleRequestError(error)
-            throw error
         }
     }
 
@@ -296,9 +383,9 @@ final class Library {
 
         await UIApplication.shared.open(url)
 
-        guard isOnline else {
+        guard status.isOnline else {
             readStateQueue.enqueue(itemId: item.id, isRead: true)
-            errorMessage = nil
+            status.errorMessage = nil
             return
         }
 
@@ -309,25 +396,27 @@ final class Library {
             guard let self else { return }
 
             do {
-                let updated = try await api.markOpened(id: item.id)
+                let updated = try await self.network.markOpened(itemId: item.id)
 
-                let queuedState = readStateQueue.override(for: updated.id)
+                let queuedState = self.readStateQueue.override(for: updated.id)
                 if queuedState == nil || queuedState == true {
-                    readStateQueue.remove(itemId: updated.id)
+                    self.readStateQueue.remove(itemId: updated.id)
                 }
 
-                if currentReadState(for: updated.id) == true {
-                    upsert([updated])
-                    persistItems()
+                if self.currentReadState(for: updated.id) == true {
+                    self.upsert([updated])
+                    self.persistItems()
                 }
 
-                errorMessage = nil
+                self.status.errorMessage = nil
             } catch {
-                if readStateQueue.shouldRetry(after: error) {
-                    readStateQueue.enqueue(itemId: item.id, isRead: true)
-                    errorMessage = nil
-                } else {
-                    handleRequestError(error)
+                let fault = self.asFault(error)
+                switch self.classify(fault) {
+                case .retain:
+                    self.readStateQueue.enqueue(itemId: item.id, isRead: true)
+                    self.status.errorMessage = nil
+                case .drop, .signOut:
+                    self.handleRequestFault(fault)
                 }
             }
         }
@@ -336,14 +425,14 @@ final class Library {
     func setRead(_ item: SavedItem, isRead: Bool) async {
         updateLocalReadState(for: item.id, isRead: isRead)
 
-        guard isOnline else {
+        guard status.isOnline else {
             readStateQueue.enqueue(itemId: item.id, isRead: isRead)
-            errorMessage = nil
+            status.errorMessage = nil
             return
         }
 
         do {
-            let updated = try await api.setReadState(itemId: item.id, isRead: isRead)
+            let updated = try await network.setReadState(itemId: item.id, isRead: isRead)
             let queuedState = readStateQueue.override(for: updated.id)
             if queuedState == nil || queuedState == isRead {
                 readStateQueue.remove(itemId: updated.id)
@@ -354,24 +443,26 @@ final class Library {
                 persistItems()
             }
 
-            errorMessage = nil
+            status.errorMessage = nil
         } catch {
-            if readStateQueue.shouldRetry(after: error) {
+            let fault = asFault(error)
+            switch classify(fault) {
+            case .retain:
                 readStateQueue.enqueue(itemId: item.id, isRead: isRead)
-                errorMessage = nil
-            } else {
-                handleRequestError(error)
+                status.errorMessage = nil
+            case .drop, .signOut:
+                handleRequestFault(fault)
             }
         }
     }
 
     func delete(_ item: SavedItem) async {
         do {
-            try await api.deleteItem(id: item.id)
+            try await network.deleteItem(itemId: item.id)
             items.removeAll { $0.id == item.id }
             persistItems()
         } catch {
-            handleRequestError(error)
+            handleRequestFault(asFault(error))
         }
     }
 
@@ -380,16 +471,16 @@ final class Library {
         refreshPendingCaptureState()
     }
 
-    // MARK: - Connectivity & sync
+    // MARK: - Connectivity & draining
 
     private func startMonitoringConnectivity() {
-        connectivityMonitor.start { [weak self] isOnline in
+        connectivity.start { [weak self] isOnline in
             self?.handleConnectivityChange(isOnline: isOnline)
         }
     }
 
     private func handleConnectivityChange(isOnline: Bool) {
-        self.isOnline = isOnline
+        status.isOnline = isOnline
         guard isOnline else { return }
 
         // Coming back online: reconcile only if there's queued work to push.
@@ -399,107 +490,107 @@ final class Library {
         Task { await sync() }
     }
 
-    /// Pushes queued captures (made offline, or that failed to sync) to the
-    /// server. Stops at the first retriable failure, keeping it and everything
-    /// after it queued; permanent failures are dropped. Only ever called from
-    /// `sync()`, which serializes it.
-    private func drainPendingCaptures() async {
-        let pendingCaptures = pendingCaptureQueue.load()
-        guard !pendingCaptures.isEmpty else { return }
+    /// The one drain skeleton both queues share: push each pending item; on the
+    /// first `.retain` keep it and the tail queued and stop; on `.signOut`
+    /// invalidate the session and stop; `.drop` skips the item and keeps going.
+    /// `push` returns the `SyncFault` on failure (having already applied any
+    /// per-item success side effect), or `nil` on success.
+    private func drain<Item>(
+        _ pending: [Item],
+        push: (Item) async -> SyncFault?
+    ) async -> [Item] {
+        var remaining: [Item] = []
+        for (index, item) in pending.enumerated() {
+            guard let fault = await push(item) else { continue }
+            switch classify(fault) {
+            case .signOut:
+                invalidateAuthentication()
+                return remaining
+            case .retain:
+                remaining.append(contentsOf: pending[index...])
+                return remaining
+            case .drop:
+                continue
+            }
+        }
+        return remaining
+    }
 
-        var remaining: [SleevyPendingCapture] = []
-        for (index, capture) in pendingCaptures.enumerated() {
+    /// Pushes queued captures (made offline, or that failed to sync) to the
+    /// server. Only ever called from `sync()`, which serializes it.
+    private func drainPendingCaptures() async {
+        let pending = pendingCaptureQueue.load()
+        guard !pending.isEmpty else { return }
+
+        let remaining = await drain(pending) { capture in
             do {
-                _ = try await api.capture(url: capture.url, sourceName: capture.sourceName, captureChannel: capture.captureChannel)
+                _ = try await self.network.capture(url: capture.url, sourceName: capture.sourceName, captureChannel: capture.captureChannel)
+                return nil
             } catch {
-                if handleAuthenticationInvalid(error) { break }
-                if pendingCaptureQueue.shouldRetry(after: error) {
-                    remaining.append(contentsOf: pendingCaptures[index...])
-                    break
-                }
+                return self.asFault(error)
             }
         }
 
         pendingCaptureQueue.persist(remaining)
         refreshPendingCaptureState()
-        errorMessage = nil
+        status.errorMessage = nil
     }
 
-    /// Pushes queued read-state changes to the server, applying each confirmed
-    /// result back onto its item. Stops at the first retriable failure. Only ever
-    /// called from `sync()`, which serializes it.
+    /// Pushes queued read-state changes, applying each confirmed result back onto
+    /// its item. Only ever called from `sync()`, which serializes it.
     private func drainPendingReadState() async {
         let pending = readStateQueue.all()
         guard !pending.isEmpty else { return }
 
-        var remaining: [PendingReadStateUpdate] = []
         var didUpdate = false
-        for (index, update) in pending.enumerated() {
+        let remaining = await drain(pending) { update in
             do {
-                let updated = try await api.setReadState(itemId: update.itemId, isRead: update.isRead)
-                if items.contains(where: { $0.id == updated.id }) {
-                    upsert([updated])
+                let updated = try await self.network.setReadState(itemId: update.itemId, isRead: update.isRead)
+                if self.items.contains(where: { $0.id == updated.id }) {
+                    self.upsert([updated])
                     didUpdate = true
                 }
+                return nil
             } catch {
-                if handleAuthenticationInvalid(error) { break }
-                if readStateQueue.shouldRetry(after: error) {
-                    remaining.append(contentsOf: pending[index...])
-                    break
-                }
+                return self.asFault(error)
             }
         }
 
         readStateQueue.persist(remaining)
         if didUpdate { persistItems() }
-        errorMessage = nil
+        status.errorMessage = nil
     }
 
-    // MARK: - Errors
+    // MARK: - Faults
 
-    private func handleRequestError(_ error: Error) {
-        if handleAuthenticationInvalid(error) {
-            return
-        }
-
-        if error is APIError {
-            isAPIReachable = false
-            errorMessage = nil
-        } else {
-            if AppConfig.isOfflineNetworkError(error) {
-                errorMessage = nil
-            } else if let networkMessage = AppConfig.userFacingNetworkMessage(for: error) {
-                errorMessage = networkMessage
-            } else {
-                errorMessage = error.localizedDescription
-            }
-        }
-    }
-
-    private func handleLibraryError(_ error: Error) {
-        if handleAuthenticationInvalid(error) {
-            return
-        }
-
-        libraryErrorMessage = AppConfig.userFacingNetworkMessage(for: error) ?? error.localizedDescription
-    }
-
-    private func handleAuthenticationInvalid(_ error: Error) -> Bool {
-        if let authError = error as? AuthError, case .sessionExpired = authError {
+    /// Maps a request fault to the user-facing status. A `.transient` carries its
+    /// message in `reason` (empty means "offline — suppress"); `.unreachable`
+    /// flips `isAPIReachable`; `.authInvalid` invalidates the session.
+    private func handleRequestFault(_ fault: SyncFault) {
+        switch fault {
+        case .authInvalid:
             invalidateAuthentication()
-            return true
+        case .unreachable:
+            status.isAPIReachable = false
+            status.errorMessage = nil
+        case .transient(let reason):
+            status.errorMessage = reason.isEmpty ? nil : reason
+        case .permanent(let reason):
+            status.errorMessage = reason
         }
+    }
 
-        if let captureError = error as? SleevyCaptureError, case .sessionExpired = captureError {
+    private func handleLibraryFault(_ fault: SyncFault) {
+        switch fault {
+        case .authInvalid:
             invalidateAuthentication()
-            return true
+        case .transient(let reason), .permanent(let reason), .unreachable(let reason):
+            status.libraryErrorMessage = reason.isEmpty ? nil : reason
         }
-
-        return false
     }
 
     private func invalidateAuthentication() {
-        errorMessage = nil
+        status.errorMessage = nil
         onAuthenticationInvalid?("Your Sleevy session expired. Please sign in again.")
     }
 
@@ -527,8 +618,7 @@ final class Library {
         items.first(where: { $0.id == itemId })?.isRead
     }
 
-    /// Reassigns the (renamed) folder's summary onto every item that belongs to
-    /// it. One pass over the canonical store; all views follow.
+    /// Reassigns the (renamed) folder's summary onto every item that belongs to it.
     private func applyFolderSummary(_ folder: Folder) {
         let summary = FolderSummary(id: folder.id, name: folder.name, emoji: folder.emoji, color: folder.color)
         mutateItems(where: { $0.folder?.id == folder.id }) { $0 = $0.withFolder(summary) }
@@ -548,12 +638,12 @@ final class Library {
     // MARK: - Persistence & pending captures
 
     private func restoreCachedItems() {
-        guard let cachedItems = savedItemCache.load() else { return }
+        guard let cachedItems = cache.load() else { return }
         items = readStateQueue.apply(to: cachedItems)
     }
 
     private func persistItems() {
-        savedItemCache.save(savedItems())
+        cache.save(savedItems())
     }
 
     private func refreshPendingCaptureState() {
