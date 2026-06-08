@@ -12,6 +12,7 @@
 import { fileURLToPath } from "node:url"
 import { dirname, resolve } from "node:path"
 import { mkdirSync, writeFileSync } from "node:fs"
+import { createRequire } from "node:module"
 import ts from "typescript"
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
@@ -193,8 +194,16 @@ function tupleToConstLiteral(typeStr) {
   return inner
 }
 
+// Format with the Raycast plugin's own Prettier (same version `ray lint`
+// enforces) so the vendored file never trips the Store's lint check. No
+// Prettier config exists in the repo, so defaults match `ray lint` exactly.
+const prettier = createRequire(
+  resolve(ROOT, "apps/raycast-plugin/package.json"),
+)("prettier")
+const formatted = await prettier.format(output, { parser: "typescript" })
+
 mkdirSync(dirname(OUT_FILE), { recursive: true })
-writeFileSync(OUT_FILE, output, "utf8")
+writeFileSync(OUT_FILE, formatted, "utf8")
 
 try { unlinkSync(PROBE_PATH) } catch {}
 
