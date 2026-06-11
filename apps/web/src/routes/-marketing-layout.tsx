@@ -19,7 +19,7 @@ export function MarketingLayout() {
 
           <nav className="marketing-footer-products" aria-label="Products">
             <Link to="/inbox">Web Companion</Link>
-            <span className="disabled">Raycast Extension</span>
+            <a href="https://www.raycast.com/onnokh/sleevy">Raycast Extension</a>
             <a href="https://chromewebstore.google.com/detail/sleevy/ogffdakffimomfahfpihfmgdaincemjj">Chrome Extension</a>
           </nav>
 

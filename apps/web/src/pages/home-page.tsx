@@ -1,11 +1,13 @@
 import { useState, type ReactNode } from "react"
 
+const raycastStoreUrl = "https://www.raycast.com/onnokh/sleevy"
+
 const captureMethods = [
   {
     title: "Raycast Plugin",
     body: "Capture from your launcher and keep moving.",
-    action: "Install Extension",
-    href: null as string | null,
+    action: "Install on Raycast",
+    href: raycastStoreUrl,
     icon: "/raycast-82.webp",
     iconWidth: 82,
     iconHeight: 82,
@@ -124,7 +126,7 @@ export function HomePage() {
             every device in sync.
           </p>
           <p>
-            In development.
+            Now live on <a href={raycastStoreUrl}>Raycast</a>.
           </p>
           <div className="marketing-actions">
             <a className="marketing-app-store" href="https://apps.apple.com/nl/app/sleevy/id6770653332" aria-label="Download on the App Store">
