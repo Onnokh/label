@@ -1004,8 +1004,21 @@
 }
 
 @media (max-width: 760px) {
-  .marketing-nav {
+  .marketing-nav,
+  .marketing-hero,
+  .capture-section > .marketing-eyebrow,
+  .capture-grid,
+  .companion-section > .marketing-eyebrow,
+  .companion-preview,
+  .companion-features,
+  .api-section,
+  .capture-section > h2,
+  .companion-section > h2 {
     width: min(100% - 1.5rem, 1136px);
+  }
+
+  .marketing-nav {
+    gap: 1rem;
     padding-top: 1.25rem;
   }
 
@@ -1088,33 +1101,36 @@
   }
 
   .marketing-brand .logoText {
-    font-size: 1.25rem !important;
+    font-size: 1.125rem !important;
   }
 
   .marketing-nav-actions {
-    display: none;
+    display: flex;
+    gap: 0.75rem;
+    margin-left: auto;
   }
 
-  .marketing-nav-link {
-    display: none;
+  .marketing-nav-link,
+  .marketing-login {
+    font-size: 0.875rem;
   }
 
   .marketing-login {
-    min-height: 2.5rem;
-    padding: 0 1rem;
-    font-size: 1rem;
+    min-height: 2.25rem;
+    padding: 0 0.875rem;
   }
 
   .marketing-hero {
     grid-template-columns: 1fr;
-    width: min(100% - 1.5rem, 1136px);
     min-height: 0;
-    gap: 2.25rem;
-    padding: 3rem 0 2.5rem;
+    gap: 2rem;
+    padding: 2.5rem 0 3.25rem;
+    text-align: center;
   }
 
   .marketing-copy h1 {
-    font-size: clamp(3rem, 13vw, 3.5rem);
+    font-size: clamp(2.75rem, 12vw, 3.375rem);
+    line-height: 1;
   }
 
   .marketing-copy h1 span {
@@ -1122,55 +1138,68 @@
   }
 
   .marketing-copy p {
-    max-width: 22rem;
-    margin-top: 1.5rem;
-    font-size: 1.5rem;
-    line-height: 1.18;
+    max-width: 24rem;
+    margin: 1.25rem auto 0;
+    font-size: 1.125rem;
+    line-height: 1.35;
   }
 
   .marketing-actions {
     align-items: center;
+    justify-content: center;
     flex-wrap: wrap;
-    gap: 1.25rem;
+    gap: 1rem;
     margin-top: 2rem;
   }
 
   .marketing-app-store {
-    width: 11rem;
+    width: 10.25rem;
   }
 
   .marketing-docs-link {
-    font-size: 1.25rem;
+    font-size: 1rem;
   }
 
   .marketing-device {
-    min-height: 30rem;
+    width: min(100%, 24rem);
+    min-height: 0;
+    margin: 0 auto;
+    aspect-ratio: 588 / 760;
   }
 
   .marketing-gradient {
-    top: 15%;
+    top: 10%;
     left: 0;
     width: 100%;
-    height: 70%;
+    height: auto;
     border-radius: 2rem;
   }
 
   .marketing-phone {
     left: 50%;
     min-width: 0;
-    width: min(72%, 21rem);
+    width: 54%;
+    border-width: 0.5rem;
+    border-radius: 2.5rem;
     transform: translateX(-50%);
+  }
+
+  .marketing-phone::before {
+    top: 0.5rem;
+    width: 4.5rem;
+    height: 1.25rem;
   }
 
   .capture-section,
   .companion-section {
-    padding: 3.25rem 1rem 4rem;
+    padding: 3.25rem 0 4rem;
   }
 
   .capture-section h2,
   .companion-section h2,
   .api-section h2 {
-    font-size: 2.5rem;
+    font-size: clamp(2rem, 10vw, 2.5rem);
+    line-height: 1.08;
   }
 
   .capture-grid,
@@ -1186,13 +1215,26 @@
   }
 
   .capture-card {
-    min-height: 18rem;
-    border-radius: 1.5rem;
+    min-height: 0;
+    border-radius: 1.375rem;
+    padding: 1rem;
+  }
+
+  .capture-card p {
+    margin-top: 0.75rem;
+  }
+
+  .capture-card a {
+    margin-top: 1.25rem;
   }
 
   .companion-preview {
     margin-top: 2.5rem;
-    border-radius: 1.5rem;
+    border-radius: 1.375rem;
+  }
+
+  .companion-preview img {
+    aspect-ratio: 4 / 3;
   }
 
   .companion-features {
@@ -1202,7 +1244,6 @@
 
   .api-section {
     gap: 2.5rem;
-    width: min(100% - 1.5rem, 1136px);
     padding: 4rem 0;
   }
 
@@ -1227,9 +1268,19 @@
   }
 
   .api-terminal pre {
-    min-height: 22rem;
+    min-height: 18rem;
     padding: 1.5rem 1rem 1.75rem;
     font-size: 0.8125rem;
+    overflow-x: hidden;
+  }
+
+  .api-terminal code {
+    min-width: 0;
+  }
+
+  .api-terminal code > span {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 
   .marketing-footer-inner {
