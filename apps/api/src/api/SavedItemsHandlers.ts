@@ -13,7 +13,7 @@ import {
   savedItemToDto,
   sleevyApi,
 } from "./ApiContract.js"
-import { gated } from "./AuthMiddleware.js"
+import { gated, gatedAny } from "./AuthMiddleware.js"
 
 const setSavedItemReadState = (id: SavedItemId, isRead: boolean) =>
   Effect.gen(function* () {
@@ -118,7 +118,10 @@ export const savedItemsGroupLive = HttpApiBuilder.group(sleevyApi, "saved-items"
         return savedItemToDto(updated.value)
       }),
     ))
-    .handle("remove", gated("saved-items:delete", ({ params }) =>
+    // Accept either saved-items:write or the dedicated saved-items:delete scope.
+    // Raycast tokens only carry :write, so this lets them delete without a plugin
+    // republish, while explicit :delete grants keep working.
+    .handle("remove", gatedAny(["saved-items:write", "saved-items:delete"], ({ params }) =>
       Effect.gen(function* () {
         const repo = yield* SavedItemRepository
         const analytics = yield* Analytics

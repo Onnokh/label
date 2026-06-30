@@ -8,6 +8,7 @@ import {
   type AuthContextValue,
   type Scope,
   permissionsToScopes,
+  requireAnyScope,
   requireScope,
 } from "../modules/auth/Scopes.js"
 import { CurrentUser, SessionOnlyAuth, SessionOrApiKeyAuth, Unauthorized } from "./ApiContract.js"
@@ -116,6 +117,22 @@ export const gated =
       yield* requireScope(scope).pipe(
         Effect.mapError(
           (e) => new Unauthorized({ message: `Missing required scope: ${e.scope}.` }),
+        ),
+      )
+      return yield* handler(...args)
+    })
+
+// Like `gated`, but the caller passes if they hold ANY of the listed scopes.
+export const gatedAny =
+  <A, E, R, Args extends unknown[]>(
+    scopes: readonly [Scope, ...Scope[]],
+    handler: (...args: Args) => Effect.Effect<A, E, R>,
+  ) =>
+  (...args: Args): Effect.Effect<A, E | Unauthorized, R | AuthContext> =>
+    Effect.gen(function* () {
+      yield* requireAnyScope(scopes).pipe(
+        Effect.mapError(
+          () => new Unauthorized({ message: `Missing required scope: one of ${scopes.join(", ")}.` }),
         ),
       )
       return yield* handler(...args)

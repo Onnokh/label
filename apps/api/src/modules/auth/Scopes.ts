@@ -32,6 +32,18 @@ export const requireScope = (scope: Scope): Effect.Effect<void, MissingScope, Au
     if (!granted) return yield* new MissingScope({ scope })
   })
 
+// Grant access when the caller holds ANY of the listed scopes. Useful where one
+// capability has more than one acceptable scope (e.g. a destructive action
+// reachable via either a broad :write grant or a dedicated :delete grant).
+export const requireAnyScope = (
+  scopes: readonly [Scope, ...Scope[]],
+): Effect.Effect<void, MissingScope, AuthContext> =>
+  Effect.gen(function* () {
+    const ctx = yield* AuthContext
+    const granted = ctx.kind === "session" || scopes.some((scope) => ctx.scopes.has(scope))
+    if (!granted) return yield* new MissingScope({ scope: scopes[0] })
+  })
+
 const V1_SCOPE_SET = new Set<Scope>(V1_SCOPES)
 
 export const permissionsToScopes = (
