@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router"
 
 import { authClient } from "../auth"
-import { Logo } from "../Logo"
 
 export function MarketingNav() {
   const { data: session } = authClient.useSession()
@@ -10,12 +9,18 @@ export function MarketingNav() {
   return (
     <nav className="marketing-nav" aria-label="Primary">
       <Link className="marketing-brand" to="/" aria-label="Sleevy home">
-        <Logo size={42} />
+        <span className="logo">
+          <img className="logoMark" src="/logo-mark.svg" alt="" height={28} />
+          <span className="logoText">Sleevy</span>
+        </span>
       </Link>
       <div className="marketing-nav-actions">
-        <Link className="marketing-nav-link" to="/docs">Docs</Link>
-        <Link className="marketing-nav-link" to="/privacy">Privacy</Link>
-        <Link className="marketing-login" to="/inbox">{appButtonLabel}</Link>
+        {/* TODO: Demo is a placeholder — no destination yet */}
+        <a className="marketing-nav-link" href="#" aria-disabled="true">Demo</a>
+        <Link className="marketing-login" to="/inbox">
+          <img className="marketing-login-icon" src="/logo-mark-color.png" alt="" height={20} />
+          {appButtonLabel}
+        </Link>
       </div>
     </nav>
   )

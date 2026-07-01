@@ -1,10 +1,59 @@
+/* Fluid vw scaling. Every band scales linearly with viewport width, so every
+   rem-based size — fonts, spacing, radii, gaps — tracks the viewport and a given
+   band composes 1:1 identically at every width within it (a pure zoom).
+   Anchors: desktop >1024 authored at 1440 (16px root), frozen ≥1920; tablet
+   769–1024 authored at 1024 (15px root); mobile ≤768 authored at 480 (16px root).
+   Scoped via :has() to the marketing tree so the app UI is never affected. */
+html:has(.marketing-page) {
+  font-size: calc(100vw / 90); /* 1440 / 16 = 90  →  16px at 1440px */
+}
+
+@media (min-width: 1920px) {
+  html:has(.marketing-page) {
+    font-size: 21.3333px; /* freeze: 1920 / 90 */
+  }
+}
+
+@media (max-width: 1024px) {
+  html:has(.marketing-page) {
+    font-size: calc(100vw / 68.2667); /* 1024 / 15  →  15px at 1024px */
+  }
+}
+
+@media (max-width: 768px) {
+  html:has(.marketing-page) {
+    font-size: calc(100vw / 30); /* 480 / 16  →  16px at 480px */
+  }
+}
+
 .marketing-page {
+  /* Hero geometry shared by the track, the hero, and the follow wrapper.
+     --hero-rest-h = the hero's aspect-locked rest height.
+     --stage = the visible hero region while pinned (rest height + gap): the follow
+     strip parks at its top edge, the phone centers inside it, and the hero expands
+     to exactly this height (anything taller would hide behind the strip anyway).
+     Every animation frame is therefore a pure function of viewport WIDTH and scroll
+     progress — a given width plays the identical animation at any window height.
+     --park = how long the follow content stays parked while the animation plays.
+     --track-h = pin runway; the 110vh floor keeps the scrub range positive on
+     extreme portrait windows (stage ≪ viewport), where the strip covers the
+     still-pinned hero instead of releasing in sync — degraded, not broken. */
+  --hero-gutter: 4rem;
+  --hero-aspect: 0.64; /* flatter than the phone so the full hero fits a wide screen */
+  --hero-rest-h: calc(min(100vw - var(--hero-gutter), 71rem) * var(--hero-aspect));
+  --stage: calc(var(--hero-rest-h) + 4.5rem);
+  --hero-margin: 2rem;
+  --park: 60vh;
+  --track-h: max(calc(var(--stage) + var(--park) + var(--hero-margin)), 110vh);
+
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  overflow: hidden auto;
-  background: #fff;
-  color: #000;
+  /* clip (not hidden/auto) contains the full-bleed hero horizontally without
+     establishing a scroll container — which would break the hero's sticky pin. */
+  overflow-x: clip;
+  background: #101113;
+  color: #fff;
 }
 
 .marketing-nav,
@@ -15,7 +64,9 @@
 .companion-preview,
 .companion-features,
 .api-section {
-  width: min(1136px, calc(100% - 64px));
+  /* Both terms scale with the root font (vw), so this is fluid through the desktop
+     band; the 71rem (1136px @ 1440) cap only bites once the root freezes at 1920px. */
+  width: min(100% - 4rem, 71rem);
   margin-left: auto;
   margin-right: auto;
 }
@@ -25,7 +76,7 @@
   align-items: center;
   justify-content: space-between;
   margin: 0 auto;
-  padding: 3.75rem 0 0;
+  padding: 2rem 0 0;
 }
 
 .marketing-brand {
@@ -34,16 +85,17 @@
 }
 
 .marketing-brand .logo {
-  gap: 1.125rem;
+  gap: 0.875rem;
 }
 
-.marketing-brand .logoIcon {
-  border-radius: 0.25rem;
+.marketing-brand .logoMark {
+  display: block;
+  width: auto;
 }
 
 .marketing-brand .logoText {
-  color: #000;
-  font-size: 1.5rem !important;
+  color: #fff;
+  font-size: 1.25rem !important;
 }
 
 .marketing-nav-actions {
@@ -53,10 +105,9 @@
 }
 
 .marketing-nav-link,
-.marketing-login,
-.marketing-docs-link {
+.marketing-login {
   color: inherit;
-  font-size: 1.125rem;
+  font-size: 1rem;
   text-decoration: none;
 }
 
@@ -64,123 +115,260 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.625rem;
   min-height: 2.4375rem;
   border-radius: 999px;
-  background: #000;
   color: #fff;
-  padding: 0 1.75rem;
+  padding: 0 1.25rem 0 0.875rem;
   white-space: nowrap;
+  /* Glass: translucent fill + frosted backdrop + soft top sheen + faint edge ring */
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.18),
+    rgba(255, 255, 255, 0.06)
+  );
+  backdrop-filter: blur(12px) saturate(1.6);
+  -webkit-backdrop-filter: blur(12px) saturate(1.6);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    inset 0 2px 3px rgba(255, 255, 255, 0.28),
+    0 4px 16px rgba(0, 0, 0, 0.3);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.marketing-login:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.28),
+    rgba(255, 255, 255, 0.12)
+  );
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+    inset 0 2px 3px rgba(255, 255, 255, 0.38),
+    0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.marketing-login-icon {
+  display: block;
+  width: auto;
+  height: 1.25rem;
+}
+
+/* Track gives the pinned hero its scroll runway: while the hero is stuck to the
+   top of the viewport, this extra height is what the scroll animation scrubs
+   through. */
+.hero-track {
+  position: relative;
+  /* Sized so the hero un-pins at the exact moment the follow strip's park range
+     runs out: after the animation + hold, hero and strip release together and the
+     whole arrangement scrolls off like a normal page — no curtain sliding over a
+     frozen hero. The follow wrapper's negative margin pulls the content up over
+     this runway, so none of it exists as visible whitespace. */
+  height: var(--track-h);
+}
+
+/* Everything after the hero. The negative margin pulls it up over the track's
+   runway so it rests right beneath the aspect-sized hero (page continues, no
+   whitespace — also in the static layout). Derivation: the strip's doc top must be
+   hero-margin + stage into the track, so pull = that − track height (= −park in
+   the normal case where the track's max() guard doesn't bite). */
+.hero-follow {
+  display: flow-root;
+  margin-top: calc(var(--hero-margin) + var(--stage) - var(--track-h));
+}
+
+/* Parks for --park of scroll while the hero animation plays, then releases in
+   sync with the hero's un-pin. The offset is the strip's natural position at the
+   moment the hero pins (pinned hero bottom + gap): before the pin, strip and hero
+   scroll in lockstep (constant gap); at the pin both freeze together. Solid
+   background + z-index above the hero keep it opaque over the expanded hero's
+   lower region. */
+.hero-follow-inner {
+  position: sticky;
+  top: var(--stage);
+  z-index: 1;
+  background: #101113;
+}
+
+/* The park range MUST be a sibling spacer: sticky containment uses the element's
+   own margin box, so giving the inner a margin-bottom would consume the very slack
+   it needs (range 0 → sticky inert). */
+.hero-follow-spacer {
+  height: var(--park);
 }
 
 .marketing-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: center;
-  gap: 2.5rem;
-  min-height: 40rem;
-  margin: 0 auto;
-  padding: 6.875rem 0 5.25rem;
-}
+  /* Phone-framing constants for the scroll animation — landscape defaults
+     (desktop/tablet), overridden for portrait on mobile. Read by the motion
+     templates via var(). (--hero-gutter/--hero-aspect are inherited from
+     .marketing-page so the track and follow wrapper share them.) */
+  --hero-radius: 1.75rem;
+  --phone-wrap: 42%;
+  --phone-rest-y: 37%;
+  --phone-half: 18vw; /* half the end-state phone height: 0.5 · --phone-wrap ·
+                         --phone-end-scale · 1252/613 · 100vw. Keep in sync when
+                         wrap/scale change. */
+  --phone-end-scale: 0.42;
+  /* End-state phone top: centered in the stage. Width-derived, so a given width
+     composes identically at any window height (centering on 50vh instead would
+     sink the phone behind the parked strip on tall windows). */
+  --phone-end-y: calc(var(--stage) / 2 - var(--phone-half));
 
-.marketing-copy h1 {
-  margin: 0;
-  color: #000;
-  font-size: clamp(4.25rem, 6.2vw, 5.5rem);
-  line-height: 0.97;
-  letter-spacing: 0;
-}
-
-.marketing-copy h1 span {
+  position: sticky;
+  top: 0;
+  /* Contain the hero's z-indexed children so the follow content can slide over
+     the whole hero (phone included) with a single z-index. */
+  z-index: 0;
   display: block;
-  font-weight: 800;
-  white-space: nowrap;
+  aspect-ratio: 1211 / 775;
+  margin: var(--hero-margin) auto 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 1.75rem;
+  background: #0a0b12 url("/hero-bg.webp") center / cover no-repeat;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
-.marketing-copy h1 span:last-child {
-  color: #ec9484;
-}
-
-.marketing-copy p {
-  max-width: 29.25rem;
-  margin: 3rem 0 0;
-  color: #000;
-  font-size: 1.5rem;
-  line-height: 1.16;
-}
-
-.marketing-actions {
+.hero-content {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 4.5rem;
-  margin-top: 3.75rem;
+  width: min(53rem, 90%);
+  text-align: center;
 }
 
-.marketing-app-store {
+.hero-title {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(2.5rem, 5.2vw, 4rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+}
+
+.hero-title span {
+  display: block;
+}
+
+.hero-sub {
+  margin: 1.75rem 0 0;
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.hero-sub strong {
+  font-weight: 700;
+}
+
+.hero-cta {
   display: block;
   width: 10.875rem;
+  margin-top: 2.5rem;
 }
 
-.marketing-app-store img {
+.hero-cta img {
   display: block;
   width: 100%;
   height: auto;
 }
 
-.marketing-docs-link {
-  white-space: nowrap;
-}
-
-.marketing-device {
-  position: relative;
-  width: 100%;
-  min-height: 0;
-  aspect-ratio: 588 / 686;
-}
-
-.marketing-gradient {
-  position: absolute;
-  right: 0;
-  top: 7.15%;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 1;
-  border-radius: 3rem;
-  object-fit: cover;
-}
-
-.marketing-phone {
+.hero-glow {
   position: absolute;
   top: 0;
-  left: 25.25%;
-  width: 53.75%;
-  aspect-ratio: 945 / 2048;
-  min-width: 0;
-  overflow: hidden;
-  border: 0.625rem solid #2e2d2d;
-  border-radius: 3.25rem;
-  background: #000;
-  filter: drop-shadow(0 2.25rem 2.5rem rgba(0, 0, 0, 0.18));
-}
-
-.marketing-phone::before {
-  content: "";
-  position: absolute;
+  left: 0;
   z-index: 1;
-  top: 0.625rem;
-  left: 50%;
-  width: 5.875rem;
-  height: 1.7rem;
-  border-radius: 999px;
-  background: #000;
-  transform: translateX(-50%);
+  width: 42rem;
+  height: 42rem;
+  margin: -21rem 0 0 -21rem;
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform, opacity;
+  background: radial-gradient(
+    circle at center,
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(255, 255, 255, 0.1) 35%,
+    transparent 70%
+  );
+  filter: blur(60px);
 }
 
-.marketing-phone img {
+.hero-phone-wrap {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 2;
+  width: var(--phone-wrap);
+  transform-origin: top center;
+  /* Static rest position (reduced-motion / no-JS). The animated path overrides
+     transform inline via the motion template. */
+  transform: translateX(-50%) translateY(var(--phone-rest-y));
+}
+
+.hero-phone {
   display: block;
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
+  height: auto;
+}
+
+/* Progressive blur anchored to the hero bottom — stacked layers, each with a
+   higher blur radius revealed in its own band, so the blur ramps from 0 at the
+   top of the fade to the max near the bottom edge (a single backdrop-filter can
+   only fade its opacity, not its radius). Sits above the phone by design. */
+.hero-fade {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 80px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.hero-fade-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.hero-fade-layer:nth-child(1) {
+  backdrop-filter: blur(0.5px);
+  -webkit-backdrop-filter: blur(0.5px);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 30%, transparent 45%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 30%, transparent 45%);
+}
+
+.hero-fade-layer:nth-child(2) {
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+  mask-image: linear-gradient(to bottom, transparent 15%, #000 30%, #000 50%, transparent 65%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 15%, #000 30%, #000 50%, transparent 65%);
+}
+
+.hero-fade-layer:nth-child(3) {
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  mask-image: linear-gradient(to bottom, transparent 35%, #000 50%, #000 70%, transparent 82%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 35%, #000 50%, #000 70%, transparent 82%);
+}
+
+.hero-fade-layer:nth-child(4) {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  mask-image: linear-gradient(to bottom, transparent 55%, #000 72%, #000 88%, transparent 97%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 55%, #000 72%, #000 88%, transparent 97%);
+}
+
+.hero-fade-layer:nth-child(5) {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  mask-image: linear-gradient(to bottom, transparent 72%, #000 90%, #000 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 72%, #000 90%, #000 100%);
 }
 
 .marketing-eyebrow {
@@ -193,7 +381,6 @@
 }
 
 .capture-section {
-  border-top: 1px solid #e7e7e7;
   padding: 4.625rem 0 6.25rem;
 }
 
@@ -201,7 +388,7 @@
 .companion-section h2,
 .api-section h2 {
   margin: 0;
-  color: #000;
+  color: #fff;
   font-size: 3rem;
   line-height: 1.2;
   letter-spacing: 0;
@@ -210,7 +397,7 @@
 
 .capture-section > h2,
 .companion-section > h2 {
-  width: min(1136px, calc(100% - 64px));
+  width: min(100% - 4rem, 71rem);
   margin-right: auto;
   margin-left: auto;
 }
@@ -244,6 +431,7 @@
 
 .capture-card h3 {
   margin: 1.25rem 0 0;
+  color: #000;
   font-size: 1.25rem;
   line-height: 1.2;
 }
@@ -467,7 +655,7 @@
   display: grid;
   grid-template-columns: minmax(18rem, 1fr) minmax(10rem, 0.45fr) minmax(10rem, 0.45fr);
   gap: 4rem;
-  width: min(1136px, calc(100% - 64px));
+  width: min(100% - 4rem, 71rem);
   margin: 0 auto;
   padding: 4rem 0;
 }
@@ -529,7 +717,7 @@
 
 .privacy-hero h1 {
   margin: 0;
-  color: #000;
+  color: #fff;
   font-size: clamp(3.5rem, 7vw, 5.5rem);
   line-height: 0.98;
   letter-spacing: 0;
@@ -538,7 +726,7 @@
 .privacy-hero p {
   max-width: 42rem;
   margin: 2rem auto 0;
-  color: #000;
+  color: #fff;
   font-size: 1.5rem;
   line-height: 1.22;
 }
@@ -576,7 +764,7 @@
 
 .privacy-summary h2 {
   margin: 0;
-  color: #000;
+  color: #fff;
   font-size: 1rem;
   line-height: 1.2;
   letter-spacing: 0;
@@ -609,7 +797,7 @@
 
 .privacy-section h2 {
   margin: 0;
-  color: #000;
+  color: #fff;
   font-size: 1.5rem;
   line-height: 1.2;
   letter-spacing: 0;
@@ -636,7 +824,7 @@
 }
 
 .privacy-contact a {
-  color: #000;
+  color: #fff;
 }
 
 .support-page {
@@ -651,7 +839,7 @@
 
 .support-hero h1 {
   margin: 0;
-  color: #000;
+  color: #fff;
   font-size: clamp(3.5rem, 7vw, 5.5rem);
   line-height: 0.98;
   letter-spacing: 0;
@@ -660,7 +848,7 @@
 .support-hero p {
   max-width: 42rem;
   margin: 2rem auto 0;
-  color: #000;
+  color: #fff;
   font-size: 1.5rem;
   line-height: 1.22;
 }
@@ -688,7 +876,7 @@
   display: grid;
   grid-template-columns: 13rem minmax(0, 1fr);
   gap: 2.5rem;
-  width: min(1136px, calc(100% - 64px));
+  width: min(1440px, calc(100% - 64px));
   margin: 0 auto;
 }
 
@@ -1003,7 +1191,37 @@
   color: #737373;
 }
 
-@media (max-width: 760px) {
+/* Tablet: 769–1024. Keep fluid rem sizing (fixed 15px root) but relax the dense
+   desktop grids so nothing gets cramped. */
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* The tablet band's 15px@1024 anchor makes the rem content stack proportionally
+     larger vs the vw hero than on desktop — drop the phone's rest slice so it
+     clears the CTA (band-wide, since the band is a pure zoom). */
+  .marketing-hero {
+    --phone-rest-y: 41%;
+  }
+
+  .capture-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+
+  .companion-features {
+    gap: 2.5rem;
+  }
+
+  .api-section {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+
+  .api-section .marketing-eyebrow,
+  .api-section h2 {
+    text-align: center;
+  }
+}
+
+@media (max-width: 768px) {
   .marketing-nav,
   .marketing-hero,
   .capture-section > .marketing-eyebrow,
@@ -1120,74 +1338,43 @@
     padding: 0 0.875rem;
   }
 
+  /* Mobile runs the same pinned scroll animation, framed portrait: taller rest
+     aspect, tighter gutters, a bigger phone. aspect-ratio/border-radius also cover
+     the reduced-motion static fallback (the animated path sets height/radius inline). */
+  .marketing-page {
+    --hero-gutter: 1.5rem;
+    --hero-aspect: 1.34;
+    --hero-margin: 1.5rem;
+  }
+
   .marketing-hero {
-    grid-template-columns: 1fr;
-    min-height: 0;
-    gap: 2rem;
-    padding: 2.5rem 0 3.25rem;
-    text-align: center;
+    --hero-radius: 1.25rem;
+    --phone-wrap: 84%;
+    --phone-rest-y: 44%;
+    --phone-half: 62vw;
+    --phone-end-scale: 0.72;
+
+    aspect-ratio: 3 / 4;
+    border-radius: 1.25rem;
   }
 
-  .marketing-copy h1 {
-    font-size: clamp(2.75rem, 12vw, 3.375rem);
-    line-height: 1;
+  .hero-content {
+    top: 8%;
   }
 
-  .marketing-copy h1 span {
-    white-space: normal;
+  .hero-title {
+    font-size: clamp(1.75rem, 8vw, 2.25rem);
+    line-height: 1.06;
   }
 
-  .marketing-copy p {
-    max-width: 24rem;
-    margin: 1.25rem auto 0;
-    font-size: 1.125rem;
-    line-height: 1.35;
-  }
-
-  .marketing-actions {
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin-top: 2rem;
-  }
-
-  .marketing-app-store {
-    width: 10.25rem;
-  }
-
-  .marketing-docs-link {
+  .hero-sub {
+    margin-top: 1.25rem;
     font-size: 1rem;
   }
 
-  .marketing-device {
-    width: min(100%, 24rem);
-    min-height: 0;
-    margin: 0 auto;
-    aspect-ratio: 588 / 760;
-  }
-
-  .marketing-gradient {
-    top: 10%;
-    left: 0;
-    width: 100%;
-    height: auto;
-    border-radius: 2rem;
-  }
-
-  .marketing-phone {
-    left: 50%;
-    min-width: 0;
-    width: 54%;
-    border-width: 0.5rem;
-    border-radius: 2.5rem;
-    transform: translateX(-50%);
-  }
-
-  .marketing-phone::before {
-    top: 0.5rem;
-    width: 4.5rem;
-    height: 1.25rem;
+  .hero-cta {
+    width: 8.5rem;
+    margin-top: 1.5rem;
   }
 
   .capture-section,

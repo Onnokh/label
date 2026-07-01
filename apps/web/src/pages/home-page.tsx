@@ -1,4 +1,13 @@
-import { useState, type ReactNode } from "react"
+import { useRef, useState, type ReactNode } from "react"
+import {
+  motion,
+  useMotionTemplate,
+  useMotionValue,
+  useReducedMotion,
+  useScroll,
+  useSpring,
+  useTransform,
+} from "motion/react"
 
 const raycastStoreUrl = "https://www.raycast.com/onnokh/sleevy"
 
@@ -112,45 +121,151 @@ const apiExamples = {
 
 export function HomePage() {
   const [apiExample, setApiExample] = useState<keyof typeof apiExamples>("capture")
+  const reduceMotion = useReducedMotion()
+  // The pin/expand runs on all sizes (portrait vs landscape framing is handled by
+  // CSS vars per breakpoint); only prefers-reduced-motion falls back to a static hero.
+  const animateHero = !reduceMotion
+  const [glowVisible, setGlowVisible] = useState(false)
+  const glowX = useMotionValue(0)
+  const glowY = useMotionValue(0)
+  const springX = useSpring(glowX, { stiffness: 220, damping: 30, mass: 0.5 })
+  const springY = useSpring(glowY, { stiffness: 220, damping: 30, mass: 0.5 })
+
+  // Scroll-driven full-bleed expand: as the page scrolls, the hero grows edge to
+  // edge (losing its inset + radius) while the phone shrinks into full view.
+  // Driven by the track's own scroll progress (0→1 across the pinned runway) rather
+  // than px thresholds, so the animation is resolution-independent and scales with
+  // the viewport just like the vw-based sizing.
+  const heroTrackRef = useRef<HTMLDivElement>(null)
+  const { scrollYProgress } = useScroll({
+    target: heroTrackRef,
+    offset: ["start start", "end end"],
+  })
+  // The track's scrub range now equals the follow strip's park phase (hero un-pins
+  // when the park runs out), so completing at 55% leaves a 45% full-bleed hold
+  // before everything releases together.
+  const rawExpand = useTransform(scrollYProgress, [0, 0.55], [0, 1], { clamp: true })
+  const expand = useSpring(rawExpand, { stiffness: 120, damping: 26, mass: 0.4 })
+  const collapse = useTransform(expand, [0, 1], [1, 0])
+  // Height gets its own faster ramp: the hero must grow roughly as fast as the page
+  // scrolls, or its bottom edge lifts away from the parked follow content and opens
+  // a widening gap early in the scrub. Growth happens toward/below the parked strip,
+  // so the quicker pace is invisible. Unsprung — spring lag would reopen the gap.
+  const heightExpand = useTransform(scrollYProgress, [0, 0.15], [0, 1], { clamp: true })
+  const heightCollapse = useTransform(heightExpand, (v) => 1 - v)
+
+  // All the framing constants live in CSS custom properties on .marketing-hero and
+  // are swapped per breakpoint by media query (landscape on desktop/tablet, portrait
+  // on mobile). The motion templates just read them via var(), so the browser
+  // resolves the right value per viewport with no JS branching.
+  const heroWidth = useMotionTemplate`calc(min(100vw - var(--hero-gutter), 71rem) * ${collapse} + 100vw * ${expand})`
+  // Rest: aspect-locked height. End: the stage — growing any taller would just hide
+  // behind the parked follow strip, and stage is width-derived, so every animation
+  // frame (not just rest and end) composes 1:1 by viewport width.
+  const heroHeight = useMotionTemplate`calc(min(100vw - var(--hero-gutter), 71rem) * var(--hero-aspect) * ${heightCollapse} + var(--stage) * ${heightExpand})`
+  const heroRadius = useMotionTemplate`calc(var(--hero-radius) * ${collapse})`
+  const heroBorder = useTransform(expand, [0, 1], ["rgba(255,255,255,0.35)", "rgba(255,255,255,0)"])
+  // Phone transform in one string: center X, slide from the rest top-slice down to
+  // the vertical center of the stage (--phone-end-y — width-derived so a given
+  // width composes identically at any window height), and shrink to the end scale.
+  const phoneTransform = useMotionTemplate`translateX(-50%) translateY(calc(var(--phone-rest-y) * ${collapse} + var(--phone-end-y) * ${expand})) scale(calc(1 - (1 - var(--phone-end-scale)) * ${expand}))`
+  const contentOpacity = useTransform(expand, [0, 0.4], [1, 0])
+  const contentPointer = useTransform(expand, [0, 0.4], ["auto", "none"])
+
+  function handleHeroPointerMove(event: React.PointerEvent<HTMLElement>) {
+    if (reduceMotion) return
+    const rect = event.currentTarget.getBoundingClientRect()
+    glowX.set(event.clientX - rect.left)
+    glowY.set(event.clientY - rect.top)
+  }
 
   return (
     <>
-      <section className="marketing-hero">
-        <div className="marketing-copy">
-          <h1>
-            <span>Sleeve it.</span>
-            <span>Read it later.</span>
+      <div className="hero-track" ref={heroTrackRef} style={animateHero ? undefined : { height: "auto" }}>
+      <motion.section
+        className="marketing-hero"
+        aria-label="Sleevy"
+        onPointerMove={handleHeroPointerMove}
+        onPointerEnter={() => !reduceMotion && setGlowVisible(true)}
+        onPointerLeave={() => setGlowVisible(false)}
+        style={
+          animateHero
+            ? { width: heroWidth, height: heroHeight, borderRadius: heroRadius, borderColor: heroBorder }
+            : { position: "relative" }
+        }
+      >
+        {reduceMotion ? null : (
+          <motion.div
+            className="hero-glow"
+            aria-hidden="true"
+            style={{ x: springX, y: springY }}
+            animate={{ opacity: glowVisible ? 1 : 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+          />
+        )}
+        <motion.div
+          className="hero-content"
+          style={animateHero ? { opacity: contentOpacity, pointerEvents: contentPointer } : undefined}
+        >
+          <h1 className="hero-title">
+            <span>One tap to save.</span>
+            <span>every device in sync.</span>
           </h1>
-          <p>
-            A scriptable bookmark manager app for iOS, Raycast, Chrome, web, and API workflows. One tap to save,
-            every device in sync.
+          <p className="hero-sub">
+            A bookmark manager you can script, <strong>automate</strong>, and extend.
           </p>
-          <p>
-            Now live on <a href={raycastStoreUrl}>Raycast</a>.
-          </p>
-          <div className="marketing-actions">
-            <a className="marketing-app-store" href="https://apps.apple.com/nl/app/sleevy/id6770653332" aria-label="Download on the App Store">
-              <img src="/app-store-352.webp" alt="Download on the App Store" width={352} height={118} />
-            </a>
-            <a className="marketing-docs-link" id="docs" href="/docs">Read the docs</a>
-          </div>
+          <motion.a
+            className="hero-cta"
+            href="https://apps.apple.com/nl/app/sleevy/id6770653332"
+            aria-label="Download on the App Store"
+            whileHover={reduceMotion ? undefined : { scale: 1.05, y: -2 }}
+            whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 400, damping: 17 }}
+          >
+            <img src="/app-store-352.webp" alt="Download on the App Store" width={352} height={118} />
+          </motion.a>
+        </motion.div>
+        <motion.div
+          className="hero-phone-wrap"
+          style={animateHero ? { transform: phoneTransform } : undefined}
+        >
+          <motion.img
+            className="hero-phone"
+            src="/hero-phone-full.webp"
+            alt="Sleevy inbox on iPhone"
+            width={613}
+            height={1252}
+            fetchPriority="high"
+            initial={
+              reduceMotion
+                ? { y: 0, scale: 1, filter: "blur(0px)", opacity: 1 }
+                : { y: "40%", scale: 1.3, filter: "blur(18px)", opacity: 0 }
+            }
+            animate={{ y: 0, scale: 1, filter: "blur(0px)", opacity: 1 }}
+            transition={
+              reduceMotion
+                ? { duration: 0 }
+                : { delay: 0.45, duration: 1.7, ease: [0.22, 1, 0.36, 1] }
+            }
+          />
+        </motion.div>
+        <div className="hero-fade" aria-hidden="true">
+          <div className="hero-fade-layer" />
+          <div className="hero-fade-layer" />
+          <div className="hero-fade-layer" />
+          <div className="hero-fade-layer" />
+          <div className="hero-fade-layer" />
         </div>
+      </motion.section>
+      </div>
 
-        <div className="marketing-device">
-          <img className="marketing-gradient" src="/gradient-588.webp" alt="" width={588} height={588} fetchPriority="high" />
-          <div className="marketing-phone">
-            <img
-              src="/app-502.webp"
-              srcSet="/app-502.webp 502w, /app-630.webp 630w"
-              sizes="(max-width: 760px) min(72vw, 21rem), 502px"
-              alt=""
-              width={502}
-              height={1088}
-              fetchPriority="high"
-            />
-          </div>
-        </div>
-      </section>
+      {/* Everything after the hero is pulled up over the track's runway so the page
+          visually continues right beneath the aspect-sized hero (no whitespace, even
+          in the static layout). While the hero animates, the inner sticky wrapper
+          parks in place; once the runway is consumed it slides up OVER the pinned
+          full-bleed hero like a curtain. Static fallback: normal flow. */}
+      <div className="hero-follow" style={animateHero ? undefined : { marginTop: "4.5rem" }}>
+      <div className="hero-follow-inner" style={animateHero ? undefined : { position: "static" }}>
 
       <section className="capture-section">
         <p className="marketing-eyebrow">one-click capture</p>
@@ -227,6 +342,12 @@ export function HomePage() {
           </pre>
         </div>
       </section>
+
+      </div>
+      {/* Sticky park range for .hero-follow-inner — must be a sibling, not the
+          inner's own margin (see marketing.css). Collapsed in the static layout. */}
+      <div className="hero-follow-spacer" aria-hidden="true" style={animateHero ? undefined : { height: 0 }} />
+      </div>
     </>
   )
 }
