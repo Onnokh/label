@@ -27,24 +27,48 @@ html:has(.marketing-page) {
 }
 
 .marketing-page {
-  /* Hero geometry shared by the track, the hero, and the follow wrapper.
-     --hero-rest-h = the hero's aspect-locked rest height.
-     --stage = the visible hero region while pinned (rest height + gap): the follow
-     strip parks at its top edge, the phone centers inside it, and the hero expands
-     to exactly this height (anything taller would hide behind the strip anyway).
-     Every animation frame is therefore a pure function of viewport WIDTH and scroll
-     progress — a given width plays the identical animation at any window height.
-     --park = how long the follow content stays parked while the animation plays.
-     --track-h = pin runway; the 110vh floor keeps the scrub range positive on
-     extreme portrait windows (stage ≪ viewport), where the strip covers the
+  /* ═══ Hero scroll animation — the model ═══
+     The hero animates between exactly two POSES, rest and end, each defined as
+     a *-rest / *-end custom-property pair. The JS in home-page.tsx does nothing
+     but lerp: value = rest · (1 − t) + end · t, per property. Media queries
+     override the pairs per breakpoint, so the browser resolves the right pose
+     with no JS branching. Every pose value derives from the viewport WIDTH
+     (vw/rem — the root font is vw-fluid), so a given width plays the identical
+     composition and animation at any window height.
+
+     The end height (--hero-h-end) is also "the stage": the follow strip parks
+     with its top on this line while the animation plays, the phone centers
+     inside it, and the hero expands to exactly it (any taller would hide
+     behind the strip).
+
+     Shared layout geometry lives here (track + follow wrapper read it);
+     hero-internal framing (radius, phone) lives on .marketing-hero. */
+
+  /* ── Design inputs (overridden per band) ── */
+  --hero-gutter: 4rem; /* viewport inset of the resting hero card */
+  --hero-aspect: 0.64; /* rest height/width; flatter than the phone so the full hero fits a wide screen */
+  --hero-margin: 2rem; /* gap between nav and hero */
+  --hero-gap: 4.5rem; /* gap between hero and the follow content */
+  --park: 60vh; /* how long the follow content stays parked while the animation plays */
+
+  /* ── Rest pose (derived) ── */
+  --hero-w-rest: min(100vw - var(--hero-gutter), 71rem);
+  --hero-h-rest: calc(var(--hero-w-rest) * var(--hero-aspect));
+
+  /* ── End pose (derived) ── */
+  /* 2px oversize: the 1px side borders ride just past the viewport edges at
+     full-bleed, so the border travels with the moving edges instead of fading
+     out. Needs the animated margin-left in home-page.tsx to center (auto
+     margins clamp to 0 once the box outgrows its container). */
+  --hero-w-end: calc(100vw + 2px);
+  --hero-h-end: calc(var(--hero-h-rest) + var(--hero-gap));
+
+  /* ── Scroll mechanics ── */
+  /* Pin runway; sized so the hero un-pins exactly when the strip's park range
+     runs out. The 110vh floor keeps the scrub range positive on extreme
+     portrait windows (stage ≪ viewport), where the strip covers the
      still-pinned hero instead of releasing in sync — degraded, not broken. */
-  --hero-gutter: 4rem;
-  --hero-aspect: 0.64; /* flatter than the phone so the full hero fits a wide screen */
-  --hero-rest-h: calc(min(100vw - var(--hero-gutter), 71rem) * var(--hero-aspect));
-  --stage: calc(var(--hero-rest-h) + 4.5rem);
-  --hero-margin: 2rem;
-  --park: 60vh;
-  --track-h: max(calc(var(--stage) + var(--park) + var(--hero-margin)), 110vh);
+  --track-h: max(calc(var(--hero-h-end) + var(--park) + var(--hero-margin)), 110vh);
 
   display: flex;
   flex-direction: column;
@@ -58,6 +82,7 @@ html:has(.marketing-page) {
 
 .marketing-nav,
 .marketing-hero,
+.usp-grid,
 .capture-section > .marketing-eyebrow,
 .capture-grid,
 .companion-section > .marketing-eyebrow,
@@ -174,7 +199,7 @@ html:has(.marketing-page) {
    the normal case where the track's max() guard doesn't bite). */
 .hero-follow {
   display: flow-root;
-  margin-top: calc(var(--hero-margin) + var(--stage) - var(--track-h));
+  margin-top: calc(var(--hero-margin) + var(--hero-h-end) - var(--track-h));
 }
 
 /* Parks for --park of scroll while the hero animation plays, then releases in
@@ -185,9 +210,32 @@ html:has(.marketing-page) {
    lower region. */
 .hero-follow-inner {
   position: sticky;
-  top: var(--stage);
+  top: var(--hero-h-end);
   z-index: 1;
   background: #101113;
+}
+
+/* Seam shadow: the hero's own box-shadow paints beneath this strip (the strip
+   sits above it in z-order), so once the gap closes the shadow vanishes. This
+   re-casts the identical shadow from the strip side of the seam — a transparent
+   box whose bottom edge sits exactly on the strip's top, so its below-edge
+   shadow matches the hero's. Faded in via --hero-seam (set from JS, tracks the
+   same ramp that closes the gap); 0 in the static layout, where the real shadow
+   stays visible in the gap. The box is tall so its below-edge shadow has the
+   same profile as the hero's (a large box, not a thin line); the clip-path cuts
+   the blur that would stray above the box onto the hero, keeping only the
+   below-seam part (8px offset + 24px blur < 2.5rem). */
+.hero-follow-inner::before {
+  content: "";
+  position: absolute;
+  top: -4rem;
+  right: 0;
+  left: 0;
+  height: 4rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  clip-path: inset(0 0 -2.5rem 0);
+  opacity: var(--hero-seam, 0);
+  pointer-events: none;
 }
 
 /* The park range MUST be a sibling spacer: sticky containment uses the element's
@@ -198,21 +246,27 @@ html:has(.marketing-page) {
 }
 
 .marketing-hero {
-  /* Phone-framing constants for the scroll animation — landscape defaults
-     (desktop/tablet), overridden for portrait on mobile. Read by the motion
-     templates via var(). (--hero-gutter/--hero-aspect are inherited from
-     .marketing-page so the track and follow wrapper share them.) */
-  --hero-radius: 1.75rem;
-  --phone-wrap: 42%;
-  --phone-rest-y: 37%;
-  --phone-half: 18vw; /* half the end-state phone height: 0.5 · --phone-wrap ·
-                         --phone-end-scale · 1252/613 · 100vw. Keep in sync when
-                         wrap/scale change. */
-  --phone-end-scale: 0.42;
+  /* Hero-internal framing poses — landscape defaults (desktop/tablet),
+     overridden for portrait on mobile. Same *-rest / *-end pair convention as
+     .marketing-page; the motion templates read them via var(). */
+
+  /* ── Design inputs (overridden per band) ── */
+  --hero-radius-rest: 1.75rem;
+  --hero-radius-end: 0px; /* full-bleed = square corners */
+  --phone-w-frac: 0.42; /* phone width as a fraction of the hero width */
+  --phone-aspect: calc(1252 / 613); /* the hero-phone image's height/width */
+  --phone-y-rest: 37%; /* rest slice: how far the phone hangs down, % of its own height */
+  --phone-scale-rest: 1;
+  --phone-scale-end: 0.42;
+
+  /* ── Derived (do not override) ── */
+  /* End-state phone height: at the end the hero is 100vw wide, so the phone is
+     frac · scale · aspect · 100vw tall. */
+  --phone-h-end: calc(var(--phone-w-frac) * var(--phone-scale-end) * var(--phone-aspect) * 100vw);
   /* End-state phone top: centered in the stage. Width-derived, so a given width
      composes identically at any window height (centering on 50vh instead would
      sink the phone behind the parked strip on tall windows). */
-  --phone-end-y: calc(var(--stage) / 2 - var(--phone-half));
+  --phone-y-end: calc((var(--hero-h-end) - var(--phone-h-end)) / 2);
 
   position: sticky;
   top: 0;
@@ -220,11 +274,14 @@ html:has(.marketing-page) {
      the whole hero (phone included) with a single z-index. */
   z-index: 0;
   display: block;
-  aspect-ratio: 1211 / 775;
+  /* Statics below double as the reduced-motion fallback; they read the same
+     pose vars so the static hero always matches the animated rest pose. */
+  width: var(--hero-w-rest);
+  aspect-ratio: calc(1 / var(--hero-aspect));
   margin: var(--hero-margin) auto 0;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 1.75rem;
+  border-radius: var(--hero-radius-rest);
   background: #0a0b12 url("/hero-bg.webp") center / cover no-repeat;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
@@ -304,11 +361,11 @@ html:has(.marketing-page) {
   top: 0;
   left: 50%;
   z-index: 2;
-  width: var(--phone-wrap);
+  width: calc(var(--phone-w-frac) * 100%);
   transform-origin: top center;
   /* Static rest position (reduced-motion / no-JS). The animated path overrides
      transform inline via the motion template. */
-  transform: translateX(-50%) translateY(var(--phone-rest-y));
+  transform: translateX(-50%) translateY(var(--phone-y-rest));
 }
 
 .hero-phone {
@@ -378,6 +435,47 @@ html:has(.marketing-page) {
   font-size: 1.25rem;
   line-height: 1.25;
   text-align: center;
+}
+
+.usp-section {
+  padding: 5.5rem 0 1.5rem;
+}
+
+.usp-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2.5rem;
+}
+
+.usp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.usp-icon {
+  width: 4.75rem;
+  height: 4.75rem;
+  opacity: 0.72;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25));
+}
+
+.usp h3 {
+  margin: 2.5rem 0 0;
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 510;
+  line-height: 1.2;
+}
+
+.usp p {
+  margin: 1rem 0 0;
+  max-width: 21rem;
+  color: #737373;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 165%;
 }
 
 .capture-section {
@@ -1198,7 +1296,7 @@ html:has(.marketing-page) {
      larger vs the vw hero than on desktop — drop the phone's rest slice so it
      clears the CTA (band-wide, since the band is a pure zoom). */
   .marketing-hero {
-    --phone-rest-y: 41%;
+    --phone-y-rest: 41%;
   }
 
   .capture-grid {
@@ -1224,6 +1322,7 @@ html:has(.marketing-page) {
 @media (max-width: 768px) {
   .marketing-nav,
   .marketing-hero,
+  .usp-grid,
   .capture-section > .marketing-eyebrow,
   .capture-grid,
   .companion-section > .marketing-eyebrow,
@@ -1339,8 +1438,8 @@ html:has(.marketing-page) {
   }
 
   /* Mobile runs the same pinned scroll animation, framed portrait: taller rest
-     aspect, tighter gutters, a bigger phone. aspect-ratio/border-radius also cover
-     the reduced-motion static fallback (the animated path sets height/radius inline). */
+     aspect, tighter gutters, a bigger phone. Only the pose vars change — statics
+     and derived values follow automatically. */
   .marketing-page {
     --hero-gutter: 1.5rem;
     --hero-aspect: 1.34;
@@ -1348,14 +1447,10 @@ html:has(.marketing-page) {
   }
 
   .marketing-hero {
-    --hero-radius: 1.25rem;
-    --phone-wrap: 84%;
-    --phone-rest-y: 44%;
-    --phone-half: 62vw;
-    --phone-end-scale: 0.72;
-
-    aspect-ratio: 3 / 4;
-    border-radius: 1.25rem;
+    --hero-radius-rest: 1.25rem;
+    --phone-w-frac: 0.84;
+    --phone-y-rest: 44%;
+    --phone-scale-end: 0.72;
   }
 
   .hero-content {
@@ -1374,6 +1469,24 @@ html:has(.marketing-page) {
 
   .hero-cta {
     width: 8.5rem;
+    margin-top: 1.5rem;
+  }
+
+  .usp-section {
+    padding: 3.5rem 0 0.5rem;
+  }
+
+  .usp-grid {
+    grid-template-columns: 1fr;
+    gap: 2.75rem;
+  }
+
+  .usp-icon {
+    width: 4rem;
+    height: 4rem;
+  }
+
+  .usp h3 {
     margin-top: 1.5rem;
   }
 
