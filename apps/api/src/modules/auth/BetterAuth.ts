@@ -10,6 +10,7 @@ import { AppConfig } from "../../runtime/Config.js"
 import { trackEvent } from "../analytics/RybbitClient.js"
 import { PostgresClient } from "../persistence/PostgresClient.js"
 import { schema, user as userTable, account as accountTable } from "../persistence/schema.js"
+import { scopesToPermissions, V1_SCOPES } from "./Scopes.js"
 
 const bearerCredential = (authorization: string | null | undefined) =>
   authorization?.match(/^Bearer\s+(.+)$/i)?.[1] ?? null
@@ -203,6 +204,12 @@ export class BetterAuth extends Context.Service<BetterAuth>()(
             enableSessionForAPIKeys: true,
             enableMetadata: true,
             maximumNameLength: 80,
+            // Keys created without explicit permissions (e.g. from the web
+            // settings page) get every v1 scope; the connect flow still
+            // narrows per client.
+            permissions: {
+              defaultPermissions: scopesToPermissions(V1_SCOPES),
+            },
             // Plugin-level rate limiting off; revisit when we have real traffic data.
             rateLimit: { enabled: false },
           }),
