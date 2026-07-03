@@ -1,0 +1,374 @@
+@use "../shared" as *;
+
+/* ═══ Hero scroll animation — the model ═══
+   The hero animates between exactly two POSES, rest and end, each defined as
+   a *-rest / *-end custom-property pair. The JS in hero.tsx does nothing
+   but lerp: value = rest · (1 − t) + end · t, per property. Media queries
+   override the pairs per breakpoint, so the browser resolves the right pose
+   with no JS branching. Every pose value derives from the viewport WIDTH
+   (vw/rem — the root font is vw-fluid), so a given width plays the identical
+   composition and animation at any window height.
+
+   The end height (--hero-h-end) is also "the stage": the follow strip parks
+   with its top on this line while the animation plays, the phone centers
+   inside it, and the hero expands to exactly it (any taller would hide
+   behind the strip).
+
+   Shared layout geometry lives in this mixin, applied to both top-level
+   siblings (.track and .follow) so each subtree resolves identical values;
+   hero-internal framing (radius, phone) lives on .hero. */
+@mixin hero-vars {
+  /* ── Design inputs (overridden per band) ── */
+  --hero-gutter: 4rem; /* viewport inset of the resting hero card */
+  --hero-aspect: 0.64; /* rest height/width; flatter than the phone so the full hero fits a wide screen */
+  --hero-margin: 2rem; /* gap between nav and hero */
+  --hero-gap: 4.5rem; /* gap between hero and the follow content */
+  --park: 60vh; /* how long the follow content stays parked while the animation plays */
+
+  /* ── Rest pose (derived) ── */
+  --hero-w-rest: min(100vw - var(--hero-gutter), 71rem);
+  --hero-h-rest: calc(var(--hero-w-rest) * var(--hero-aspect));
+
+  /* ── End pose (derived) ── */
+  /* 2px oversize: the 1px side borders ride just past the viewport edges at
+     full-bleed, so the border travels with the moving edges instead of fading
+     out. Needs the animated margin-left in hero.tsx to center (auto
+     margins clamp to 0 once the box outgrows its container). */
+  --hero-w-end: calc(100vw + 2px);
+  --hero-h-end: calc(var(--hero-h-rest) + var(--hero-gap));
+
+  /* ── Scroll mechanics ── */
+  /* Pin runway; sized so the hero un-pins exactly when the strip's park range
+     runs out. The 110vh floor keeps the scrub range positive on extreme
+     portrait windows (stage ≪ viewport), where the strip covers the
+     still-pinned hero instead of releasing in sync — degraded, not broken. */
+  --track-h: max(calc(var(--hero-h-end) + var(--park) + var(--hero-margin)), 110vh);
+
+  /* Mobile runs the same pinned scroll animation, framed portrait: taller rest
+     aspect, tighter gutters, a bigger phone. Only the pose vars change — statics
+     and derived values follow automatically. */
+  @media (max-width: 768px) {
+    --hero-gutter: 1.5rem;
+    --hero-aspect: 1.34;
+    --hero-margin: 1.5rem;
+  }
+}
+
+/* Track gives the pinned hero its scroll runway: while the hero is stuck to the
+   top of the viewport, this extra height is what the scroll animation scrubs
+   through. */
+.track {
+  @include hero-vars;
+
+  position: relative;
+  /* Sized so the hero un-pins at the exact moment the follow strip's park range
+     runs out: after the animation + hold, hero and strip release together and the
+     whole arrangement scrolls off like a normal page — no curtain sliding over a
+     frozen hero. The follow wrapper's negative margin pulls the content up over
+     this runway, so none of it exists as visible whitespace. */
+  height: var(--track-h);
+}
+
+/* Everything after the hero. The negative margin pulls it up over the track's
+   runway so it rests right beneath the aspect-sized hero (page continues, no
+   whitespace — also in the static layout). Derivation: the strip's doc top must be
+   hero-margin + stage into the track, so pull = that − track height (= −park in
+   the normal case where the track's max() guard doesn't bite). */
+.follow {
+  @include hero-vars;
+
+  display: flow-root;
+  margin-top: calc(var(--hero-margin) + var(--hero-h-end) - var(--track-h));
+}
+
+/* Parks for --park of scroll while the hero animation plays, then releases in
+   sync with the hero's un-pin. The offset is the strip's natural position at the
+   moment the hero pins (pinned hero bottom + gap): before the pin, strip and hero
+   scroll in lockstep (constant gap); at the pin both freeze together. Solid
+   background + z-index above the hero keep it opaque over the expanded hero's
+   lower region. */
+.followInner {
+  position: sticky;
+  top: var(--hero-h-end);
+  z-index: 1;
+}
+
+/* The park range MUST be a sibling spacer: sticky containment uses the element's
+   own margin box, so giving the inner a margin-bottom would consume the very slack
+   it needs (range 0 → sticky inert). */
+.spacer {
+  height: var(--park);
+}
+
+.hero {
+  /* Hero-internal framing poses — landscape defaults (desktop/tablet),
+     overridden for portrait on mobile. Same *-rest / *-end pair convention as
+     hero-vars; the motion templates read them via var(). */
+
+  /* ── Design inputs (overridden per band) ── */
+  --hero-radius-rest: 1.75rem;
+  --hero-radius-end: 0px; /* full-bleed = square corners */
+  --phone-w-frac: 0.42; /* phone width as a fraction of the hero width */
+  --phone-aspect: calc(1252 / 613); /* the hero-phone image's height/width */
+  --phone-y-rest: 37%; /* rest slice: how far the phone hangs down, % of its own height */
+  --phone-scale-rest: 1;
+  --phone-scale-end: 0.42;
+
+  /* ── Derived (do not override) ── */
+  /* End-state phone height: at the end the hero is 100vw wide, so the phone is
+     frac · scale · aspect · 100vw tall. */
+  --phone-h-end: calc(var(--phone-w-frac) * var(--phone-scale-end) * var(--phone-aspect) * 100vw);
+  /* End-state phone top: centered in the stage. Width-derived, so a given width
+     composes identically at any window height (centering on 50vh instead would
+     sink the phone behind the parked strip on tall windows). */
+  --phone-y-end: calc((var(--hero-h-end) - var(--phone-h-end)) / 2);
+
+  position: sticky;
+  top: 0;
+  /* Contain the hero's z-indexed children so the follow content can slide over
+     the whole hero (phone included) with a single z-index. */
+  z-index: 0;
+  display: block;
+  /* Statics below double as the reduced-motion fallback; they read the same
+     pose vars so the static hero always matches the animated rest pose. */
+  width: var(--hero-w-rest);
+  aspect-ratio: calc(1 / var(--hero-aspect));
+  margin: var(--hero-margin) auto 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: var(--hero-radius-rest);
+  background: #0a0b12;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  /* The tablet band's 15px@1024 anchor makes the rem content stack proportionally
+     larger vs the vw hero than on desktop — drop the phone's rest slice so it
+     clears the CTA (band-wide, since the band is a pure zoom). */
+  @media (min-width: 769px) and (max-width: 1024px) {
+    --phone-y-rest: 41%;
+  }
+
+  @media (max-width: 768px) {
+    --hero-radius-rest: 1.25rem;
+    --phone-w-frac: 0.84;
+    --phone-y-rest: 44%;
+    --phone-scale-end: 0.72;
+  }
+}
+
+/* Hero background layers from the Figma hero card (1200×919): an SVG grid plus
+   glow-blob layers pre-rendered as 2x transparent lossless WebPs (browser SVG-filter blur
+   bands visibly; a baked raster doesn't). Layers stretch with the card, so they
+   track the hero through its rest→full-bleed animation. Regenerate via
+   ImageMagick from the Figma ellipse geometry if the design changes (ellipse
+   fills #243771/#600E44, layer blur sigma 150 at 1x). */
+.bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Blobs that stack above the phone in the Figma design. Same z-index as the
+   phone wrap (2) but later in the DOM, so they paint over the phone while
+   staying under the content (z 3) and the bottom fade (z 2, last child). */
+.bgOver {
+  z-index: 2;
+}
+
+/* Grain dither over the whole hero: the blurred blobs span huge near-dark
+   gradients that band in 8-bit; low-opacity tiling noise breaks the bands up
+   (Figma hides the same banding by dithering its renders). Fixed 256px tile so
+   the grain stays pixel-scale while the hero itself scales/animates. Same z as
+   the phone/over-blobs but later in the DOM, so it dithers everything below
+   the content layer. */
+.grain {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: url("/hero-grain.svg") repeat;
+  mix-blend-mode: overlay;
+  opacity: 0.5;
+}
+
+.bgGrid,
+.bgLayer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.glowLeft {
+  @include page-glow;
+
+  top: -11.25rem;
+  left: -37.8125rem;
+}
+
+.glowRight {
+  @include page-glow;
+
+  /* Inside .followInner (a stacking context): -1 keeps it above the
+     strip's background but under the section content. -18.75rem is exactly the
+     image's blur pad, so the ellipse starts fading right at the strip top. */
+  top: -18.75rem;
+  right: -34.1875rem;
+  z-index: -1;
+}
+
+.content {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(53rem, 90%);
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(2.5rem, 5.2vw, 4rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+
+  span {
+    display: block;
+  }
+
+  @media (max-width: 768px) {
+    font-size: clamp(1.75rem, 8vw, 2.25rem);
+    line-height: 1.06;
+  }
+}
+
+.sub {
+  margin: 1.75rem 0 0;
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1.2;
+
+  strong {
+    font-weight: 700;
+  }
+
+  @media (max-width: 768px) {
+    margin-top: 1.25rem;
+    font-size: 1rem;
+  }
+}
+
+.cta {
+  display: block;
+  width: 10.875rem;
+  margin-top: 2.5rem;
+
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  @media (max-width: 768px) {
+    width: 8.5rem;
+    margin-top: 1.5rem;
+  }
+}
+
+.glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: 42rem;
+  height: 42rem;
+  margin: -21rem 0 0 -21rem;
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform, opacity;
+  background: radial-gradient(
+    circle at center,
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(255, 255, 255, 0.1) 35%,
+    transparent 70%
+  );
+  filter: blur(60px);
+}
+
+.phoneWrap {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 2;
+  width: calc(var(--phone-w-frac) * 100%);
+  transform-origin: top center;
+  /* Static rest position (reduced-motion / no-JS). The animated path overrides
+     transform inline via the motion template. */
+  transform: translateX(-50%) translateY(var(--phone-y-rest));
+}
+
+.phone {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Progressive blur anchored to the hero bottom — stacked layers, each with a
+   higher blur radius revealed in its own band, so the blur ramps from 0 at the
+   top of the fade to the max near the bottom edge (a single backdrop-filter can
+   only fade its opacity, not its radius). Sits above the phone by design. */
+.fade {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 80px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.fadeLayer {
+  position: absolute;
+  inset: 0;
+
+  &:nth-child(1) {
+    backdrop-filter: blur(0.5px);
+    -webkit-backdrop-filter: blur(0.5px);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 30%, transparent 45%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 30%, transparent 45%);
+  }
+
+  &:nth-child(2) {
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px);
+    mask-image: linear-gradient(to bottom, transparent 15%, #000 30%, #000 50%, transparent 65%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 15%, #000 30%, #000 50%, transparent 65%);
+  }
+
+  &:nth-child(3) {
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    mask-image: linear-gradient(to bottom, transparent 35%, #000 50%, #000 70%, transparent 82%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 35%, #000 50%, #000 70%, transparent 82%);
+  }
+
+  &:nth-child(4) {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    mask-image: linear-gradient(to bottom, transparent 55%, #000 72%, #000 88%, transparent 97%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 55%, #000 72%, #000 88%, transparent 97%);
+  }
+
+  &:nth-child(5) {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    mask-image: linear-gradient(to bottom, transparent 72%, #000 90%, #000 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 72%, #000 90%, #000 100%);
+  }
+}

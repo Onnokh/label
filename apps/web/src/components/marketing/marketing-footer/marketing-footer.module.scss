@@ -1,0 +1,90 @@
+@use "../shared" as *;
+
+.footer {
+  position: relative;
+  margin-top: auto;
+  overflow: hidden;
+}
+
+/* Pre-rendered footer band from Figma (glyph-pattern tiles + ellipse glow + top
+   fade), dither baked in — same anti-banding pipeline as the hero blob layers. */
+.bg {
+  position: absolute;
+  inset: auto 0 0;
+  width: 100%;
+  height: 23.75rem;
+  object-fit: cover;
+  object-position: center bottom;
+  pointer-events: none;
+
+  @media (max-width: 768px) {
+    height: 100%;
+  }
+}
+
+.inner {
+  @include container;
+
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(18rem, 1fr) minmax(10rem, 0.55fr) minmax(10rem, 0.45fr);
+  gap: 3rem;
+  padding: 9.5rem 0 4.5rem;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+    padding: 5rem 0 3rem;
+  }
+}
+
+.brand p {
+  max-width: 20.125rem;
+  margin: 1.5rem 0 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1rem;
+  letter-spacing: -0.03em;
+  line-height: 1.5;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+
+  img {
+    width: 1.375rem;
+    height: auto;
+  }
+
+  span {
+    font-size: 1.5rem;
+    font-weight: 500;
+    letter-spacing: -0.03em;
+  }
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2rem;
+  font-size: 1rem;
+  letter-spacing: -0.03em;
+
+  a {
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none;
+    transition: color 0.15s ease;
+
+    &:hover {
+      color: #fff;
+    }
+  }
+}
+
+.colTitle {
+  font-weight: 700;
+  /* Figma: title-to-links gap is 1.3rem vs the 2rem link rhythm */
+  margin-bottom: -0.7rem;
+}

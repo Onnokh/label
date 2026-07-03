@@ -1,7 +1,9 @@
+import styles from "./support-page.module.scss"
+
 export function SupportPage() {
   return (
-    <article className="support-page">
-      <header className="support-hero">
+    <article className={styles.page}>
+      <header className={styles.hero}>
         <h1>Support</h1>
         <p>
           Need help with Sleevy? Email <a href="mailto:support@sleevy.app">support@sleevy.app</a>

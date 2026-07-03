@@ -1,0 +1,156 @@
+.page {
+  width: min(840px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 6rem 0 7rem;
+
+  @media (max-width: 768px) {
+    width: min(100% - 1.5rem, 840px);
+    padding: 3rem 0 4rem;
+  }
+}
+
+.hero {
+  text-align: center;
+
+  h1 {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(3.5rem, 7vw, 5.5rem);
+    line-height: 0.98;
+    letter-spacing: 0;
+
+    @media (max-width: 768px) {
+      font-size: clamp(3rem, 13vw, 3.5rem);
+    }
+  }
+
+  p {
+    max-width: 42rem;
+    margin: 2rem auto 0;
+    color: #fff;
+    font-size: 1.5rem;
+    line-height: 1.22;
+
+    @media (max-width: 768px) {
+      font-size: 1.25rem;
+    }
+  }
+
+  span {
+    display: block;
+    margin-top: 1.5rem;
+    color: #737373;
+    font-size: 0.9375rem;
+  }
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 4rem;
+  border-top: 1px solid #e7e7e7;
+  border-bottom: 1px solid #e7e7e7;
+
+  > div {
+    padding: 1.5rem 1.5rem 1.75rem;
+
+    &:first-child {
+      padding-left: 0;
+    }
+
+    &:last-child {
+      padding-right: 0;
+    }
+
+    + div {
+      border-left: 1px solid #e7e7e7;
+    }
+  }
+
+  h2 {
+    margin: 0;
+    color: #fff;
+    font-size: 1rem;
+    line-height: 1.2;
+    letter-spacing: 0;
+  }
+
+  p {
+    margin: 0.625rem 0 0;
+    color: #737373;
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    margin-top: 3rem;
+
+    > div,
+    > div:first-child,
+    > div:last-child {
+      padding: 1.25rem 0;
+    }
+
+    > div + div {
+      border-top: 1px solid #e7e7e7;
+      border-left: 0;
+    }
+  }
+}
+
+.sections {
+  display: grid;
+  gap: 0;
+  margin-top: 2rem;
+}
+
+.section {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.34fr) minmax(0, 1fr);
+  gap: 3rem;
+  border-top: 1px solid #e7e7e7;
+  padding: 2.25rem 0;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  h2 {
+    margin: 0;
+    color: #fff;
+    font-size: 1.5rem;
+    line-height: 1.2;
+    letter-spacing: 0;
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 1.75rem 0;
+  }
+}
+
+.sectionBody p {
+  margin: 0;
+  color: #737373;
+  font-size: 1rem;
+  line-height: 1.65;
+
+  + p {
+    margin-top: 1rem;
+  }
+}
+
+.contact {
+  margin: 2rem 0 0;
+  border-top: 1px solid #e7e7e7;
+  padding-top: 2rem;
+  color: #737373;
+  font-size: 1rem;
+  line-height: 1.65;
+
+  a {
+    color: #fff;
+  }
+}

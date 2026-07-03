@@ -1,0 +1,117 @@
+@use "../shared" as *;
+
+.nav {
+  @include container;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2rem 0 0;
+
+  @media (max-width: 768px) {
+    gap: 1rem;
+    padding-top: 1.25rem;
+  }
+}
+
+.brand {
+  color: inherit;
+  text-decoration: none;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+
+  @media (max-width: 768px) {
+    gap: 0.625rem;
+  }
+}
+
+.logoMark {
+  display: block;
+  width: auto;
+}
+
+.logoText {
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+
+  @media (max-width: 768px) {
+    font-size: 1.125rem;
+  }
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 3rem;
+
+  @media (max-width: 768px) {
+    gap: 0.75rem;
+    margin-left: auto;
+  }
+}
+
+.link,
+.login {
+  color: inherit;
+  font-size: 1rem;
+  text-decoration: none;
+
+  @media (max-width: 768px) {
+    font-size: 0.875rem;
+  }
+}
+
+.login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  min-height: 2.4375rem;
+  border-radius: 999px;
+  color: #fff;
+  padding: 0 1.25rem 0 0.875rem;
+  white-space: nowrap;
+  /* Glass: translucent fill + frosted backdrop + soft top sheen + faint edge ring */
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.18),
+    rgba(255, 255, 255, 0.06)
+  );
+  backdrop-filter: blur(12px) saturate(1.6);
+  -webkit-backdrop-filter: blur(12px) saturate(1.6);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    inset 0 2px 3px rgba(255, 255, 255, 0.28),
+    0 4px 16px rgba(0, 0, 0, 0.3);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.28),
+      rgba(255, 255, 255, 0.12)
+    );
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+      inset 0 2px 3px rgba(255, 255, 255, 0.38),
+      0 6px 20px rgba(0, 0, 0, 0.35);
+  }
+
+  @media (max-width: 768px) {
+    min-height: 2.25rem;
+    padding: 0 0.875rem;
+  }
+}
+
+.loginIcon {
+  display: block;
+  width: auto;
+  height: 1.25rem;
+}

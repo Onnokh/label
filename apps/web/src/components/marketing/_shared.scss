@@ -1,0 +1,27 @@
+/* Shared marketing building blocks, used across the marketing components'
+   modules via `@use "../shared" as *`. */
+
+/* Centered content column. Both terms scale with the root font (vw), so this is
+   fluid through the desktop band; the 71rem (1136px @ 1440) cap only bites once
+   the root freezes at 1920px. */
+@mixin container {
+  width: min(100% - 4rem, 71rem);
+  margin-left: auto;
+  margin-right: auto;
+
+  @media (max-width: 768px) {
+    width: min(100% - 1.5rem, 1136px);
+  }
+}
+
+/* Page-level edge glows (Figma Group 38): one shared pre-rendered white blob
+   (ellipse 433×877, 5.7% white, blur σ150) reused at several spots on the body.
+   The image carries a 300px blur-bleed pad per side, so each position offsets
+   the Figma node box by -300px (-18.75rem). Sizes/offsets in rem: authored at
+   1440 where 1rem = 16px. */
+@mixin page-glow {
+  position: absolute;
+  width: 64.5625rem; /* 433 + 2×300 pad */
+  height: auto;
+  pointer-events: none;
+}

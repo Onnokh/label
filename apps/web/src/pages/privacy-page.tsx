@@ -1,3 +1,5 @@
+import styles from "./privacy-page.module.scss"
+
 const sections = [
   {
     title: "Account",
@@ -54,8 +56,8 @@ const highlights = [
 
 export function PrivacyPage() {
   return (
-    <article className="privacy-page">
-      <header className="privacy-hero">
+    <article className={styles.page}>
+      <header className={styles.hero}>
         <h1>Simple by design.</h1>
         <p>
           Sleevy saves the links you choose to keep, enriches them so they are easier to find later,
@@ -64,7 +66,7 @@ export function PrivacyPage() {
         <span>Last updated May 15, 2026</span>
       </header>
 
-      <section className="privacy-summary" aria-label="Privacy summary">
+      <section className={styles.summary} aria-label="Privacy summary">
         {highlights.map((highlight) => (
           <div key={highlight.title}>
             <h2>{highlight.title}</h2>
@@ -73,11 +75,11 @@ export function PrivacyPage() {
         ))}
       </section>
 
-      <div className="privacy-sections">
+      <div className={styles.sections}>
         {sections.map((section) => (
-          <section className="privacy-section" key={section.title}>
+          <section className={styles.section} key={section.title}>
             <h2>{section.title}</h2>
-            <div className="privacy-section-body">
+            <div className={styles.sectionBody}>
               {section.body.map((paragraph) => (
                 <p key={paragraph}>{paragraph}</p>
               ))}
@@ -86,7 +88,7 @@ export function PrivacyPage() {
         ))}
       </div>
 
-      <p className="privacy-contact">
+      <p className={styles.contact}>
         For privacy questions, data requests, or deletion help, contact <a href="mailto:privacy@sleevy.app">privacy@sleevy.app</a>.
       </p>
     </article>

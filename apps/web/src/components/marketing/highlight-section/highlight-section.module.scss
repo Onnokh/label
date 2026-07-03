@@ -1,0 +1,158 @@
+@use "../shared" as *;
+
+/* Two spotlight cards (Native Share / Raycast). Each card is a clipped frame
+   (glows + screenshot bleed past its edges) with the icon and CTA straddling
+   the frame's top/bottom edges, so they live outside the clip as siblings. */
+.section {
+  padding: 4.5rem 0 2rem;
+}
+
+.grid {
+  @include container;
+
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5rem;
+
+  @media (min-width: 769px) and (max-width: 1024px) {
+    gap: 2.5rem;
+  }
+
+  /* Stack the spotlight cards; the row gap leaves room for the straddling
+     CTA below one card and the icon above the next. */
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    row-gap: 5.5rem;
+  }
+}
+
+.card {
+  position: relative;
+}
+
+.frame {
+  position: relative;
+  height: 35.4375rem;
+  overflow: hidden;
+  border: 0.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0.75rem;
+  background-color: #170e0f;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  h3 {
+    margin: 2.8125rem 0 0;
+    color: #fff;
+    font-size: 1.5rem;
+    font-weight: 400;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  p {
+    margin: 0.625rem auto 0;
+    max-width: 24.3125rem;
+    padding: 0 1.25rem;
+    color: #737373;
+    font-size: 1rem;
+    line-height: 1.65;
+    text-align: center;
+  }
+}
+
+/* Figma's glow blobs: blurred #243771 circles at 24% — approximated as radial
+   gradients so no image assets are needed. */
+.frameShare {
+  background-image:
+    radial-gradient(50% 50% at 15% -4%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(42% 30% at 83% -9%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(31% 30% at 9% 46%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(31% 30% at 86% 46%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(42% 42% at 97% 68%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(31% 30% at 9% 84%, rgba(36, 55, 113, 0.3), transparent 65%);
+}
+
+.frameRaycast {
+  background-image:
+    radial-gradient(22% 22% at 70% 4%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(45% 30% at 112% 8%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(31% 30% at 104% 53%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(42% 42% at -12% 81%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(22% 22% at 117% 94%, rgba(36, 55, 113, 0.3), transparent 65%);
+}
+
+.shot {
+  position: absolute;
+  height: auto;
+}
+
+.shotShare {
+  top: 10rem;
+  left: 50%;
+  width: 23.4375rem;
+  transform: translateX(-50%);
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.shotRaycast {
+  top: 11rem;
+  left: 6.5625rem;
+  width: 45.6875rem;
+  max-width: none;
+  border-radius: 1.625rem;
+}
+
+.icon {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 3.5rem;
+  height: 3.5rem;
+  transform: translate(-50%, -55%);
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25));
+}
+
+.iconRaycast {
+  width: 4rem;
+  height: 4rem;
+}
+
+.cta {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 1.4375rem;
+  min-height: 3.4375rem;
+  padding: 0 1.4375rem 0 0.9375rem;
+  transform: translate(-50%, 50%);
+  border-radius: 2rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  img {
+    width: 1.75rem;
+    height: 1.75rem;
+    filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25));
+  }
+}
+
+.ctaRaycast {
+  padding-left: 0.75rem;
+
+  img {
+    width: 2rem;
+    height: 2rem;
+  }
+}
