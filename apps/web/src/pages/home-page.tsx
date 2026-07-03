@@ -1,15 +1,74 @@
-import { useRef, useState, type ReactNode } from "react"
+import { useRef, useState } from "react"
+import { Link } from "@tanstack/react-router"
 import {
   motion,
+  useAnimationFrame,
   useMotionTemplate,
   useMotionValue,
   useReducedMotion,
   useScroll,
   useSpring,
   useTransform,
+  useVelocity,
 } from "motion/react"
 
+const appStoreUrl = "https://apps.apple.com/nl/app/sleevy/id6770653332"
 const raycastStoreUrl = "https://www.raycast.com/onnokh/sleevy"
+
+const wrapRange = (min: number, max: number, v: number) => {
+  const range = max - min
+  return min + ((((v - min) % range) + range) % range)
+}
+
+// Number of identical tiles per marquee row; the pattern repeats every
+// 100 / EXTEND_TILES percent of track width, which is what wrapRange scrubs over.
+const EXTEND_TILES = 10
+
+/**
+ * One endlessly-drifting row of the "Built to extend." ticker. baseVelocity is
+ * percent of track width per second (sign = direction); scroll velocity feeds
+ * back into the speed and scrolling up reverses the drift.
+ */
+function ExtendMarqueeRow({ baseVelocity, className }: { baseVelocity: number; className?: string }) {
+  const baseX = useMotionValue(0)
+  const { scrollY } = useScroll()
+  const scrollVelocity = useVelocity(scrollY)
+  const smoothVelocity = useSpring(scrollVelocity, { damping: 50, stiffness: 400 })
+  const velocityFactor = useTransform(smoothVelocity, [0, 1000], [0, 5], { clamp: false })
+  const directionFactor = useRef(1)
+  const reduceMotion = useReducedMotion()
+
+  const x = useTransform(baseX, (v) => `${wrapRange(-100 / EXTEND_TILES, 0, v)}%`)
+
+  useAnimationFrame((_, delta) => {
+    if (reduceMotion) return
+    let moveBy = directionFactor.current * baseVelocity * (delta / 1000)
+    if (velocityFactor.get() < 0) {
+      directionFactor.current = -1
+    } else if (velocityFactor.get() > 0) {
+      directionFactor.current = 1
+    }
+    moveBy += directionFactor.current * moveBy * velocityFactor.get()
+    baseX.set(baseX.get() + moveBy)
+  })
+
+  const tiles = Array.from({ length: EXTEND_TILES }, (_, i) => <span key={i}>Built to extend.</span>)
+
+  // Two identical tracks sharing one x: a dimmed base plus a full-opacity copy
+  // behind a stationary center mask, so the tile passing the middle lights up.
+  return (
+    <div className={className ? `extend-marquee-row ${className}` : "extend-marquee-row"}>
+      <motion.div className="extend-marquee-track extend-marquee-track-dim" style={{ x }}>
+        {tiles}
+      </motion.div>
+      <div className="extend-marquee-spotlight">
+        <motion.div className="extend-marquee-track" style={{ x }}>
+          {tiles}
+        </motion.div>
+      </div>
+    </div>
+  )
+}
 
 // Heroicons 24/solid path data (https://heroicons.com), filled with the shared
 // usp gradient below instead of a flat color.
@@ -43,116 +102,7 @@ const usps = [
   },
 ]
 
-const captureMethods = [
-  {
-    title: "Raycast Plugin",
-    body: "Capture from your launcher and keep moving.",
-    action: "Install on Raycast",
-    href: raycastStoreUrl,
-    icon: "/raycast-82.webp",
-    iconWidth: 82,
-    iconHeight: 82,
-  },
-  {
-    title: "Native Share",
-    body: "Tap the share button on any page or link, pick Sleeve, and it lands in your queue.",
-    action: "Install Sleevy",
-    href: "https://apps.apple.com/nl/app/sleevy/id6770653332",
-    icon: "/ios26-82.webp",
-    iconWidth: 82,
-    iconHeight: 82,
-  },
-  {
-    title: "Chrome Extension",
-    body: "Click the Sleeve icon in your toolbar. The current tab is captured instantly.",
-    action: "Install Extension",
-    href: "https://chromewebstore.google.com/detail/sleevy/ogffdakffimomfahfpihfmgdaincemjj",
-    icon: "/chrome-76.webp",
-    iconWidth: 76,
-    iconHeight: 82,
-  },
-  {
-    title: "Web Companion",
-    body: "Paste a URL into the web app and hit save when you are already browsing on desktop.",
-    action: "Login",
-    href: "/inbox",
-    icon: "/app-icon-160.webp",
-    iconWidth: 160,
-    iconHeight: 160,
-  },
-]
-
-const companionFeatures = [
-  {
-    eyebrow: "sync",
-    title: "Save on one, read on the other",
-    body: "They sync before you can open your inbox, your items are everywhere.",
-  },
-  {
-    eyebrow: "filter",
-    title: "Tags, sources, full-text",
-    body: "Filter your queue by tag or capture source.",
-  },
-  {
-    eyebrow: "keyboard",
-    title: "Fully driveable from the keys",
-    body: "j/k to navigate, o to open, n to capture and fuzzy find from the command palette.",
-  },
-]
-
-const apiExamples = {
-  capture: (
-    <>
-      <span className="terminal-comment"># Save a link from anywhere with an HTTP request</span>
-      <span><span className="terminal-muted">$</span> curl -X POST https://api.sleevy.app/v1/captures \</span>
-      <span>  -H <span className="terminal-string">"Authorization: Bearer $SLEEVY_API_KEY"</span> \</span>
-      <span>  -H <span className="terminal-string">"Content-Type: application/json"</span> \</span>
-      <span>  -d <span className="terminal-string">'{`{`}</span></span>
-      <span className="terminal-string">      "url": "https://notes.dev/tiny-css",</span>
-      <span className="terminal-string">      "captureChannel": "api",</span>
-      <span className="terminal-string">      "tags": ["design", "front-end"]</span>
-      <span>    <span className="terminal-string">{`}`}'</span></span>
-      <span />
-      <span>{`{`}</span>
-      <span>  <span className="terminal-key">"savedItem"</span>: {`{`}</span>
-      <span>    <span className="terminal-key">"id"</span>: <span className="terminal-string">"itm_8f2c9a"</span>,</span>
-      <span>    <span className="terminal-key">"originalUrl"</span>: <span className="terminal-string">"https://notes.dev/tiny-css"</span>,</span>
-      <span>    <span className="terminal-key">"title"</span>: <span className="terminal-string">"The case for tiny stylesheets"</span>,</span>
-      <span>    <span className="terminal-key">"type"</span>: <span className="terminal-string">"article"</span>,</span>
-      <span>    <span className="terminal-key">"tags"</span>: [<span className="terminal-string">"design"</span>, <span className="terminal-string">"front-end"</span>],</span>
-      <span>    <span className="terminal-key">"lastSavedAt"</span>: <span className="terminal-string">"2026-05-08T14:21:09Z"</span>,</span>
-      <span>    <span className="terminal-muted">...</span></span>
-      <span>  {`}`},</span>
-      <span>  <span className="terminal-key">"captureResult"</span>: <span className="terminal-string">"created"</span></span>
-      <span>{`}`}</span>
-      <span />
-      <span><span className="terminal-muted">$</span> <span className="terminal-success">Saved to queue - open in app</span></span>
-    </>
-  ),
-  queue: (
-    <>
-      <span className="terminal-comment"># Pull the latest items waiting in your queue</span>
-      <span><span className="terminal-muted">$</span> curl https://api.sleevy.app/v1/saved-items?sort=newest \</span>
-      <span>  -H <span className="terminal-string">"Authorization: Bearer $SLEEVY_API_KEY"</span></span>
-      <span />
-      <span>{`{`}</span>
-      <span>  <span className="terminal-key">"savedItems"</span>: [</span>
-      <span>    {`{`}</span>
-      <span>      <span className="terminal-key">"id"</span>: <span className="terminal-string">"itm_8f2c9a"</span>,</span>
-      <span>      <span className="terminal-key">"originalUrl"</span>: <span className="terminal-string">"https://notes.dev/tiny-css"</span>,</span>
-      <span>      <span className="terminal-key">"title"</span>: <span className="terminal-string">"The case for tiny stylesheets"</span>,</span>
-      <span>      <span className="terminal-key">"tags"</span>: [<span className="terminal-string">"design"</span>, <span className="terminal-string">"front-end"</span>],</span>
-      <span>      <span className="terminal-key">"lastSavedAt"</span>: <span className="terminal-string">"2026-05-08T14:21:09Z"</span>,</span>
-      <span>      <span className="terminal-muted">...</span></span>
-      <span>    {`}`}</span>
-      <span>  ]</span>
-      <span>{`}`}</span>
-    </>
-  ),
-} satisfies Record<string, ReactNode>
-
 export function HomePage() {
-  const [apiExample, setApiExample] = useState<keyof typeof apiExamples>("capture")
   const reduceMotion = useReducedMotion()
   // The pin/expand runs on all sizes (portrait vs landscape framing is handled by
   // CSS vars per breakpoint); only prefers-reduced-motion falls back to a static hero.
@@ -223,6 +173,9 @@ export function HomePage() {
   return (
     <>
       <div className="hero-track" ref={heroTrackRef} style={animateHero ? undefined : { height: "auto" }}>
+      {/* Page-level edge glows from Figma (Group 38): shared pre-rendered white
+          blob, sitting on the body behind the hero card and follow strip. */}
+      <img className="page-glow page-glow-hero-left" src="/page-glow.webp" alt="" aria-hidden="true" />
       <motion.section
         className="marketing-hero"
         aria-label="Sleevy"
@@ -241,6 +194,13 @@ export function HomePage() {
             : { position: "relative" }
         }
       >
+        {/* Glow blobs pre-rendered as 2x transparent lossless WebPs (no SVG-filter banding),
+            split across two layers to match the Figma stacking: back sits behind
+            the phone, front floats above it. */}
+        <div className="hero-bg" aria-hidden="true">
+          <img className="hero-bg-grid" src="/hero-grid.svg" alt="" />
+          <img className="hero-bg-layer" src="/hero-blobs-back.webp" alt="" />
+        </div>
         {reduceMotion ? null : (
           <motion.div
             className="hero-glow"
@@ -263,7 +223,7 @@ export function HomePage() {
           </p>
           <motion.a
             className="hero-cta"
-            href="https://apps.apple.com/nl/app/sleevy/id6770653332"
+            href={appStoreUrl}
             aria-label="Download on the App Store"
             whileHover={reduceMotion ? undefined : { scale: 1.05, y: -2 }}
             whileTap={reduceMotion ? undefined : { scale: 0.97 }}
@@ -296,6 +256,10 @@ export function HomePage() {
             }
           />
         </motion.div>
+        <div className="hero-bg hero-bg-over" aria-hidden="true">
+          <img className="hero-bg-layer" src="/hero-blobs-front.webp" alt="" />
+        </div>
+        <div className="hero-grain" aria-hidden="true" />
         <div className="hero-fade" aria-hidden="true">
           <div className="hero-fade-layer" />
           <div className="hero-fade-layer" />
@@ -320,6 +284,11 @@ export function HomePage() {
         className="hero-follow-inner"
         style={animateHero ? { "--hero-seam": heightExpand } : { position: "static" }}
       >
+
+      {/* Right-edge glow lives inside the strip (the strip's solid background
+          would curtain a track-level glow); the ellipse fades in from the strip
+          top so nothing pokes over the hero card. */}
+      <img className="page-glow page-glow-hero-right" src="/page-glow.webp" alt="" aria-hidden="true" />
 
       <section className="usp-section" aria-label="Why Sleevy">
         <svg aria-hidden="true" width="0" height="0" style={{ position: "absolute" }}>
@@ -354,79 +323,115 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="capture-section">
-        <p className="marketing-eyebrow">one-click capture</p>
-        <h2>Save from wherever you are.</h2>
-        <div className="capture-grid">
-          {captureMethods.map((method) => (
-            <article className="capture-card" key={method.title}>
-              <img src={method.icon} alt="" width={method.iconWidth} height={method.iconHeight} loading="lazy" />
-              <h3>{method.title}</h3>
-              <p>{method.body}</p>
-              {method.action ? <a className={method.href ? undefined : "disabled"} href={method.href ?? "#"}>{method.action}</a> : null}
-            </article>
-          ))}
+      <section className="highlight-section" aria-label="Sleevy on every surface">
+        <div className="highlight-grid">
+          <article className="highlight-card">
+            <div className="highlight-card-frame highlight-frame-share">
+              <h3>Native Share</h3>
+              <p>Hit share in any app, pick Sleevy, and the link is saved. Nothing to copy or paste.</p>
+              <img
+                className="highlight-shot highlight-shot-share"
+                src="/share-sheet-750.webp"
+                alt="iOS share sheet with Sleevy selected"
+                width={750}
+                height={906}
+                loading="lazy"
+              />
+            </div>
+            <img className="highlight-icon" src="/ios26-82.webp" alt="" width={82} height={82} loading="lazy" />
+            <a className="highlight-cta" href={appStoreUrl}>
+              <img src="/appstore-glyph-96.webp" alt="" width={96} height={96} loading="lazy" />
+              Install on your iPhone
+            </a>
+          </article>
+          <article className="highlight-card">
+            <div className="highlight-card-frame highlight-frame-raycast">
+              <h3>In your workflow</h3>
+              <p>Capture and search from Raycast without leaving the keyboard.</p>
+              <img
+                className="highlight-shot highlight-shot-raycast"
+                src="/raycast-search-1508.webp"
+                alt="Searching saved items from Raycast"
+                width={1508}
+                height={958}
+                loading="lazy"
+              />
+            </div>
+            <img
+              className="highlight-icon highlight-icon-raycast"
+              src="/raycast-82.webp"
+              alt=""
+              width={82}
+              height={82}
+              loading="lazy"
+            />
+            <a className="highlight-cta highlight-cta-raycast" href={raycastStoreUrl}>
+              <img src="/raycast-82.webp" alt="" width={82} height={82} loading="lazy" />
+              Add to your Raycast
+            </a>
+          </article>
         </div>
       </section>
 
-      <section className="companion-section">
-        <p className="marketing-eyebrow">companion</p>
-        <h2>Your links, organized everywhere.</h2>
-        <div className="companion-preview">
-          <img src="/screenshot-1360.webp" alt="" width={1360} height={944} loading="lazy" />
+      <section className="extend-section" aria-labelledby="extend-title">
+        <img className="page-glow page-glow-extend" src="/page-glow.webp" alt="" aria-hidden="true" />
+        <h2 className="extend-title" id="extend-title">
+          Built to extend.
+        </h2>
+        <div className="extend-marquee" aria-hidden="true">
+          <ExtendMarqueeRow baseVelocity={-2} />
+          <ExtendMarqueeRow baseVelocity={2} className="extend-marquee-row-offset" />
         </div>
-        <div className="companion-features">
-          {companionFeatures.map((feature) => (
-            <article key={feature.title}>
-              <span>{feature.eyebrow}</span>
-              <h3>{feature.title}</h3>
-              <p>{feature.body}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="api-section">
-        <div className="api-copy">
-          <p className="marketing-eyebrow">API</p>
-          <h2>Built to extend.</h2>
+        <div className="extend-body">
           <p>
-            Sleevy exposes a REST API with personal API Keys, so your bookmark manager can accept links from
-            scripts, shortcuts, tools, and automations.
+            Sleevy exposes a capture API with personal access tokens. Anything that can make an HTTP request
+            can save to your queue, from scripts and CLI tools to automations and whatever you build next.
           </p>
           <ul>
-            <li>Personal API Keys for devices, scripts, and automations</li>
+            <li>Personal tokens with scoped permissions per device or script</li>
             <li>Simple JSON over HTTPS, no SDK required</li>
-            <li>Capture, list, read state, and delete endpoints</li>
-            <li>Rate-limited per API Key</li>
+            <li>Webhooks for archive, tag, and read events</li>
+            <li>Rate-limited per token</li>
           </ul>
         </div>
-        <div className="api-terminal" aria-label="API example">
-          <div className="api-terminal-chrome">
-            <div className="api-terminal-controls" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </div>
-            <span className="api-terminal-title">~/sleeve - zsh</span>
-            <div className="api-terminal-tabs" aria-label="API example format">
-              {Object.keys(apiExamples).map((example) => (
-                <button
-                  aria-pressed={apiExample === example}
-                  key={example}
-                  onClick={() => setApiExample(example as keyof typeof apiExamples)}
-                  type="button"
-                >
-                  {example}
-                </button>
-              ))}
-            </div>
-          </div>
-          <pre>
-            <code>
-              {apiExamples[apiExample]}
-            </code>
-          </pre>
+        <div className="extend-footer">
+          <Link to="/docs">
+            Take me to the docs
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M9 13L14 8L9 3M14 8H2"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </Link>
+        </div>
+      </section>
+
+      <section className="browser-section" aria-labelledby="browser-title">
+        <img className="browser-icon" src="/chrome-76.webp" alt="" width={76} height={82} loading="lazy" />
+        <h2 id="browser-title">And it's in your browser too</h2>
+        <p>One click in your toolbar saves the tab you're on. The full library opens in the web app.</p>
+        <div className="browser-frame">
+          <img
+            className="browser-shot-glow"
+            src="/web-companion-1087.webp"
+            alt=""
+            aria-hidden="true"
+            width={1087}
+            height={576}
+            loading="lazy"
+          />
+          <img
+            className="browser-shot"
+            src="/web-companion-1087.webp"
+            alt="Sleevy web app showing the inbox with saved links"
+            width={1087}
+            height={576}
+            loading="lazy"
+          />
         </div>
       </section>
 

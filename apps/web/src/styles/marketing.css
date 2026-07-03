@@ -83,12 +83,9 @@ html:has(.marketing-page) {
 .marketing-nav,
 .marketing-hero,
 .usp-grid,
-.capture-section > .marketing-eyebrow,
-.capture-grid,
-.companion-section > .marketing-eyebrow,
-.companion-preview,
-.companion-features,
-.api-section {
+.highlight-grid,
+.extend-body,
+.extend-footer {
   /* Both terms scale with the root font (vw), so this is fluid through the desktop
      band; the 71rem (1136px @ 1440) cap only bites once the root freezes at 1920px. */
   width: min(100% - 4rem, 71rem);
@@ -212,30 +209,6 @@ html:has(.marketing-page) {
   position: sticky;
   top: var(--hero-h-end);
   z-index: 1;
-  background: #101113;
-}
-
-/* Seam shadow: the hero's own box-shadow paints beneath this strip (the strip
-   sits above it in z-order), so once the gap closes the shadow vanishes. This
-   re-casts the identical shadow from the strip side of the seam — a transparent
-   box whose bottom edge sits exactly on the strip's top, so its below-edge
-   shadow matches the hero's. Faded in via --hero-seam (set from JS, tracks the
-   same ramp that closes the gap); 0 in the static layout, where the real shadow
-   stays visible in the gap. The box is tall so its below-edge shadow has the
-   same profile as the hero's (a large box, not a thin line); the clip-path cuts
-   the blur that would stray above the box onto the hero, keeping only the
-   below-seam part (8px offset + 24px blur < 2.5rem). */
-.hero-follow-inner::before {
-  content: "";
-  position: absolute;
-  top: -4rem;
-  right: 0;
-  left: 0;
-  height: 4rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  clip-path: inset(0 0 -2.5rem 0);
-  opacity: var(--hero-seam, 0);
-  pointer-events: none;
 }
 
 /* The park range MUST be a sibling spacer: sticky containment uses the element's
@@ -282,8 +255,85 @@ html:has(.marketing-page) {
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: var(--hero-radius-rest);
-  background: #0a0b12 url("/hero-bg.webp") center / cover no-repeat;
+  background: #0a0b12;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Hero background layers from the Figma hero card (1200×919): an SVG grid plus
+   glow-blob layers pre-rendered as 2x transparent lossless WebPs (browser SVG-filter blur
+   bands visibly; a baked raster doesn't). Layers stretch with the card, so they
+   track the hero through its rest→full-bleed animation. Regenerate via
+   ImageMagick from the Figma ellipse geometry if the design changes (ellipse
+   fills #243771/#600E44, layer blur sigma 150 at 1x). */
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Blobs that stack above the phone in the Figma design. Same z-index as the
+   phone wrap (2) but later in the DOM, so they paint over the phone while
+   staying under the content (z 3) and the bottom fade (z 2, last child). */
+.hero-bg-over {
+  z-index: 2;
+}
+
+/* Grain dither over the whole hero: the blurred blobs span huge near-dark
+   gradients that band in 8-bit; low-opacity tiling noise breaks the bands up
+   (Figma hides the same banding by dithering its renders). Fixed 256px tile so
+   the grain stays pixel-scale while the hero itself scales/animates. Same z as
+   the phone/over-blobs but later in the DOM, so it dithers everything below
+   the content layer. */
+.hero-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: url("/hero-grain.svg") repeat;
+  mix-blend-mode: overlay;
+  opacity: 0.5;
+}
+
+.hero-bg-grid,
+.hero-bg-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Page-level edge glows (Figma Group 38): one shared pre-rendered white blob
+   (ellipse 433×877, 5.7% white, blur σ150) reused at three spots on the body.
+   The image carries a 300px blur-bleed pad per side, so each position offsets
+   the Figma node box by -300px (-18.75rem). Sizes/offsets in rem: authored at
+   1440 where 1rem = 16px. */
+.page-glow {
+  position: absolute;
+  width: 64.5625rem; /* 433 + 2×300 pad */
+  height: auto;
+  pointer-events: none;
+}
+
+.page-glow-hero-left {
+  top: -11.25rem;
+  left: -37.8125rem;
+}
+
+.page-glow-hero-right {
+  /* Inside .hero-follow-inner (a stacking context): -1 keeps it above the
+     strip's background but under the section content. -18.75rem is exactly the
+     image's blur pad, so the ellipse starts fading right at the strip top. */
+  top: -18.75rem;
+  right: -34.1875rem;
+  z-index: -1;
+}
+
+.page-glow-extend {
+  top: -14.4375rem;
+  left: -32.5rem;
+  /* Behind the marquee text; the section's own stacking context (z-index: 0
+     below) keeps -1 from dropping under the page background. */
+  z-index: -1;
 }
 
 .hero-content {
@@ -428,15 +478,6 @@ html:has(.marketing-page) {
   -webkit-mask-image: linear-gradient(to bottom, transparent 72%, #000 90%, #000 100%);
 }
 
-.marketing-eyebrow {
-  margin: 0 0 0.25rem;
-  color: #b91c4b;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 1.25rem;
-  line-height: 1.25;
-  text-align: center;
-}
-
 .usp-section {
   padding: 5.5rem 0 1.5rem;
 }
@@ -478,325 +519,429 @@ html:has(.marketing-page) {
   line-height: 165%;
 }
 
-.capture-section {
-  padding: 4.625rem 0 6.25rem;
+/* Two spotlight cards (Native Share / Raycast). Each card is a clipped frame
+   (glows + screenshot bleed past its edges) with the icon and CTA straddling
+   the frame's top/bottom edges, so they live outside the clip as siblings. */
+.highlight-section {
+  padding: 4.5rem 0 2rem;
 }
 
-.capture-section h2,
-.companion-section h2,
-.api-section h2 {
-  margin: 0;
+.highlight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5rem;
+}
+
+.highlight-card {
+  position: relative;
+}
+
+.highlight-card-frame {
+  position: relative;
+  height: 35.4375rem;
+  overflow: hidden;
+  border: 0.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0.75rem;
+  background-color: #170e0f;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Figma's glow blobs: blurred #243771 circles at 24% — approximated as radial
+   gradients so no image assets are needed. */
+.highlight-frame-share {
+  background-image:
+    radial-gradient(50% 50% at 15% -4%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(42% 30% at 83% -9%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(31% 30% at 9% 46%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(31% 30% at 86% 46%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(42% 42% at 97% 68%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(31% 30% at 9% 84%, rgba(36, 55, 113, 0.3), transparent 65%);
+}
+
+.highlight-frame-raycast {
+  background-image:
+    radial-gradient(22% 22% at 70% 4%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(45% 30% at 112% 8%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(31% 30% at 104% 53%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(42% 42% at -12% 81%, rgba(36, 55, 113, 0.3), transparent 65%),
+    radial-gradient(22% 22% at 117% 94%, rgba(36, 55, 113, 0.3), transparent 65%);
+}
+
+.highlight-card-frame h3 {
+  margin: 2.8125rem 0 0;
   color: #fff;
-  font-size: 3rem;
+  font-size: 1.5rem;
+  font-weight: 400;
   line-height: 1.2;
-  letter-spacing: 0;
   text-align: center;
 }
 
-.capture-section > h2,
-.companion-section > h2 {
-  width: min(100% - 4rem, 71rem);
-  margin-right: auto;
-  margin-left: auto;
-}
-
-.capture-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 2.5rem;
-  margin: 5.75rem auto 0;
-}
-
-.capture-card {
-  display: flex;
-  min-height: 25.375rem;
-  flex-direction: column;
-  align-items: flex-start;
-  border: 1px solid rgba(0, 0, 0, 0.21);
-  border-radius: 2.25rem;
-  background: linear-gradient(#fff, #f1f1f1);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.21);
-  padding: 1.25rem;
-}
-
-.capture-card img {
-  width: auto;
-  height: 4.25rem;
-  max-width: 4.25rem;
-  object-fit: contain;
-  border-radius: 1.5rem;
-}
-
-.capture-card h3 {
-  margin: 1.25rem 0 0;
-  color: #000;
-  font-size: 1.25rem;
-  line-height: 1.2;
-}
-
-.capture-card p {
-  margin: 1.25rem 0 0;
+.highlight-card-frame p {
+  margin: 0.625rem auto 0;
+  max-width: 24.3125rem;
+  padding: 0 1.25rem;
   color: #737373;
-  font-size: 0.9375rem;
-  line-height: 1.65;
-}
-
-.capture-card a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-height: 2.4375rem;
-  margin-top: auto;
-  border-radius: 999px;
-  background: #000;
-  color: #fff;
-  font-size: 0.875rem;
-  text-decoration: none;
-}
-
-.companion-section {
-  background: rgba(213, 213, 213, 0.24);
-  padding: 4.5rem 0 5.75rem;
-}
-
-.companion-preview {
-  margin: 4.5rem auto 2.25rem;
-  overflow: hidden;
-  border-radius: 2rem;
-  background: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.31);
-}
-
-.companion-preview img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 1360 / 944;
-  object-fit: cover;
-  object-position: top left;
-}
-
-.companion-features {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4rem;
-  margin: 0 auto;
-}
-
-.companion-features span {
-  color: #b91c4b;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 1.25rem;
-}
-
-.companion-features h3 {
-  margin: 0.25rem 0 0;
-  font-size: 1.5rem;
-}
-
-.companion-features p {
-  margin: 1rem 0 0;
-  color: #666;
-  font-size: 0.9375rem;
-  line-height: 1.65;
-}
-
-.api-section {
-  display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(24rem, 1fr);
-  gap: 6rem;
-  margin: 0 auto;
-  padding: 5.75rem 0 5.25rem;
-}
-
-.api-section .marketing-eyebrow,
-.api-section h2 {
-  text-align: left;
-}
-
-.api-copy > p:not(.marketing-eyebrow),
-.api-copy li {
-  color: #737373;
-  font-size: 0.9375rem;
-  font-weight: 400;
-  line-height: 1.65;
-}
-
-.api-copy ul {
-  margin: 2rem 0 0;
-  padding-left: 1.5rem;
-}
-
-.api-terminal {
-  align-self: start;
-  overflow: hidden;
-  border: 1px solid #202020;
-  border-radius: 1rem;
-  background: #0b0c0c;
-  box-shadow: 0 2rem 5rem rgb(0 0 0 / 18%);
-}
-
-.api-terminal-chrome {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 1rem;
-  min-height: 3.75rem;
-  border-bottom: 1px solid #1b1c1c;
-  background: #171717;
-  padding: 0 1rem;
-}
-
-.api-terminal-controls {
-  display: inline-flex;
-  gap: 0.5rem;
-}
-
-.api-terminal-controls span {
-  width: 0.875rem;
-  height: 0.875rem;
-  border-radius: 999px;
-}
-
-.api-terminal-controls span:nth-child(1) {
-  background: #ff5f57;
-}
-
-.api-terminal-controls span:nth-child(2) {
-  background: #ffbd2e;
-}
-
-.api-terminal-controls span:nth-child(3) {
-  background: #28c840;
-}
-
-.api-terminal-title,
-.api-terminal-tabs button {
-  color: #9b9b9b;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.9375rem;
-}
-
-.api-terminal-tabs {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.api-terminal-tabs button {
-  border: 0;
-  background: transparent;
-  color: #858585;
-  cursor: pointer;
-  padding: 0.5rem 0;
-}
-
-.api-terminal-tabs button[aria-pressed="true"] {
-  border-radius: 0.375rem;
-  background: #252525;
-  color: #f4f4f4;
-  padding: 0.5rem 0.75rem;
-}
-
-.api-terminal-tabs button:focus-visible {
-  outline: 2px solid #6ee7a2;
-  outline-offset: 2px;
-}
-
-.api-terminal pre {
-  min-height: 34rem;
-  overflow: auto;
-  margin: 0;
-  background: #0b0c0c;
-  color: #ececec;
-  padding: 3.25rem 1.625rem 2.75rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 1rem;
-  line-height: 1.6;
+  line-height: 1.65;
+  text-align: center;
 }
 
-.api-terminal code {
+.highlight-shot {
+  position: absolute;
+  height: auto;
+}
+
+.highlight-shot-share {
+  top: 10rem;
+  left: 50%;
+  width: 23.4375rem;
+  transform: translateX(-50%);
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.highlight-shot-raycast {
+  top: 11rem;
+  left: 6.5625rem;
+  width: 45.6875rem;
+  max-width: none;
+  border-radius: 1.625rem;
+}
+
+.highlight-icon {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 3.5rem;
+  height: 3.5rem;
+  transform: translate(-50%, -55%);
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25));
+}
+
+.highlight-icon-raycast {
+  width: 4rem;
+  height: 4rem;
+}
+
+.highlight-cta {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 1.4375rem;
+  min-height: 3.4375rem;
+  padding: 0 1.4375rem 0 0.9375rem;
+  transform: translate(-50%, 50%);
+  border-radius: 2rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+.highlight-cta:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.highlight-cta img {
+  width: 1.75rem;
+  height: 1.75rem;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25));
+}
+
+.highlight-cta-raycast {
+  padding-left: 0.75rem;
+}
+
+.highlight-cta-raycast img {
+  width: 2rem;
+  height: 2rem;
+}
+
+/* "Built to extend." — the visual heading is two rows of tiled headline text that
+   bleed off both viewport edges (per design), so the real h2 is visually hidden
+   and the tiles are decorative. */
+.extend-section {
+  position: relative;
+  /* Isolate so the glow's z-index: -1 stays inside this section instead of
+     dropping behind the page background. */
+  z-index: 0;
+  padding: 7.5rem 0 2.5rem;
+}
+
+/* Clip the full-bleed marquee rows here (not on the section) so the edge glow
+   can bleed past the section box without being cut off. */
+.extend-marquee {
+  overflow: hidden;
+}
+
+.extend-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.extend-marquee-row {
+  position: relative;
+  color: #fff;
+  font-size: 4rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+  white-space: nowrap;
+}
+
+.extend-marquee-row + .extend-marquee-row {
+  margin-top: 1.125rem;
+}
+
+/* Second row starts half a tile off-grid so the rows brick instead of stacking.
+   The shift lives on the tracks (via margin, not transform — motion owns the
+   tracks' transform) so the row's spotlight mask stays viewport-centered. */
+.extend-marquee-row-offset .extend-marquee-track {
+  margin-left: -13.5rem;
+}
+
+.extend-marquee-track {
+  display: flex;
+  width: max-content;
+}
+
+/* Spacing as margin (not flex gap) so every tile occupies exactly
+   tile + spacing — the uniform period the JS wrap relies on. */
+.extend-marquee-track span {
+  margin-right: 2.4375rem;
+}
+
+.extend-marquee-track-dim {
+  opacity: 0.35;
+}
+
+/* Stationary window over the row: the full-opacity track shows only through a
+   roughly tile-wide center slot, so one tile per row reads at 100% while the
+   dimmed base track carries the rest. */
+.extend-marquee-spotlight {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent calc(50% - 20rem),
+    #000 calc(50% - 10rem),
+    #000 calc(50% + 10rem),
+    transparent calc(50% + 20rem)
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent calc(50% - 20rem),
+    #000 calc(50% - 10rem),
+    #000 calc(50% + 10rem),
+    transparent calc(50% + 20rem)
+  );
+}
+
+.extend-body {
   display: grid;
-  gap: 0.125rem;
-  min-width: max-content;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
+  column-gap: 2.8125rem;
+  margin-top: 3.3125rem;
 }
 
-.api-terminal code > span {
-  min-height: 1.6em;
-  white-space: pre;
+.extend-body p,
+.extend-body li {
+  margin: 0;
+  color: #737373;
+  font-size: 1.5rem;
+  font-weight: 300;
+  line-height: 1.7;
 }
 
-.terminal-comment {
-  color: #82899a;
-  font-style: italic;
+.extend-body ul {
+  margin: 0;
+  padding-left: 2.25rem;
 }
 
-.terminal-muted {
-  color: #7c8497;
+.extend-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 5.625rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
+  padding-top: 1.125rem;
 }
 
-.terminal-key {
-  color: #ff9da4;
+.extend-footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  color: #fff;
+  font-size: 1.25rem;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+  text-decoration: underline;
 }
 
-.terminal-string,
-.terminal-success {
-  color: #6ee7a2;
+.extend-footer svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* "And it's in your browser too" — centered intro over a dark framed panel.
+   The web-app screenshot sits inside the frame and is cropped by its bottom
+   edge; a blurred oversized copy of the same screenshot glows behind it, and
+   the design's corner glows are approximated with radial gradients. */
+.browser-section {
+  padding: 7.5rem 0 6.25rem;
+  text-align: center;
+}
+
+.browser-icon {
+  width: auto;
+  height: 2.4375rem;
+}
+
+.browser-section h2 {
+  margin: 1.25rem 0 0;
+  color: #fff;
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+}
+
+.browser-section > p {
+  width: min(100% - 4rem, 71rem);
+  margin: 0.75rem auto 0;
+  color: #fff;
+  font-size: 1.125rem;
+  font-weight: 300;
+  letter-spacing: -0.04em;
+  line-height: 1.4;
+}
+
+.browser-frame {
+  position: relative;
+  overflow: hidden;
+  width: min(100% - 4rem, 75.5625rem);
+  aspect-ratio: 1209 / 647;
+  margin: 3.6875rem auto 0;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 0.75rem;
+  background:
+    radial-gradient(11.5rem 11.5rem at 6rem 3.5rem, rgba(70, 92, 152, 0.35), transparent 70%),
+    radial-gradient(11.5rem 11.5rem at calc(100% - 7.5rem) 3.5rem, rgba(70, 92, 152, 0.35), transparent 70%),
+    radial-gradient(13.5rem 11.5rem at 0.5rem 100%, rgba(70, 92, 152, 0.45), transparent 70%),
+    radial-gradient(11.5rem 11.5rem at calc(100% + 1rem) 100%, rgba(70, 92, 152, 0.35), transparent 70%),
+    #170e0f;
+}
+
+.browser-shot-glow {
+  position: absolute;
+  top: -0.6875rem;
+  left: 50%;
+  width: 139%;
+  height: auto;
+  transform: translateX(-50%);
+  filter: blur(1rem);
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.browser-shot {
+  position: relative;
+  display: block;
+  width: min(67.9375rem, 100% - 5rem);
+  height: auto;
+  margin: 4.4375rem auto 0;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 0.75rem 0.75rem 0 0;
 }
 
 .marketing-footer {
+  position: relative;
   margin-top: auto;
-  background: linear-gradient(172deg, #f3c087 9%, #f59683 50%, #f755ab 91%);
+  overflow: hidden;
+}
+
+/* Pre-rendered footer band from Figma (glyph-pattern tiles + ellipse glow + top
+   fade), dither baked in — same anti-banding pipeline as the hero blob layers. */
+.marketing-footer-bg {
+  position: absolute;
+  inset: auto 0 0;
+  width: 100%;
+  height: 23.75rem;
+  object-fit: cover;
+  object-position: center bottom;
+  pointer-events: none;
 }
 
 .marketing-footer-inner {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(18rem, 1fr) minmax(10rem, 0.45fr) minmax(10rem, 0.45fr);
-  gap: 4rem;
+  grid-template-columns: minmax(18rem, 1fr) minmax(10rem, 0.55fr) minmax(10rem, 0.45fr);
+  gap: 3rem;
   width: min(100% - 4rem, 71rem);
   margin: 0 auto;
-  padding: 4rem 0;
+  padding: 9.5rem 0 4.5rem;
 }
 
-.marketing-footer-brand .logo {
-  gap: 1.125rem;
+.marketing-footer-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
 }
 
-.marketing-footer-brand .logoIcon {
-  border-radius: 0.25rem;
+.marketing-footer-logo img {
+  width: 1.375rem;
+  height: auto;
 }
 
-.marketing-footer-brand .logoText {
-  color: #000;
-  font-size: 1.5rem !important;
+.marketing-footer-logo span {
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
 }
 
 .marketing-footer-brand p {
-  max-width: 26rem;
+  max-width: 20.125rem;
   margin: 1.5rem 0 0;
-  color: #000;
-  font-size: 1.125rem;
-  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1rem;
+  letter-spacing: -0.03em;
+  line-height: 1.5;
 }
 
-.marketing-footer-products a,
-.marketing-footer-links a {
-  color: #000;
-  text-decoration: none;
-}
-
-.marketing-footer-products,
-.marketing-footer-links {
+.marketing-footer-col {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.75rem;
+  gap: 2rem;
+  font-size: 1rem;
+  letter-spacing: -0.03em;
 }
 
-.marketing-footer-products a,
-.marketing-footer-links a {
-  font-size: 1rem;
-  line-height: 1.3;
+.marketing-footer-col-title {
+  font-weight: 700;
+  /* Figma: title-to-links gap is 1.3rem vs the 2rem link rhythm */
+  margin-bottom: -0.7rem;
+}
+
+.marketing-footer-col a {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.marketing-footer-col a:hover {
+  color: #fff;
 }
 
 .marketing-page:has(.docs-page) {
@@ -1299,23 +1444,8 @@ html:has(.marketing-page) {
     --phone-y-rest: 41%;
   }
 
-  .capture-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.5rem;
-  }
-
-  .companion-features {
+  .highlight-grid {
     gap: 2.5rem;
-  }
-
-  .api-section {
-    grid-template-columns: 1fr;
-    gap: 3rem;
-  }
-
-  .api-section .marketing-eyebrow,
-  .api-section h2 {
-    text-align: center;
   }
 }
 
@@ -1323,15 +1453,66 @@ html:has(.marketing-page) {
   .marketing-nav,
   .marketing-hero,
   .usp-grid,
-  .capture-section > .marketing-eyebrow,
-  .capture-grid,
-  .companion-section > .marketing-eyebrow,
-  .companion-preview,
-  .companion-features,
-  .api-section,
-  .capture-section > h2,
-  .companion-section > h2 {
+  .highlight-grid,
+  .extend-body,
+  .extend-footer,
+  .browser-section > p {
     width: min(100% - 1.5rem, 1136px);
+  }
+
+  .extend-section {
+    padding: 5rem 0 1.5rem;
+  }
+
+  .extend-marquee-row {
+    font-size: 2.5rem;
+  }
+
+  .extend-marquee-track span {
+    margin-right: 1.5rem;
+  }
+
+  .extend-marquee-spotlight {
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent calc(50% - 12rem),
+      #000 calc(50% - 6rem),
+      #000 calc(50% + 6rem),
+      transparent calc(50% + 12rem)
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent calc(50% - 12rem),
+      #000 calc(50% - 6rem),
+      #000 calc(50% + 6rem),
+      transparent calc(50% + 12rem)
+    );
+  }
+
+  .extend-marquee-row-offset .extend-marquee-track {
+    margin-left: -8.5rem;
+  }
+
+  .extend-body {
+    grid-template-columns: 1fr;
+    row-gap: 2rem;
+    margin-top: 2.5rem;
+  }
+
+  .extend-body p,
+  .extend-body li {
+    font-size: 1.125rem;
+  }
+
+  .extend-footer {
+    margin-top: 3rem;
+  }
+
+  /* Stack the spotlight cards; the row gap leaves room for the straddling
+     CTA below one card and the icon above the next. */
+  .highlight-grid {
+    grid-template-columns: 1fr;
+    row-gap: 5.5rem;
   }
 
   .marketing-nav {
@@ -1490,103 +1671,35 @@ html:has(.marketing-page) {
     margin-top: 1.5rem;
   }
 
-  .capture-section,
-  .companion-section {
-    padding: 3.25rem 0 4rem;
+  .browser-section {
+    padding: 5rem 0 4rem;
   }
 
-  .capture-section h2,
-  .companion-section h2,
-  .api-section h2 {
-    font-size: clamp(2rem, 10vw, 2.5rem);
-    line-height: 1.08;
+  .browser-section h2 {
+    width: min(100% - 1.5rem, 1136px);
+    margin-right: auto;
+    margin-left: auto;
+    font-size: 2.25rem;
   }
 
-  .capture-grid,
-  .companion-features,
-  .api-section {
-    grid-template-columns: 1fr;
-  }
-
-  .capture-grid {
-    gap: 1rem;
+  .browser-frame {
+    width: min(100% - 1.5rem, 1136px);
     margin-top: 2.5rem;
-    padding: 0;
   }
 
-  .capture-card {
-    min-height: 0;
-    border-radius: 1.375rem;
-    padding: 1rem;
-  }
-
-  .capture-card p {
-    margin-top: 0.75rem;
-  }
-
-  .capture-card a {
-    margin-top: 1.25rem;
-  }
-
-  .companion-preview {
-    margin-top: 2.5rem;
-    border-radius: 1.375rem;
-  }
-
-  .companion-preview img {
-    aspect-ratio: 4 / 3;
-  }
-
-  .companion-features {
-    gap: 2rem;
-    padding: 0;
-  }
-
-  .api-section {
-    gap: 2.5rem;
-    padding: 4rem 0;
-  }
-
-  .api-copy > p:not(.marketing-eyebrow),
-  .api-copy li {
-    font-size: 1.125rem;
-  }
-
-  .api-terminal-chrome {
-    grid-template-columns: auto 1fr;
-  }
-
-  .api-terminal-title {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .api-terminal-tabs {
-    grid-column: 1 / -1;
-    padding-bottom: 0.75rem;
-  }
-
-  .api-terminal pre {
-    min-height: 18rem;
-    padding: 1.5rem 1rem 1.75rem;
-    font-size: 0.8125rem;
-    overflow-x: hidden;
-  }
-
-  .api-terminal code {
-    min-width: 0;
-  }
-
-  .api-terminal code > span {
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
+  .browser-shot {
+    width: calc(100% - 2rem);
+    margin-top: 1.5rem;
   }
 
   .marketing-footer-inner {
     grid-template-columns: 1fr;
-    gap: 2rem;
+    gap: 2.5rem;
     width: min(100% - 1.5rem, 1136px);
-    padding: 3rem 0;
+    padding: 5rem 0 3rem;
+  }
+
+  .marketing-footer-bg {
+    height: 100%;
   }
 }
