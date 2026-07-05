@@ -208,6 +208,22 @@
   background: url("/hero-blobs-front.avif") 0 0 / 100% 100%;
 }
 
+/* Phones decode AVIF stills in software and the cost scales with source
+   pixels, not file size: the 2400px layers are ~4.4 MP each, re-decoded on
+   every load before the LCP background can paint. The blobs are blurred
+   gradients stretched to the card anyway, so an 800px source renders
+   identically at a tenth of the decode cost. Keep in sync with the preloads
+   in routes/_marketing/index.tsx. */
+@media (max-width: 768px) {
+  .bgBack {
+    background-image: url("/hero-blobs-back-m.avif");
+  }
+
+  .bgFront {
+    background-image: url("/hero-blobs-front-m.avif");
+  }
+}
+
 .glowLeft {
   top: -11.25rem;
   left: -37.8125rem;
@@ -215,19 +231,9 @@
 
 .glowLeft,
 .glowRight {
-  position: absolute;
-  width: 64.5625rem;
-  height: 92.3125rem;
-  pointer-events: none;
-
-  &::before {
-    position: absolute;
-    inset: 18.75rem;
-    border-radius: 50%;
-    background: rgb(255 255 255 / 5.7%);
-    filter: blur(9.375rem);
-    content: "";
-  }
+  /* Same recipe as page-glow in _shared.scss: gradient-baked softness, no
+     filter: blur() — the giant blurs stalled Safari for seconds on load. */
+  @include page-glow;
 }
 
 .glowRight {
@@ -316,13 +322,27 @@
   pointer-events: none;
   opacity: 0;
   will-change: transform, opacity;
+
+  /* No filter: blur() here — the softness is baked into the gradient stops.
+     A blur(60px) on this element (blurred box overhanging the hero's top-left
+     corner) corrupts WebKit's tile rasterization on load: iOS/macOS Safari
+     paints a ~1024×1024 garbage square over the hero even though the glow
+     itself is at opacity 0. */
   background: radial-gradient(
     circle at center,
-    rgba(255, 255, 255, 0.25) 0%,
-    rgba(255, 255, 255, 0.1) 35%,
-    transparent 70%
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.12) 30%,
+    rgba(255, 255, 255, 0.04) 55%,
+    transparent 72%
   );
-  filter: blur(60px);
+}
+
+/* The glow is a pointer-follow spotlight; without a hover pointer it can never
+   become visible, so don't ship the layer to touch devices at all. */
+@media (hover: none) {
+  .glow {
+    display: none;
+  }
 }
 
 .phoneWrap {
