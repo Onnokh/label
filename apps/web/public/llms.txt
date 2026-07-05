@@ -1,0 +1,27 @@
+# Sleevy
+
+> Sleevy is a native-first read-later app. Save any URL to your queue, organize items with folders and tags, and manage read state across web, iOS, a Chrome extension, Raycast, and a REST API.
+
+Authenticate to the REST API with a personal API Key (`Authorization: Bearer <api-key>`), created under Settings at https://sleevy.app/settings. Keys are scoped and rate-limited per key. Base URL: https://api.sleevy.app.
+
+## API
+
+- [OpenAPI specification](https://sleevy.app/openapi.json): Full machine-readable REST API schema (v1).
+- [API documentation](https://sleevy.app/docs): Endpoints, authentication, and example requests.
+- [Integration declaration](https://sleevy.app/.well-known/integrations.json): Machine-readable surface and credential declaration.
+
+## Core endpoints
+
+- `POST /v1/captures`: Save a URL to the read-later queue.
+- `GET /v1/saved-items`: List saved items (supports `sort` and `folder` filters).
+- `DELETE /v1/saved-items/{id}`: Remove a saved item.
+- `POST /v1/saved-items/{id}/read` · `/unread` · `/open` · `/read-state`: Manage read state.
+- `PUT /v1/saved-items/{id}/folder`: Move an item into a folder.
+- `GET /v1/folders` · `POST /v1/folders` · `PATCH /v1/folders/{id}` · `DELETE /v1/folders/{id}`: Manage folders.
+- `GET /health`: Unauthenticated health check.
+
+## More
+
+- [Sleevy home](https://sleevy.app): Product overview and native clients (iOS, Chrome, Raycast).
+- [Privacy](https://sleevy.app/privacy)
+- [Support](https://sleevy.app/support)
