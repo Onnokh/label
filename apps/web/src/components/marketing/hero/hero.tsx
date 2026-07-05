@@ -129,7 +129,7 @@ export function Hero({ children }: { children: ReactNode }) {
               the phone, front floats above it. */}
           <div className={styles.bg} aria-hidden="true">
             <img className={styles.bgGrid} src="/hero-grid.svg" alt="" />
-            <img className={styles.bgLayer} src="/hero-blobs-back.avif" alt="" />
+            <div className={`${styles.bgLayer} ${styles.bgBack}`} />
           </div>
           {reduceMotion ? null : (
             <m.div
@@ -162,25 +162,24 @@ export function Hero({ children }: { children: ReactNode }) {
               <img src="/app-store-352.webp" alt="Download on the App Store" width={352} height={118} />
             </m.a>
           </m.div>
+          {/* Entrance is a CSS keyframe animation (see .phone), not Motion: it must
+              render into the SSR HTML so the phone appears (and animates) before —
+              or without — any JavaScript. Motion only drives the scroll expand via
+              the wrapper transform. */}
           <m.div className={styles.phoneWrap} style={animateHero && hasScrolled ? { transform: phoneTransform } : undefined}>
-            <m.img
+            {/* No fetchPriority boost: the entrance keeps the phone blurred out for
+                its first ~half second, so it can afford to load after the blob
+                layers — which paint immediately and set the page's LCP. */}
+            <img
               className={styles.phone}
               src="/hero-phone-full.webp"
               alt="Sleevy inbox on iPhone"
               width={613}
               height={1252}
-              fetchPriority="high"
-              initial={
-                reduceMotion
-                  ? { y: 0, scale: 1, filter: "blur(0px)", opacity: 1 }
-                  : { y: "40%", scale: 1.3, filter: "blur(18px)", opacity: 0 }
-              }
-              animate={{ y: 0, scale: 1, filter: "blur(0px)", opacity: 1 }}
-              transition={reduceMotion ? { duration: 0 } : { delay: 0.45, duration: 1.7, ease: [0.22, 1, 0.36, 1] }}
             />
           </m.div>
           <div className={`${styles.bg} ${styles.bgOver}`} aria-hidden="true">
-            <img className={styles.bgLayer} src="/hero-blobs-front.avif" alt="" />
+            <div className={`${styles.bgLayer} ${styles.bgFront}`} />
           </div>
           <div className={styles.grain} aria-hidden="true" />
           <div className={styles.fade} aria-hidden="true">
