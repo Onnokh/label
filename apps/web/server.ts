@@ -3,6 +3,7 @@ import handler from "./dist/server/server.js"
 const port = Number(process.env.PORT ?? 3000)
 const staticRoots = [`${import.meta.dir}/dist/client`, `${import.meta.dir}/dist`]
 const contentTypes: Record<string, string> = {
+  avif: "image/avif",
   css: "text/css; charset=utf-8",
   ico: "image/x-icon",
   jfif: "image/jpeg",
@@ -14,6 +15,29 @@ const contentTypes: Record<string, string> = {
 }
 
 const longLivedStaticExtensions = new Set(["avif", "gif", "ico", "jfif", "jpg", "jpeg", "png", "svg", "webp"])
+
+// Text assets (HTML, JS, CSS, JSON, SVG) ship uncompressed otherwise — the SSR
+// bundle alone is ~500 KB on the wire, which dominates load on slow links. Gzip
+// them on the fly; images are already compressed formats, so leave them be.
+const compressibleType = /^(?:text\/|application\/(?:javascript|json|xml)|image\/svg\+xml)/
+
+function withCompression(req: Request, response: Response): Response {
+  if (!(req.headers.get("accept-encoding") ?? "").includes("gzip")) return response
+  if (response.headers.get("content-encoding")) return response
+  if (!response.body) return response
+  if (!compressibleType.test(response.headers.get("content-type") ?? "")) return response
+
+  const headers = new Headers(response.headers)
+  headers.set("Content-Encoding", "gzip")
+  headers.delete("Content-Length") // unknown until the stream is fully compressed
+  headers.append("Vary", "Accept-Encoding")
+
+  return new Response(response.body.pipeThrough(new CompressionStream("gzip")), {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
 
 async function serveStatic(url: URL) {
   const pathname = decodeURIComponent(url.pathname)
@@ -69,10 +93,10 @@ Bun.serve({
     const staticResponse = await serveStatic(url)
 
     if (staticResponse) {
-      return staticResponse
+      return withCompression(req, staticResponse)
     }
 
-    return handler.fetch(req)
+    return withCompression(req, await handler.fetch(req))
   },
 })
 
