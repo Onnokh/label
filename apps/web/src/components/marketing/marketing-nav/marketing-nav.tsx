@@ -17,7 +17,7 @@ export function MarketingNav() {
       <nav className={styles.navbar} aria-label="Primary">
         <div className={styles.logoRow}>
           <Link className={styles.brand} to="/" aria-label="Sleevy home" onClick={closeMenu}>
-            <img className={styles.logoMark} src="/logo-mark.svg" alt="" height={28} />
+            <img className={styles.logoMark} src="/logo-mark.svg" alt="" width={19} height={28} />
             <span className={styles.logoText}>Sleevy</span>
           </Link>
           <button

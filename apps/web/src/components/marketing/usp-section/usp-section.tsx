@@ -60,7 +60,7 @@ export function UspSection() {
                 />
               ))}
             </svg>
-            <h3>{usp.title}</h3>
+            <h2>{usp.title}</h2>
             <p>{usp.body}</p>
           </article>
         ))}
