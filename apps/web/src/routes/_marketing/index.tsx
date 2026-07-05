@@ -10,8 +10,25 @@ export const Route = createFileRoute("/_marketing/")({
       // Preloading lets them fetch in parallel with the CSS.
       // High priority on the back layer: it is the LCP element, and by default
       // image preloads queue behind the (larger, entrance-delayed) phone image.
-      { rel: "preload", as: "image", href: "/hero-blobs-back.avif", fetchPriority: "high" },
-      { rel: "preload", as: "image", href: "/hero-blobs-front.avif" },
+      // The -m variants match hero.module.scss's max-width: 768px override:
+      // phones decode AVIF in software at a cost proportional to source pixels,
+      // so they get 800px layers instead of the 2400px desktop ones.
+      {
+        rel: "preload",
+        as: "image",
+        href: "/hero-blobs-back.avif",
+        media: "(min-width: 768.1px)",
+        fetchPriority: "high",
+      },
+      { rel: "preload", as: "image", href: "/hero-blobs-front.avif", media: "(min-width: 768.1px)" },
+      {
+        rel: "preload",
+        as: "image",
+        href: "/hero-blobs-back-m.avif",
+        media: "(max-width: 768px)",
+        fetchPriority: "high",
+      },
+      { rel: "preload", as: "image", href: "/hero-blobs-front-m.avif", media: "(max-width: 768px)" },
     ],
   }),
   component: HomePage,

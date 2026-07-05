@@ -99,12 +99,23 @@
   height: 92.3125rem; /* 877 + 2×300 pad */
   pointer-events: none;
 
+  /* The softness is baked into gradient stops instead of a real
+     filter: blur(150px) on an inset ellipse. Giant blur filters are what made
+     Safari (iOS especially) stall for seconds rasterizing on load — WebKit
+     even drops tiles under the load, leaving garbage squares over the hero.
+     Stops approximate the σ150 gaussian of the padded ellipse: plateau over
+     the inner ellipse, fading out through the 300px pad. */
   &::before {
     position: absolute;
-    inset: 18.75rem; /* 300px blur-bleed pad → inner ellipse is 433×877 */
-    border-radius: 50%;
-    background: rgb(255 255 255 / 5.7%);
-    filter: blur(9.375rem); /* σ150 */
+    inset: 0;
+    background: radial-gradient(
+      50% 50% at center,
+      rgb(255 255 255 / 5.7%) 0%,
+      rgb(255 255 255 / 5.2%) 35%,
+      rgb(255 255 255 / 2.9%) 62%,
+      rgb(255 255 255 / 0.8%) 85%,
+      transparent 100%
+    );
     content: "";
   }
 }
