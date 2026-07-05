@@ -1,0 +1,48 @@
+{
+  "version": 3,
+  "summary": "Sleevy is a native-first read-later app. Save any URL to your queue, organize items with folders and tags, and manage read state from web, iOS, a Chrome extension, Raycast, and a REST API.",
+  "credentials": {
+    "sleevy_api_key": {
+      "type": "api_key",
+      "label": "Sleevy API Key",
+      "generateUrl": "https://sleevy.app/settings",
+      "setup": "Sign in at https://sleevy.app, open **Settings**, and create a personal API Key under **API Keys**. Send it as `Authorization: Bearer <api-key>` on every request. Keys are scoped and rate-limited per key, and can be revoked from the same screen."
+    }
+  },
+  "surfaces": [
+    {
+      "slug": "rest-api",
+      "name": "Sleevy REST API",
+      "type": "http",
+      "docs": "https://sleevy.app/docs",
+      "spec": "https://sleevy.app/openapi.json",
+      "url": "https://api.sleevy.app",
+      "basis": {
+        "via": "declared",
+        "source": "https://sleevy.app/.well-known/integrations.json"
+      },
+      "auth": {
+        "status": "required",
+        "entries": [
+          {
+            "use": [
+              {
+                "id": "sleevy_api_key",
+                "mechanics": {
+                  "source": "http",
+                  "in": "header",
+                  "headerName": "Authorization",
+                  "scheme": "Bearer"
+                }
+              }
+            ],
+            "basis": {
+              "via": "declared",
+              "source": "https://sleevy.app/.well-known/integrations.json"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

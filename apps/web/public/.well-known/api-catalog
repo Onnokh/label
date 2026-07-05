@@ -1,0 +1,21 @@
+{
+  "linkset": [
+    {
+      "anchor": "https://api.sleevy.app",
+      "service-desc": [
+        {
+          "href": "https://sleevy.app/openapi.json",
+          "type": "application/vnd.oai.openapi+json",
+          "title": "Sleevy REST API (OpenAPI 3.1)"
+        }
+      ],
+      "service-doc": [
+        {
+          "href": "https://sleevy.app/docs",
+          "type": "text/html",
+          "title": "Sleevy API documentation"
+        }
+      ]
+    }
+  ]
+}

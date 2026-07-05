@@ -15,6 +15,11 @@ const contentTypes: Record<string, string> = {
 
 const longLivedStaticExtensions = new Set(["avif", "gif", "ico", "jfif", "jpg", "jpeg", "png", "svg", "webp"])
 
+// Extensionless discovery files whose Content-Type can't be derived from a file extension.
+const contentTypeByPathname: Record<string, string> = {
+  "/.well-known/api-catalog": "application/linkset+json; charset=utf-8",
+}
+
 async function serveStatic(url: URL) {
   const pathname = decodeURIComponent(url.pathname)
 
@@ -49,7 +54,7 @@ async function serveStatic(url: URL) {
         "Cache-Control": isLongLivedStaticAsset
           ? "public, max-age=31536000, immutable"
           : "public, max-age=3600",
-        "Content-Type": contentTypes[extension] ?? file.type,
+        "Content-Type": contentTypeByPathname[pathname] ?? contentTypes[extension] ?? file.type,
       },
     })
   }
