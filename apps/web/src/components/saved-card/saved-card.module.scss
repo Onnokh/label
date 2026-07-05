@@ -5,9 +5,19 @@
   gap: 0.625rem;
   padding: 0.625rem 0.5rem;
   margin: 0 -0.5rem;
-  border-bottom: 1px solid var(--border);
   border-radius: 0.5rem;
   cursor: pointer;
+
+  &::after {
+    position: absolute;
+    right: 0.5rem;
+    bottom: 0;
+    left: 0.5rem;
+    height: 1px;
+    background: var(--border);
+    content: "";
+    pointer-events: none;
+  }
 
   &:hover {
     background: var(--hover);
@@ -28,6 +38,8 @@
   background: var(--selected);
   outline: 1px solid var(--accent);
   outline-offset: -1px;
+
+  &::after { display: none; }
 }
 
 .favicon {
@@ -106,8 +118,9 @@
 
 .deleteConfirm {
   justify-content: center;
-  border-color: var(--danger);
   background: var(--danger-panel);
+
+  &::after { background: var(--danger); }
 }
 
 .deletePrompt {

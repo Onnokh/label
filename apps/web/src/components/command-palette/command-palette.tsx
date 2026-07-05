@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { CommandDialog, CommandGroup, CommandInput, CommandList, useCommandState } from "cmdk"
 import { useRouter } from "@tanstack/react-router"
 import { Description as DialogDescription, Title as DialogTitle } from "@radix-ui/react-dialog"
+import { Search } from "lucide-react"
 
 import { CaptureCommandItem } from "../capture-command-item/capture-command-item"
 import { CommandPaletteResults } from "./command-palette-results"
@@ -45,8 +46,9 @@ function CommandPaletteFooter() {
 
   return (
     <div className="cmdk-footer">
+      <span className="cmdk-footer-controls"><kbd>↑</kbd><kbd>↓</kbd> Move</span>
       <span className="cmdk-footer-hint">
-        {footerAction} <kbd>Enter</kbd>
+        <kbd>↵</kbd> {footerAction}
       </span>
     </div>
   )
@@ -226,7 +228,8 @@ export function CommandPalette() {
   }, [paletteOpen, router, setHelpOpen, shortcutItems])
 
   return (
-    <CommandDialog
+    <>
+      <CommandDialog
       open={paletteOpen}
       onOpenChange={handleOpenChange}
       label="Command palette"
@@ -238,18 +241,18 @@ export function CommandPalette() {
     >
       <DialogTitle className="sr-only">Command palette</DialogTitle>
       <DialogDescription className="sr-only">Search saved items, navigate, or run app actions.</DialogDescription>
-      <CommandInput
-        placeholder="Search or paste a URL..."
-        value={search}
-        onValueChange={setSearch}
-      />
+      <div className="cmdk-search"><Search aria-hidden="true" /><CommandInput
+          placeholder="Search saved items and actions..."
+          value={search}
+          onValueChange={setSearch}
+        /><kbd>esc</kbd></div>
       <CommandList>
         {urlDetected && (
           <CommandGroup forceMount>
             <CaptureCommandItem
               url={search.trim()}
               disabled={capture.isPending}
-              actionLabel={capture.isPending ? "Saving..." : "Capture"}
+              actionLabel={capture.isPending ? "Saving..." : undefined}
               onSelect={() => captureFromPalette(search.trim())}
             />
           </CommandGroup>
@@ -277,6 +280,7 @@ export function CommandPalette() {
       </CommandList>
 
       <CommandPaletteFooter />
-    </CommandDialog>
+      </CommandDialog>
+    </>
   )
 }

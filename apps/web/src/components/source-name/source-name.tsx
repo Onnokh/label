@@ -19,10 +19,8 @@ export function SourceNamePanel() {
   return (
     <section className="settings-section">
       <div className="section-header">
-        <div>
-          <h2 className="section-title">Source Name</h2>
-          <p className="section-description">Shown on new captures</p>
-        </div>
+        <h2 className="section-title">Identify this browser</h2>
+        <p className="section-description">Choose how captures from here are grouped.</p>
       </div>
       <form onSubmit={submit} className="settings-form">
         <InputField

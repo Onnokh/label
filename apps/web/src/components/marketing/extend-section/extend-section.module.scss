@@ -1,0 +1,194 @@
+@use "../shared" as *;
+
+/* "Built to extend." — the visual heading is two rows of tiled headline text that
+   bleed off both viewport edges (per design), so the real h2 is visually hidden
+   and the tiles are decorative. */
+.section {
+  position: relative;
+  /* Isolate so the glow's z-index: -1 stays inside this section instead of
+     dropping behind the page background. */
+  z-index: 0;
+  padding: 7.5rem 0 2.5rem;
+
+  @media (max-width: 768px) {
+    padding: 5rem 0 1.5rem;
+  }
+}
+
+.glow {
+  @include page-glow;
+
+  top: -14.4375rem;
+  left: -32.5rem;
+  /* Behind the marquee text; the section's own stacking context (z-index: 0
+     above) keeps -1 from dropping under the page background. */
+  z-index: -1;
+}
+
+.title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Clip the full-bleed marquee rows here (not on the section) so the edge glow
+   can bleed past the section box without being cut off. */
+.marquee {
+  overflow: hidden;
+}
+
+.row {
+  position: relative;
+  color: #fff;
+  font-size: 4rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+  white-space: nowrap;
+
+  & + & {
+    margin-top: 1.125rem;
+  }
+
+  @media (max-width: 768px) {
+    font-size: 2.5rem;
+  }
+}
+
+/* Second row starts half a tile off-grid so the rows brick instead of stacking.
+   The shift lives on the tracks (via margin, not transform — motion owns the
+   tracks' transform) so the row's spotlight mask stays viewport-centered. */
+.rowOffset .track {
+  margin-left: -13.5rem;
+
+  @media (max-width: 768px) {
+    margin-left: -8.5rem;
+  }
+}
+
+.track {
+  display: flex;
+  width: max-content;
+
+  /* Spacing as margin (not flex gap) so every tile occupies exactly
+     tile + spacing — the uniform period the JS wrap relies on. */
+  span {
+    margin-right: 2.4375rem;
+
+    @media (max-width: 768px) {
+      margin-right: 1.5rem;
+    }
+  }
+}
+
+.trackDim {
+  opacity: 0.35;
+}
+
+/* Stationary window over the row: the full-opacity track shows only through a
+   roughly tile-wide center slot, so one tile per row reads at 100% while the
+   dimmed base track carries the rest. */
+.spotlight {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent calc(50% - 20rem),
+    #000 calc(50% - 10rem),
+    #000 calc(50% + 10rem),
+    transparent calc(50% + 20rem)
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent calc(50% - 20rem),
+    #000 calc(50% - 10rem),
+    #000 calc(50% + 10rem),
+    transparent calc(50% + 20rem)
+  );
+
+  @media (max-width: 768px) {
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent calc(50% - 12rem),
+      #000 calc(50% - 6rem),
+      #000 calc(50% + 6rem),
+      transparent calc(50% + 12rem)
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent calc(50% - 12rem),
+      #000 calc(50% - 6rem),
+      #000 calc(50% + 6rem),
+      transparent calc(50% + 12rem)
+    );
+  }
+}
+
+.body {
+  @include container;
+
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
+  column-gap: 2.8125rem;
+  margin-top: 3.3125rem;
+
+  p,
+  li {
+    margin: 0;
+    color: #808080;
+    font-size: 1.5rem;
+    font-weight: 300;
+    line-height: 1.7;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 2.25rem;
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    row-gap: 2rem;
+    margin-top: 2.5rem;
+
+    p,
+    li {
+      font-size: 1.125rem;
+    }
+  }
+}
+
+.footer {
+  @include container;
+
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 5.625rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
+  padding-top: 1.125rem;
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4375rem;
+    color: #fff;
+    font-size: 1.25rem;
+    letter-spacing: -0.04em;
+    line-height: 1.02;
+    text-decoration: underline;
+  }
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  @media (max-width: 768px) {
+    margin-top: 3rem;
+  }
+}

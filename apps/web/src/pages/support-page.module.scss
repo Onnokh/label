@@ -1,0 +1,51 @@
+.page {
+  width: min(760px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 8rem 0 10rem;
+
+  @media (max-width: 768px) {
+    width: min(100% - 1.5rem, 760px);
+    padding: 4rem 0 5rem;
+  }
+}
+
+.hero {
+  text-align: center;
+
+  h1 {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(3.5rem, 7vw, 5.5rem);
+    line-height: 0.98;
+    letter-spacing: 0;
+
+    @media (max-width: 768px) {
+      font-size: clamp(3rem, 13vw, 3.5rem);
+    }
+  }
+
+  p {
+    max-width: 42rem;
+    margin: 2rem auto 0;
+    color: #fff;
+    font-size: 1.5rem;
+    line-height: 1.22;
+
+    @media (max-width: 768px) {
+      font-size: 1.25rem;
+    }
+  }
+
+  a {
+    color: inherit;
+  }
+
+  span {
+    display: block;
+    max-width: 34rem;
+    margin: 1.5rem auto 0;
+    color: #737373;
+    font-size: 1rem;
+    line-height: 1.55;
+  }
+}

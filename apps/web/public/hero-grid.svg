@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 919" preserveAspectRatio="none" fill="none">
+  <!-- Figma "Desktop - 3" hero grid (node 102:81), card-relative positions. -->
+  <g stroke="#fff" stroke-opacity="0.05">
+    <line x1="59.95" y1="0" x2="59.95" y2="919"/>
+    <line x1="213.54" y1="0" x2="213.54" y2="919"/>
+    <line x1="367.14" y1="0" x2="367.14" y2="919"/>
+    <line x1="520.73" y1="0" x2="520.73" y2="919"/>
+    <line x1="675.31" y1="0" x2="675.31" y2="919"/>
+    <line x1="827.91" y1="0" x2="827.91" y2="919"/>
+    <line x1="981.5" y1="0" x2="981.5" y2="919"/>
+    <line x1="1135.1" y1="0" x2="1135.1" y2="919"/>
+    <line x1="0" y1="121.5" x2="1200" y2="121.5"/>
+    <line x1="0" y1="352.5" x2="1200" y2="352.5"/>
+    <line x1="0" y1="585.5" x2="1200" y2="585.5"/>
+    <line x1="0" y1="817.5" x2="1200" y2="817.5"/>
+  </g>
+</svg>

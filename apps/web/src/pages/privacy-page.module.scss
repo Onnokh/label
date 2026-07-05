@@ -1,0 +1,138 @@
+@use "../components/marketing/shared" as *;
+
+.page {
+  width: min(52.5rem, 100% - 4rem);
+  margin: 0 auto;
+  padding: 6rem 0 7rem;
+
+  @media (max-width: 768px) {
+    width: min(100% - 1.5rem, 52.5rem);
+    padding: 3rem 0 4rem;
+  }
+}
+
+.hero {
+  text-align: center;
+
+  h1 {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(3.5rem, 7vw, 5.5rem);
+    line-height: 0.98;
+    letter-spacing: 0;
+
+    @media (max-width: 768px) {
+      font-size: clamp(3rem, 13vw, 3.5rem);
+    }
+  }
+
+  p {
+    max-width: 42rem;
+    margin: 2rem auto 0;
+    color: #fff;
+    font-size: 1.5rem;
+    line-height: 1.22;
+
+    @media (max-width: 768px) {
+      font-size: 1.25rem;
+    }
+  }
+
+  span {
+    display: block;
+    margin-top: 1.5rem;
+    color: #737373;
+    font-size: 0.9375rem;
+  }
+}
+
+/* Summary highlights as cards, borrowing the home/docs card treatment. */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 4rem;
+
+  > div {
+    @include card-border;
+
+    padding: 1.25rem 1.25rem 1.375rem;
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  h2 {
+    margin: 0;
+    color: #fff;
+    font-size: 1rem;
+    line-height: 1.2;
+    letter-spacing: 0;
+  }
+
+  p {
+    margin: 0.625rem 0 0;
+    color: #737373;
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    margin-top: 3rem;
+  }
+}
+
+.sections {
+  display: grid;
+  gap: 0;
+  margin-top: 2rem;
+}
+
+.section {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.34fr) minmax(0, 1fr);
+  gap: 3rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 2.25rem 0;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  h2 {
+    margin: 0;
+    color: #fff;
+    font-size: 1.5rem;
+    line-height: 1.2;
+    letter-spacing: 0;
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 1.75rem 0;
+  }
+}
+
+.sectionBody p {
+  margin: 0;
+  color: #737373;
+  font-size: 1rem;
+  line-height: 1.65;
+
+  + p {
+    margin-top: 1rem;
+  }
+}
+
+.contact {
+  margin: 2rem 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 2rem;
+  color: #737373;
+  font-size: 1rem;
+  line-height: 1.65;
+
+  a {
+    color: #fff;
+  }
+}

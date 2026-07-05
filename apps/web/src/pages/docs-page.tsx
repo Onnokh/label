@@ -1,5 +1,7 @@
 import { useState } from "react"
+import clsx from "clsx"
 import spec from "../../public/openapi.json"
+import styles from "./docs-page.module.scss"
 
 type Schema = { type?: string; enum?: string[]; anyOf?: Schema[]; items?: Schema; $ref?: string; properties?: Record<string, Schema>; required?: string[]; additionalProperties?: boolean }
 type Parameter = { name: string; in: string; required?: boolean; schema?: Schema }
@@ -85,7 +87,7 @@ function TypeLabel({ schema: s }: { schema: Schema }) {
     const raw = s.$ref.split("/").pop()!
     const anchor = schemaAnchor(raw)
     const label = displayName(raw)
-    if (anchor) return <a className="docs-type-link" href={`#${anchor}`}>{label}</a>
+    if (anchor) return <a className={styles.typeLink} href={`#${anchor}`}>{label}</a>
     return <>{label}</>
   }
   return <>{typeLabel(s)}</>
@@ -94,13 +96,13 @@ function TypeLabel({ schema: s }: { schema: Schema }) {
 function ParamList({ label, params }: { label: string; params: Parameter[] }) {
   if (params.length === 0) return null
   return (
-    <div className="docs-detail">
-      <span className="docs-detail-label">{label}</span>
+    <div className={styles.detail}>
+      <span className={styles.detailLabel}>{label}</span>
       {params.map((p) => (
-        <span key={p.name} className="docs-param">
+        <span key={p.name} className={styles.param}>
           <code>{p.name}</code>
-          <code className="docs-param-type">{p.schema ? typeLabel(p.schema) : "string"}</code>
-          {p.required && <span className="docs-required">required</span>}
+          <code className={styles.paramType}>{p.schema ? typeLabel(p.schema) : "string"}</code>
+          {p.required && <span className={styles.required}>required</span>}
         </span>
       ))}
     </div>
@@ -117,40 +119,40 @@ function Endpoint({ method, path, op }: { method: string; path: string; op: Oper
   const errorCodes = Object.entries(op.responses).filter(([code]) => !code.startsWith("2"))
 
   return (
-    <div className="docs-endpoint" data-open={open || undefined}>
-      <button className="docs-endpoint-header" onClick={() => setOpen(!open)} type="button">
-        <span className="docs-method" style={{ color: methodColors[method] }}>{method.toUpperCase()}</span>
-        <span className="docs-path">{path}</span>
-        <svg className="docs-chevron" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" /></svg>
+    <div className={styles.endpoint} data-open={open || undefined}>
+      <button className={styles.endpointHeader} onClick={() => setOpen(!open)} type="button">
+        <span className={styles.method} style={{ color: methodColors[method] }}>{method.toUpperCase()}</span>
+        <span className={styles.path}>{path}</span>
+        <svg className={styles.chevron} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" /></svg>
       </button>
       {open && (
-        <div className="docs-endpoint-body">
+        <div className={styles.endpointBody}>
           <ParamList label="Path" params={pathParams} />
           <ParamList label="Query" params={queryParams} />
           {bodyRef && (
-            <div className="docs-detail">
-              <span className="docs-detail-label">Body</span>
+            <div className={styles.detail}>
+              <span className={styles.detailLabel}>Body</span>
               <code><TypeLabel schema={bodySchema!} /></code>
             </div>
           )}
-          <div className="docs-detail">
-            <span className="docs-detail-label">Returns</span>
+          <div className={styles.detail}>
+            <span className={styles.detailLabel}>Returns</span>
             {successCodes.map(([code, res]) => {
               const resSchema = res.content?.["application/json"]?.schema
               return (
-                <span key={code} className="docs-return">
-                  <span className="docs-status docs-status-ok">{code}</span>
+                <span key={code} className={styles.return}>
+                  <span className={clsx(styles.status, styles.statusOk)}>{code}</span>
                   {resSchema ? <code><TypeLabel schema={resSchema} /></code> : <span>{displayName(res.description)}</span>}
                 </span>
               )
             })}
           </div>
           {errorCodes.length > 0 && (
-            <div className="docs-detail">
-              <span className="docs-detail-label">Errors</span>
+            <div className={styles.detail}>
+              <span className={styles.detailLabel}>Errors</span>
               {errorCodes.map(([code, res]) => (
-                <span key={code} className="docs-return">
-                  <span className="docs-status docs-status-err">{code}</span>
+                <span key={code} className={styles.return}>
+                  <span className={clsx(styles.status, styles.statusErr)}>{code}</span>
                   <span>{displayName(res.description)}</span>
                 </span>
               ))}
@@ -169,19 +171,19 @@ function SchemaDefinition({ name, schema }: { name: string; schema: Schema }) {
   const entries = Object.entries(schema.properties)
 
   return (
-    <div className="docs-schema-def" id={`schema-${friendly}`}>
-      <button className="docs-schema-header" onClick={() => setOpen(!open)} type="button">
-        <span className="docs-schema-name">{friendly}</span>
-        <span className="docs-schema-count">{entries.length} {entries.length === 1 ? "field" : "fields"}</span>
-        <svg className="docs-chevron" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" /></svg>
+    <div className={styles.schemaDef} id={`schema-${friendly}`} data-open={open || undefined}>
+      <button className={styles.schemaHeader} onClick={() => setOpen(!open)} type="button">
+        <span className={styles.schemaName}>{friendly}</span>
+        <span className={styles.schemaCount}>{entries.length} {entries.length === 1 ? "field" : "fields"}</span>
+        <svg className={styles.chevron} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" /></svg>
       </button>
       {open && (
-        <div className="docs-schema-body">
+        <div className={styles.schemaBody}>
           {entries.map(([field, prop]) => (
-            <div key={field} className="docs-field">
-              <code className="docs-field-name">{field}</code>
-              <code className="docs-field-type"><TypeLabel schema={prop} /></code>
-              {schema.required?.includes(field) && <span className="docs-required">required</span>}
+            <div key={field} className={styles.field}>
+              <code className={styles.fieldName}>{field}</code>
+              <code className={styles.fieldType}><TypeLabel schema={prop} /></code>
+              {schema.required?.includes(field) && <span className={styles.required}>required</span>}
             </div>
           ))}
         </div>
@@ -192,22 +194,22 @@ function SchemaDefinition({ name, schema }: { name: string; schema: Schema }) {
 
 function SideNav() {
   return (
-    <nav className="docs-sidenav" aria-label="API sections">
+    <nav className={styles.sidenav} aria-label="API sections">
       {[...groups.entries()].map(([tag, endpoints]) => (
-        <div key={tag} className="docs-sidenav-group">
-          <a href={`#${tag}`} className="docs-sidenav-heading">{tag}</a>
+        <div key={tag} className={styles.sidenavGroup}>
+          <a href={`#${tag}`} className={styles.sidenavHeading}>{tag}</a>
           {endpoints.map(({ method, path }) => (
-            <a key={`${method}-${path}`} href={`#${tag}`} className="docs-sidenav-item">
-              <span className="docs-sidenav-method" style={{ color: methodColors[method] }}>{method.toUpperCase()}</span>
+            <a key={`${method}-${path}`} href={`#${tag}`} className={styles.sidenavItem}>
+              <span className={styles.sidenavMethod} style={{ color: methodColors[method] }}>{method.toUpperCase()}</span>
               <span>{path}</span>
             </a>
           ))}
         </div>
       ))}
-      <div className="docs-sidenav-group">
-        <a href="#schemas" className="docs-sidenav-heading">schemas</a>
+      <div className={styles.sidenavGroup}>
+        <a href="#schemas" className={styles.sidenavHeading}>schemas</a>
         {schemaOrder.map((name) => (
-          <a key={name} href={`#schema-${displayName(name)}`} className="docs-sidenav-item">
+          <a key={name} href={`#schema-${displayName(name)}`} className={styles.sidenavItem}>
             {displayName(name)}
           </a>
         ))}
@@ -218,29 +220,29 @@ function SideNav() {
 
 export function DocsPage() {
   return (
-    <div className="docs-page">
-      <div className="docs-layout">
+    <div className={styles.page}>
+      <div className={styles.layout}>
         <SideNav />
-        <section className="docs-reference" aria-label="Sleevy API Reference">
-          <div className="docs-header">
+        <section className={styles.reference} aria-label="Sleevy API Reference">
+          <div className={styles.header}>
             <h1>{spec.info.title}</h1>
-            <span className="docs-version">v{spec.info.version}</span>
+            <span className={styles.version}>v{spec.info.version}</span>
           </div>
-          <p className="docs-description">{spec.info.description}</p>
-          <p className="docs-base">Base URL: <code>https://api.sleevy.app</code></p>
-          <p className="docs-auth">
+          <p className={styles.description}>{spec.info.description}</p>
+          <p className={styles.meta}>Base URL: <code>https://api.sleevy.app</code></p>
+          <p className={styles.meta}>
             All endpoints except <code>/health</code> require an <code>Authorization: Bearer &lt;API_KEY&gt;</code> header.
           </p>
           {[...groups.entries()].map(([tag, endpoints]) => (
-            <div key={tag} className="docs-group" id={tag}>
-              <h2 className="docs-group-title">{tag}</h2>
+            <div key={tag} className={styles.group} id={tag}>
+              <h2 className={styles.groupTitle}>{tag}</h2>
               {endpoints.map(({ method, path, op }) => (
                 <Endpoint key={`${method}-${path}`} method={method} path={path} op={op} />
               ))}
             </div>
           ))}
-          <div className="docs-group" id="schemas">
-            <h2 className="docs-group-title">Schemas</h2>
+          <div className={styles.group} id="schemas">
+            <h2 className={styles.groupTitle}>Schemas</h2>
             {schemaOrder.map((name) => {
               const schema = (spec.components.schemas as Record<string, Schema>)[name]
               if (!schema) return null

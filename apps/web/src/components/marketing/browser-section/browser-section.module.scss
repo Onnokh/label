@@ -1,0 +1,98 @@
+@use "../shared" as *;
+
+/* "And it's in your browser too" — centered intro over a dark framed panel.
+   The web-app screenshot sits inside the frame and is cropped by its bottom
+   edge; a blurred oversized copy of the same screenshot glows behind it, and
+   the design's corner glows are approximated with radial gradients. */
+.section {
+  padding: 7.5rem 0 6.25rem;
+  text-align: center;
+
+  h2 {
+    margin: 1.25rem 0 0;
+    color: #fff;
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 1.02;
+  }
+
+  > p {
+    width: min(100% - 4rem, 71rem);
+    margin: 0.75rem auto 0;
+    color: #fff;
+    font-size: 1.125rem;
+    font-weight: 300;
+    letter-spacing: -0.04em;
+    line-height: 1.4;
+  }
+
+  @media (max-width: 768px) {
+    padding: 5rem 0 4rem;
+
+    h2 {
+      width: min(100% - 1.5rem, 1136px);
+      margin-right: auto;
+      margin-left: auto;
+      font-size: 2.25rem;
+    }
+
+    > p {
+      width: min(100% - 1.5rem, 1136px);
+    }
+  }
+}
+
+.icon {
+  width: auto;
+  height: 2.4375rem;
+}
+
+.frame {
+  position: relative;
+  overflow: hidden;
+  width: min(100% - 4rem, 75.5625rem);
+  aspect-ratio: 1209 / 647;
+  margin: 3.6875rem auto 0;
+
+  @include card-border;
+
+  background:
+    radial-gradient(11.5rem 11.5rem at 6rem 3.5rem, rgba(70, 92, 152, 0.35), transparent 70%),
+    radial-gradient(11.5rem 11.5rem at calc(100% - 7.5rem) 3.5rem, rgba(70, 92, 152, 0.35), transparent 70%),
+    radial-gradient(13.5rem 11.5rem at 0.5rem 100%, rgba(70, 92, 152, 0.45), transparent 70%),
+    radial-gradient(11.5rem 11.5rem at calc(100% + 1rem) 100%, rgba(70, 92, 152, 0.35), transparent 70%),
+    #170e0f;
+
+  @media (max-width: 768px) {
+    width: min(100% - 1.5rem, 1136px);
+    margin-top: 2.5rem;
+  }
+}
+
+.shotGlow {
+  position: absolute;
+  top: -0.6875rem;
+  left: 50%;
+  width: 139%;
+  height: auto;
+  transform: translateX(-50%);
+  filter: blur(1rem);
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.shot {
+  position: relative;
+  display: block;
+  width: min(67.9375rem, 100% - 5rem);
+  height: auto;
+  margin: 4.4375rem auto 0;
+
+  @include card-border(0.75rem 0.75rem 0 0);
+
+  @media (max-width: 768px) {
+    width: calc(100% - 2rem);
+    margin-top: 1.5rem;
+  }
+}

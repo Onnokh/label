@@ -13,7 +13,7 @@ type CaptureCommandItemProps = {
 export function CaptureCommandItem({
   url,
   disabled = false,
-  actionLabel = "Capture",
+  actionLabel,
   onSelect,
 }: CaptureCommandItemProps) {
   return (
@@ -29,7 +29,7 @@ export function CaptureCommandItem({
         <span className="cmdk-item-title">Save to Sleeve</span>
         {url ? <span className="cmdk-capture-url">{url}</span> : null}
       </div>
-      <span className="cmdk-item-type">{actionLabel}</span>
+      {actionLabel ? <span className="cmdk-item-type">{actionLabel}</span> : null}
     </CommandItem>
   )
 }

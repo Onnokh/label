@@ -1,0 +1,50 @@
+/* Fluid vw scaling. Every band scales linearly with viewport width, so every
+   rem-based size — fonts, spacing, radii, gaps — tracks the viewport and a given
+   band composes 1:1 identically at every width within it (a pure zoom).
+   Anchors: desktop >1024 authored at 1440 (16px root), frozen ≥1920; tablet
+   769–1024 authored at 1024 (15px root); mobile ≤768 authored at 480 (16px root).
+   Scoped via :has() to the marketing tree so the app UI is never affected. */
+html:has(.page) {
+  font-size: calc(100vw / 90); /* 1440 / 16 = 90  →  16px at 1440px */
+}
+
+@media (min-width: 1920px) {
+  html:has(.page) {
+    font-size: 21.3333px; /* freeze: 1920 / 90 */
+  }
+}
+
+@media (max-width: 1024px) {
+  html:has(.page) {
+    font-size: calc(100vw / 68.2667); /* 1024 / 15  →  15px at 1024px */
+  }
+}
+
+@media (max-width: 768px) {
+  html:has(.page) {
+    font-size: calc(100vw / 30); /* 480 / 16  →  16px at 480px */
+  }
+}
+
+.page {
+  /* Fixed navbar geometry (see marketing-nav): pill height plus 2× the 1rem
+     container inset. Content pads down by the total so it clears the pill;
+     sticky elements (docs sidenav) and anchor targets read the same var. */
+  --navbar-height: 4.25rem;
+  --navbar-total-spacing: calc(var(--navbar-height) + 2rem);
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding-top: var(--navbar-total-spacing);
+  /* clip (not hidden/auto) contains the full-bleed hero horizontally without
+     establishing a scroll container — which would break the hero's sticky pin. */
+  overflow-x: clip;
+  background: #101113;
+  color: #fff;
+
+  @media (max-width: 768px) {
+    /* Closed pill: 1rem padding ×2 + 1.75rem logo row. */
+    --navbar-height: 3.75rem;
+  }
+}

@@ -1,0 +1,16 @@
+.pill {
+  display: inline-block;
+
+  /* Hover lives on the inner link, not the wrapper: a `filter` (or anything
+     group-forming) on the wrapper would become the backdrop root for the glass
+     layer's backdrop-filter, cutting off its view of the page behind and
+     killing the refraction. A translucent wash over the glass is safe. */
+  a {
+    border-radius: 999px;
+    transition: background 0.2s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+}
