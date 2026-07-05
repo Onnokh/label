@@ -8,20 +8,11 @@ export function BrowserSection() {
       <p>One click in your toolbar saves the tab you're on. The full library opens in the web app.</p>
       <div className={styles.frame}>
         <img
-          className={styles.shotGlow}
-          src="/web-companion-1087.webp"
-          alt=""
-          aria-hidden="true"
-          width={1087}
-          height={576}
-          loading="lazy"
-        />
-        <img
-          className={styles.shot}
-          src="/web-companion-1087.webp"
+          src="/web-companion-1209.webp"
+          srcSet="/web-companion-1209.webp 1x, /web-companion-2418.webp 2x"
           alt="Sleevy web app showing the inbox with saved links"
-          width={1087}
-          height={576}
+          width={1209}
+          height={647}
           loading="lazy"
         />
       </div>

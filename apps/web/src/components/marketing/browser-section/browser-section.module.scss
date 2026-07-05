@@ -1,9 +1,8 @@
 @use "../shared" as *;
 
-/* "And it's in your browser too" — centered intro over a dark framed panel.
-   The web-app screenshot sits inside the frame and is cropped by its bottom
-   edge; a blurred oversized copy of the same screenshot glows behind it, and
-   the design's corner glows are approximated with radial gradients. */
+/* "And it's in your browser too" — centered intro over a rounded panel that
+   is the web-app screenshot itself. The source image is pre-cropped to the
+   panel's visible area, so the frame only rounds and borders it. */
 .section {
   padding: 7.5rem 0 6.25rem;
   text-align: center;
@@ -51,48 +50,28 @@
 .frame {
   position: relative;
   overflow: hidden;
-  width: min(100% - 4rem, 75.5625rem);
-  aspect-ratio: 1209 / 647;
-  margin: 3.6875rem auto 0;
-
+  margin-top: 3.6875rem;
+  @include container;
   @include card-border;
 
-  background:
-    radial-gradient(11.5rem 11.5rem at 6rem 3.5rem, rgba(70, 92, 152, 0.35), transparent 70%),
-    radial-gradient(11.5rem 11.5rem at calc(100% - 7.5rem) 3.5rem, rgba(70, 92, 152, 0.35), transparent 70%),
-    radial-gradient(13.5rem 11.5rem at 0.5rem 100%, rgba(70, 92, 152, 0.45), transparent 70%),
-    radial-gradient(11.5rem 11.5rem at calc(100% + 1rem) 100%, rgba(70, 92, 152, 0.35), transparent 70%),
-    #170e0f;
-
-  @media (max-width: 768px) {
-    width: min(100% - 1.5rem, 1136px);
-    margin-top: 2.5rem;
+  /* The screenshot fills the frame and would paint over the mixin's inset
+     highlight, so repaint it above the image. */
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
+    pointer-events: none;
   }
-}
 
-.shotGlow {
-  position: absolute;
-  top: -0.6875rem;
-  left: 50%;
-  width: 139%;
-  height: auto;
-  transform: translateX(-50%);
-  filter: blur(1rem);
-  opacity: 0.22;
-  pointer-events: none;
-}
-
-.shot {
-  position: relative;
-  display: block;
-  width: min(67.9375rem, 100% - 5rem);
-  height: auto;
-  margin: 4.4375rem auto 0;
-
-  @include card-border(0.75rem 0.75rem 0 0);
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
 
   @media (max-width: 768px) {
-    width: calc(100% - 2rem);
-    margin-top: 1.5rem;
+    margin-top: 2.5rem;
   }
 }
