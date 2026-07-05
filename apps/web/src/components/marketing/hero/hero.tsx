@@ -69,7 +69,7 @@ export function Hero({ children }: { children: ReactNode }) {
   // 2px end-pose oversize, and the bottom stays put at the seam (with the
   // .followInner::before shadow). Only the top border fades — the top
   // edge is pinned to the viewport top throughout, so it can never exit.
-  const heroBorderTop = useTransform(expand, [0, 1], ["rgba(255,255,255,0.35)", "rgba(255,255,255,0)"])
+  const heroBorderTop = useTransform(expand, [0, 1], ["rgba(255,255,255,0.06)", "rgba(255,255,255,0)"])
   // Same lerp per transform component: translateY rest→end, scale rest→end.
   // (--phone-y-rest is a % of the phone's own height; --phone-y-end is a length —
   // translateY resolves both.)

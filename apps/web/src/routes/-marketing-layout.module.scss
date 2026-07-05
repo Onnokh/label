@@ -27,18 +27,24 @@ html:has(.page) {
 }
 
 .page {
+  /* Fixed navbar geometry (see marketing-nav): pill height plus 2× the 1rem
+     container inset. Content pads down by the total so it clears the pill;
+     sticky elements (docs sidenav) and anchor targets read the same var. */
+  --navbar-height: 4.25rem;
+  --navbar-total-spacing: calc(var(--navbar-height) + 2rem);
+
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  padding-top: var(--navbar-total-spacing);
   /* clip (not hidden/auto) contains the full-bleed hero horizontally without
      establishing a scroll container — which would break the hero's sticky pin. */
   overflow-x: clip;
   background: #101113;
   color: #fff;
-}
 
-/* The docs page brings its own light full-width canvas and a sticky sidenav
-   that the clip would interfere with. Pages opt out via data-marketing-overflow. */
-.page:has([data-marketing-overflow="visible"]) {
-  overflow: visible;
+  @media (max-width: 768px) {
+    /* Closed pill: 1rem padding ×2 + 1.75rem logo row. */
+    --navbar-height: 3.75rem;
+  }
 }

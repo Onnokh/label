@@ -106,7 +106,7 @@
      hero-vars; the motion templates read them via var(). */
 
   /* ── Design inputs (overridden per band) ── */
-  --hero-radius-rest: 1.75rem;
+  --hero-radius-rest: 0.75rem; /* matches the marketing card frames */
   --hero-radius-end: 0px; /* full-bleed = square corners */
   --phone-w-frac: 0.42; /* phone width as a fraction of the hero width */
   --phone-aspect: calc(1252 / 613); /* the hero-phone image's height/width */
@@ -135,10 +135,9 @@
   aspect-ratio: calc(1 / var(--hero-aspect));
   margin: var(--hero-margin) auto 0;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: var(--hero-radius-rest);
   background: #0a0b12;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  @include card-border(var(--hero-radius-rest), 0 8px 24px rgba(0, 0, 0, 0.4));
 
   /* The tablet band's 15px@1024 anchor makes the rem content stack proportionally
      larger vs the vw hero than on desktop — drop the phone's rest slice so it
@@ -148,7 +147,6 @@
   }
 
   @media (max-width: 768px) {
-    --hero-radius-rest: 1.25rem;
     --phone-w-frac: 0.84;
     --phone-y-rest: 44%;
     --phone-scale-end: 0.72;
@@ -319,56 +317,12 @@
   height: auto;
 }
 
-/* Progressive blur anchored to the hero bottom — stacked layers, each with a
-   higher blur radius revealed in its own band, so the blur ramps from 0 at the
-   top of the fade to the max near the bottom edge (a single backdrop-filter can
-   only fade its opacity, not its radius). Sits above the phone by design. */
+/* Progressive blur anchored to the hero bottom (shared blur-fade mixins).
+   Sits above the phone by design. */
 .fade {
-  position: absolute;
-  right: 0;
-  bottom: -1px;
-  left: 0;
-  height: 80px;
-  z-index: 2;
-  pointer-events: none;
+  @include blur-fade-bottom;
 }
 
 .fadeLayer {
-  position: absolute;
-  inset: 0;
-
-  &:nth-child(1) {
-    backdrop-filter: blur(0.5px);
-    -webkit-backdrop-filter: blur(0.5px);
-    mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 30%, transparent 45%);
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 30%, transparent 45%);
-  }
-
-  &:nth-child(2) {
-    backdrop-filter: blur(1px);
-    -webkit-backdrop-filter: blur(1px);
-    mask-image: linear-gradient(to bottom, transparent 15%, #000 30%, #000 50%, transparent 65%);
-    -webkit-mask-image: linear-gradient(to bottom, transparent 15%, #000 30%, #000 50%, transparent 65%);
-  }
-
-  &:nth-child(3) {
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
-    mask-image: linear-gradient(to bottom, transparent 35%, #000 50%, #000 70%, transparent 82%);
-    -webkit-mask-image: linear-gradient(to bottom, transparent 35%, #000 50%, #000 70%, transparent 82%);
-  }
-
-  &:nth-child(4) {
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    mask-image: linear-gradient(to bottom, transparent 55%, #000 72%, #000 88%, transparent 97%);
-    -webkit-mask-image: linear-gradient(to bottom, transparent 55%, #000 72%, #000 88%, transparent 97%);
-  }
-
-  &:nth-child(5) {
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    mask-image: linear-gradient(to bottom, transparent 72%, #000 90%, #000 100%);
-    -webkit-mask-image: linear-gradient(to bottom, transparent 72%, #000 90%, #000 100%);
-  }
+  @include blur-fade-layers;
 }

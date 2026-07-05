@@ -220,7 +220,7 @@ function SideNav() {
 
 export function DocsPage() {
   return (
-    <div className={styles.page} data-marketing-overflow="visible">
+    <div className={styles.page}>
       <div className={styles.layout}>
         <SideNav />
         <section className={styles.reference} aria-label="Sleevy API Reference">

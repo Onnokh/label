@@ -1,11 +1,11 @@
 import { Link } from "@tanstack/react-router"
 
+import { chromeStoreUrl, raycastStoreUrl } from "../store-links"
 import styles from "./marketing-footer.module.scss"
 
 export function MarketingFooter() {
   return (
     <footer className={styles.footer}>
-      <img className={styles.bg} src="/footer-glow.webp" alt="" aria-hidden="true" />
       <div className={styles.inner}>
         <div className={styles.brand}>
           <div className={styles.logo}>
@@ -20,8 +20,8 @@ export function MarketingFooter() {
 
         <nav className={styles.col} aria-label="Integrations">
           <span className={styles.colTitle}>Integrations</span>
-          <a href="https://www.raycast.com/onnokh/sleevy">Raycast Extension</a>
-          <a href="https://chromewebstore.google.com/detail/sleevy/ogffdakffimomfahfpihfmgdaincemjj">Chrome Extension</a>
+          <a href={raycastStoreUrl}>Raycast Extension</a>
+          <a href={chromeStoreUrl}>Chrome Extension</a>
           <Link to="/inbox">Web Companion</Link>
         </nav>
 

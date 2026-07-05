@@ -1,3 +1,5 @@
+@use "../shared" as *;
+
 /* "And it's in your browser too" — centered intro over a dark framed panel.
    The web-app screenshot sits inside the frame and is cropped by its bottom
    edge; a blurred oversized copy of the same screenshot glows behind it, and
@@ -52,8 +54,9 @@
   width: min(100% - 4rem, 75.5625rem);
   aspect-ratio: 1209 / 647;
   margin: 3.6875rem auto 0;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 0.75rem;
+
+  @include card-border;
+
   background:
     radial-gradient(11.5rem 11.5rem at 6rem 3.5rem, rgba(70, 92, 152, 0.35), transparent 70%),
     radial-gradient(11.5rem 11.5rem at calc(100% - 7.5rem) 3.5rem, rgba(70, 92, 152, 0.35), transparent 70%),
@@ -85,8 +88,8 @@
   width: min(67.9375rem, 100% - 5rem);
   height: auto;
   margin: 4.4375rem auto 0;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 0.75rem 0.75rem 0 0;
+
+  @include card-border(0.75rem 0.75rem 0 0);
 
   @media (max-width: 768px) {
     width: calc(100% - 2rem);

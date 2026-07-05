@@ -4,7 +4,24 @@
    (glows + screenshot bleed past its edges) with the icon and CTA straddling
    the frame's top/bottom edges, so they live outside the clip as siblings. */
 .section {
+  position: relative;
   padding: 4.5rem 0 2rem;
+
+  /* Page-level ambient band behind both cards (Figma Ellipse 11: 1713×597
+     white 7% × 0.81 layer opacity, blur σ150). Box oversized by the 2σ blur
+     bleed (300px = 18.75rem per side); top aligns the ellipse 4.25rem below
+     the grid top as in Figma. */
+  &::before {
+    content: "";
+    position: absolute;
+    top: -10rem;
+    left: 50%;
+    width: 144.5rem;
+    height: 74.8rem;
+    transform: translateX(-50%);
+    pointer-events: none;
+    background: radial-gradient(50% 50% at 50% 50%, rgba(255, 255, 255, 0.055) 20%, transparent 100%);
+  }
 }
 
 .grid {
@@ -34,10 +51,12 @@
   position: relative;
   height: 35.4375rem;
   overflow: hidden;
-  border: 0.5px solid rgba(255, 255, 255, 0.3);
-  border-radius: 0.75rem;
+  /* Contain the fade's z-index so it can't stack above the frame's siblings
+     (the straddling icon and glass CTA). */
+  isolation: isolate;
   background-color: #170e0f;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  @include card-border(0.75rem, 0 8px 24px rgba(0, 0, 0, 0.4));
 
   h3 {
     margin: 2.8125rem 0 0;
@@ -59,25 +78,47 @@
   }
 }
 
-/* Figma's glow blobs: blurred #243771 circles at 24% — approximated as radial
-   gradients so no image assets are needed. */
+/* Figma's glow blobs: #243771 ellipses at 24% with layer blur σ48, rebuilt as
+   radial gradients so no image assets are needed. Geometry comes straight from
+   the Figma node boxes (card box 565×566): each gradient box is the ellipse
+   oversized by the 2σ blur bleed (96px ≈ 17%), holding the fill to roughly the
+   pre-blur edge before fading out. */
 .frameShare {
   background-image:
-    radial-gradient(50% 50% at 15% -4%, rgba(36, 55, 113, 0.3), transparent 65%),
-    radial-gradient(42% 30% at 83% -9%, rgba(36, 55, 113, 0.3), transparent 65%),
-    radial-gradient(31% 30% at 9% 46%, rgba(36, 55, 113, 0.3), transparent 65%),
-    radial-gradient(31% 30% at 86% 46%, rgba(36, 55, 113, 0.3), transparent 65%),
-    radial-gradient(42% 42% at 97% 68%, rgba(36, 55, 113, 0.3), transparent 65%),
-    radial-gradient(31% 30% at 9% 84%, rgba(36, 55, 113, 0.3), transparent 65%);
+    radial-gradient(64.1% 61.7% at 108% 62.5%, rgba(36, 55, 113, 0.24) 46%, transparent 100%),
+    radial-gradient(86.8% 81.1% at -6.8% -3.7%, rgba(36, 55, 113, 0.24) 60%, transparent 100%);
 }
 
+/* Only one blob sits behind the screenshot; the other three float above it
+   (see ::after below). */
 .frameRaycast {
-  background-image:
-    radial-gradient(22% 22% at 70% 4%, rgba(36, 55, 113, 0.3), transparent 65%),
-    radial-gradient(45% 30% at 112% 8%, rgba(36, 55, 113, 0.3), transparent 65%),
-    radial-gradient(31% 30% at 104% 53%, rgba(36, 55, 113, 0.3), transparent 65%),
-    radial-gradient(42% 42% at -12% 81%, rgba(36, 55, 113, 0.3), transparent 65%),
-    radial-gradient(22% 22% at 117% 94%, rgba(36, 55, 113, 0.3), transparent 65%);
+  background-image: radial-gradient(39% 37.9% at 104.2% 52.9%, rgba(36, 55, 113, 0.24) 12%, transparent 100%);
+
+  /* Foreground blobs: painted over the screenshot (and, as in Figma, over the
+     card text). Pseudo-element is the frame's last box, so it stacks above the
+     absolutely-positioned screenshot without z-index games. */
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(78.4% 50.1% at 112% -4.5%, rgba(36, 55, 113, 0.24) 45%, transparent 100%),
+      radial-gradient(63.3% 65% at -12.5% 67.3%, rgba(36, 55, 113, 0.24) 47%, transparent 100%),
+      radial-gradient(33% 33% at 116.5% 94%, rgba(36, 55, 113, 0.24) 0%, transparent 100%);
+  }
+}
+
+/* Progressive blur at the frame's bottom edge, softening the screenshot as it
+   runs out of the card — same treatment as the hero bottom. Rendered after the
+   screenshot so it samples it; the Raycast card's ::after blobs paint above it
+   unblurred, matching the Figma stacking. */
+.fade {
+  @include blur-fade-bottom;
+}
+
+.fadeLayer {
+  @include blur-fade-layers;
 }
 
 .shot {
@@ -117,29 +158,20 @@
   height: 4rem;
 }
 
+/* Content box only — the pill surface is the GlassPill wrapper (positioned
+   inline in the tsx to straddle the frame's bottom edge). */
 .cta {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
   display: inline-flex;
   align-items: center;
   gap: 1.4375rem;
   min-height: 3.4375rem;
   padding: 0 1.4375rem 0 0.9375rem;
-  transform: translate(-50%, 50%);
-  border-radius: 2rem;
-  background: rgba(255, 255, 255, 0.1);
   color: #fff;
   font-size: 1.25rem;
   font-weight: 500;
   letter-spacing: -0.03em;
   white-space: nowrap;
   text-decoration: none;
-  transition: background 0.2s ease;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.18);
-  }
 
   img {
     width: 1.75rem;

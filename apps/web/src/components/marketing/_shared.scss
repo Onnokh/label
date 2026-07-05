@@ -14,6 +14,79 @@
   }
 }
 
+/* Card border (Raycast recipe): a hairline low-alpha border with a 1px inset
+   top highlight that reads as the lit edge — instead of a brighter border all
+   the way around. Pass a drop shadow to layer under the inset highlight (one
+   box-shadow declaration wins, so it can't be added separately). */
+@mixin card-border($radius: 0.75rem, $shadow: null) {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: $radius;
+
+  @if $shadow {
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.15), $shadow;
+  } @else {
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
+  }
+}
+
+/* Progressive blur anchored to a clipped container's bottom — stacked layers,
+   each with a higher blur radius revealed in its own band, so the blur ramps
+   from 0 at the top of the fade to the max near the bottom edge (a single
+   backdrop-filter can only fade its opacity, not its radius). Apply
+   blur-fade-bottom to the container and blur-fade-layers to the layer class;
+   render 5 layer siblings inside the container. Height is rem (5rem = 80px at
+   the 1440 baseline) so the band scales with the fluid root font like the
+   surfaces it sits on. */
+@mixin blur-fade-bottom($height: 5rem) {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: $height;
+  z-index: 2;
+  pointer-events: none;
+}
+
+@mixin blur-fade-layers {
+  position: absolute;
+  inset: 0;
+
+  &:nth-child(1) {
+    backdrop-filter: blur(0.5px);
+    -webkit-backdrop-filter: blur(0.5px);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 30%, transparent 45%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 30%, transparent 45%);
+  }
+
+  &:nth-child(2) {
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px);
+    mask-image: linear-gradient(to bottom, transparent 15%, #000 30%, #000 50%, transparent 65%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 15%, #000 30%, #000 50%, transparent 65%);
+  }
+
+  &:nth-child(3) {
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    mask-image: linear-gradient(to bottom, transparent 35%, #000 50%, #000 70%, transparent 82%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 35%, #000 50%, #000 70%, transparent 82%);
+  }
+
+  &:nth-child(4) {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    mask-image: linear-gradient(to bottom, transparent 55%, #000 72%, #000 88%, transparent 97%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 55%, #000 72%, #000 88%, transparent 97%);
+  }
+
+  &:nth-child(5) {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    mask-image: linear-gradient(to bottom, transparent 72%, #000 90%, #000 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 72%, #000 90%, #000 100%);
+  }
+}
+
 /* Page-level edge glows (Figma Group 38): one shared pre-rendered white blob
    (ellipse 433×877, 5.7% white, blur σ150) reused at several spots on the body.
    The image carries a 300px blur-bleed pad per side, so each position offsets

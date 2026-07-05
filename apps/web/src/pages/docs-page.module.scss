@@ -1,27 +1,56 @@
+@use "../components/marketing/shared" as *;
+
+/* API reference on the marketing canvas: inherits the layout's dark background
+   and fluid vw root font; everything below is rem so the page scales with the
+   same bands as the home. */
 .page {
+  position: relative;
   min-height: 100vh;
-  background: #fff;
-  color: #000;
+  color: #fff;
+
+  /* Ambient background bands — same recipe as the home sections' glow
+     (oversized white ellipse at ~5.5% fading to nothing). One full-page
+     pseudo-element carries all the blobs so they paint behind the content.
+     Every ellipse must fade to nothing before the box's top/bottom edges or
+     the clip shows as a hard seam against the flat nav/footer background —
+     the box bleeds upward (which never extends scroll) to give the header
+     glow room, but the bottom stays at 0 (bleeding down would add scrollable
+     dark space after the footer), so the lower blobs are placed to fade out
+     inside the page (~135rem tall). Horizontal overflow is cut at the
+     viewport edge, where a clip is invisible. */
+  &::before {
+    content: "";
+    position: absolute;
+    top: -18rem;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(72rem 24rem at 50% 24rem, rgba(255, 255, 255, 0.055) 20%, transparent 100%),
+      radial-gradient(60rem 34rem at 100% 93rem, rgba(255, 255, 255, 0.04) 20%, transparent 100%),
+      radial-gradient(60rem 34rem at 0% 116rem, rgba(255, 255, 255, 0.04) 20%, transparent 100%);
+  }
 }
 
 .layout {
+  @include container;
+
+  position: relative;
   display: grid;
   grid-template-columns: 13rem minmax(0, 1fr);
   gap: 2.5rem;
-  width: min(1440px, calc(100% - 64px));
-  margin: 0 auto;
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
-    width: min(100% - 1.5rem, 1136px);
   }
 }
 
 .sidenav {
   position: sticky;
-  top: 1.5rem;
+  top: var(--navbar-total-spacing);
   align-self: start;
-  max-height: calc(100vh - 3rem);
+  max-height: calc(100vh - var(--navbar-total-spacing) - 1.5rem);
   overflow-y: auto;
   padding: 3rem 0 3rem;
   font-size: 0.75rem;
@@ -42,7 +71,7 @@
 .sidenavHeading {
   display: block;
   margin-bottom: 0.25rem;
-  color: #000;
+  color: #fff;
   font-size: 0.75rem;
   font-weight: 600;
   text-decoration: none;
@@ -66,7 +95,7 @@
   line-height: 1.6;
 
   &:hover {
-    color: #000;
+    color: #fff;
   }
 }
 
@@ -92,7 +121,8 @@
   h1 {
     margin: 0;
     font-size: 2.5rem;
-    letter-spacing: -0.01em;
+    font-weight: 700;
+    letter-spacing: -0.03em;
 
     @media (max-width: 768px) {
       font-size: 1.75rem;
@@ -101,7 +131,7 @@
 }
 
 .version {
-  color: #a0a0a0;
+  color: #737373;
   font-size: 0.875rem;
   font-weight: 500;
 }
@@ -120,31 +150,37 @@
   line-height: 1.65;
 
   code {
-    background: #f5f5f5;
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 0.25rem;
     padding: 0.1rem 0.35rem;
+    color: #fff;
     font-size: 0.8125rem;
   }
 }
 
 .group {
   margin-top: 2.5rem;
+  scroll-margin-top: var(--navbar-total-spacing);
 }
 
 .groupTitle {
   margin: 0 0 0.625rem;
   font-size: 1.25rem;
+  font-weight: 500;
   letter-spacing: -0.01em;
 }
 
+/* Collapsible cards borrow the home card-frame treatment: hairline white
+   border on a near-black surface. */
 .endpoint {
-  border: 1px solid #ebebeb;
-  border-radius: 0.5rem;
+  @include card-border;
+
   overflow: hidden;
   margin-top: 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
 
   &[data-open] {
-    border-color: #ddd;
+    border-color: rgba(255, 255, 255, 0.18);
   }
 
   &[data-open] .chevron {
@@ -161,13 +197,14 @@
   padding: 0 0.875rem;
   border: 0;
   background: transparent;
+  color: inherit;
   cursor: pointer;
   font-family: inherit;
   font-size: 0.875rem;
   text-align: left;
 
   &:hover {
-    background: #fafafa;
+    background: rgba(255, 255, 255, 0.05);
   }
 }
 
@@ -181,7 +218,7 @@
 .path {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.8125rem;
-  color: #000;
+  color: #fff;
 }
 
 .chevron {
@@ -189,7 +226,7 @@
   height: 1rem;
   flex-shrink: 0;
   margin-left: auto;
-  color: #c0c0c0;
+  color: #737373;
   transition: transform 0.15s;
 }
 
@@ -198,7 +235,7 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 0.625rem 0.875rem 1rem;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .detail {
@@ -211,7 +248,7 @@
 
 .detailLabel {
   min-width: 3rem;
-  color: #a0a0a0;
+  color: #737373;
   font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -229,7 +266,7 @@
 }
 
 .required {
-  color: #a0a0a0;
+  color: #737373;
   font-size: 0.6875rem;
 }
 
@@ -253,13 +290,13 @@
 }
 
 .statusOk {
-  background: #ecfdf5;
-  color: #059669;
+  background: rgba(110, 231, 162, 0.12);
+  color: #6ee7a2;
 }
 
 .statusErr {
-  background: #fef2f2;
-  color: #dc2626;
+  background: rgba(255, 95, 87, 0.12);
+  color: #ff5f57;
 }
 
 .typeLink {
@@ -274,10 +311,16 @@
 }
 
 .schemaDef {
-  border: 1px solid #ebebeb;
-  border-radius: 0.5rem;
+  @include card-border;
+
+  scroll-margin-top: var(--navbar-total-spacing);
   overflow: hidden;
   margin-top: 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
+
+  &[data-open] {
+    border-color: rgba(255, 255, 255, 0.18);
+  }
 
   &[data-open] .chevron {
     transform: rotate(180deg);
@@ -293,12 +336,13 @@
   padding: 0 0.875rem;
   border: 0;
   background: transparent;
+  color: inherit;
   cursor: pointer;
   font-family: inherit;
   text-align: left;
 
   &:hover {
-    background: #fafafa;
+    background: rgba(255, 255, 255, 0.05);
   }
 }
 
@@ -309,14 +353,14 @@
 }
 
 .schemaCount {
-  color: #a0a0a0;
+  color: #737373;
   font-size: 0.75rem;
 }
 
 .schemaBody {
   display: flex;
   flex-direction: column;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .field {
@@ -327,7 +371,7 @@
   font-size: 0.8125rem;
 
   &:not(:last-child) {
-    border-bottom: 1px solid #f7f7f7;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
 }
 
