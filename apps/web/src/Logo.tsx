@@ -1,8 +1,8 @@
 export function Logo({ size = 32 }: { readonly size?: number }) {
   return (
     <div className="logo">
-      <img className="logoIcon" src="/app-icon-160.webp" alt="" width={size} height={size} />
-      <span className="logoText" style={{ fontSize: size * 0.55 }}>Sleevy</span>
+      <img className="logoIcon" src="/logo-mark.svg" alt="" height={size} />
+      <span className="logoText">Sleevy</span>
     </div>
   )
 }

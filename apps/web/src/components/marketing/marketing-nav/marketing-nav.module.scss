@@ -264,3 +264,25 @@
     background: #cdcece;
   }
 }
+
+.avatar,
+.avatarFallback {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.avatar {
+  object-fit: cover;
+}
+
+.avatarFallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #e6e6e6;
+  font-size: 0.625rem;
+  font-weight: 600;
+  background: #555;
+}

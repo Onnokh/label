@@ -28,25 +28,20 @@ button.sidebar-capture-button {
   justify-content: flex-start;
   gap: 0.75rem;
   border-color: transparent;
-  background: linear-gradient(139.29deg, #F3C087 0.64%, #F59683 50.06%, #F755AB 99.48%);
+  background: linear-gradient(139.29deg, #243771 0.64%, #600e44 99.48%);
   color: #fff;
 }
 
 [data-theme="dark"] button.sidebar-capture-button {
-  border: 1px solid #d4d0c8;
-  border-radius: 4px;
-  background: #d4d0c8;
-  color: #171717;
-}
-
-.sidebar-capture-brandmark {
-  flex-shrink: 0;
-  height: 1.125rem;
-  object-fit: contain;
-}
-
-[data-theme="dark"] .sidebar-capture-brandmark {
-  filter: invert(1);
+  border: 1px solid #e6e6e6;
+  border-radius: 0.5rem;
+  background: #e6e6e6;
+  color: #2f3031;
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.5),
+    0 0 14px 0 rgba(255, 255, 255, 0.19),
+    inset 0 -1px 0.4px 0 rgba(0, 0, 0, 0.2),
+    inset 0 1px 0.4px 0 #fff;
 }
 
 .sidebar-capture-button span {
@@ -72,22 +67,22 @@ button.sidebar-capture-button kbd {
 }
 
 [data-theme="dark"] button.sidebar-capture-button kbd {
-  border-color: rgba(23, 23, 23, 0.24);
-  background: rgba(23, 23, 23, 0.08);
-  color: #171717;
+  border-color: rgba(47, 48, 49, 0.24);
+  background: rgba(47, 48, 49, 0.08);
+  color: #2f3031;
 }
 
 button.sidebar-capture-button:hover:not(:disabled) {
-  background: linear-gradient(139.29deg, #F3C087 0.64%, #F59683 50.06%, #F755AB 99.48%);
+  background: linear-gradient(139.29deg, #243771 0.64%, #600e44 99.48%);
   border-color: transparent;
   color: #fff;
   filter: brightness(1.05);
 }
 
 [data-theme="dark"] button.sidebar-capture-button:hover:not(:disabled) {
-  border-color: #f0eee9;
-  background: #f0eee9;
-  color: #171717;
+  border-color: #fff;
+  background: #fff;
+  color: #2f3031;
 }
 
 .sidebar-bottom {
