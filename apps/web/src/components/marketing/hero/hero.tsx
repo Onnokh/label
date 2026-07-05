@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import {
   m,
   type MotionStyle,
@@ -24,11 +24,24 @@ export function Hero({ children }: { children: ReactNode }) {
   // The pin/expand runs on all sizes (portrait vs landscape framing is handled by
   // CSS vars per breakpoint); only prefers-reduced-motion falls back to a static hero.
   const animateHero = !reduceMotion
+  // Scroll-linked Motion styles are applied only after the first scroll: rendering
+  // them during SSR/initial hydration mismatches React (the MotionValue inline
+  // styles don't match the static CSS rest pose the server emits). Until then the
+  // hero sits in its CSS rest pose; the expand can't be seen without scrolling
+  // anyway, so nothing is lost.
+  const [hasScrolled, setHasScrolled] = useState(false)
   const [glowVisible, setGlowVisible] = useState(false)
   const glowX = useMotionValue(0)
   const glowY = useMotionValue(0)
   const springX = useSpring(glowX, { stiffness: 220, damping: 30, mass: 0.5 })
   const springY = useSpring(glowY, { stiffness: 220, damping: 30, mass: 0.5 })
+
+  useEffect(() => {
+    const activate = () => setHasScrolled(true)
+    if (window.scrollY > 0) activate()
+    window.addEventListener("scroll", activate, { once: true, passive: true })
+    return () => window.removeEventListener("scroll", activate)
+  }, [])
 
   // Scroll-driven full-bleed expand: as the page scrolls, the hero grows edge to
   // edge (losing its inset + radius) while the phone shrinks into full view.
@@ -92,7 +105,7 @@ export function Hero({ children }: { children: ReactNode }) {
       <div className={styles.track} ref={heroTrackRef} style={animateHero ? undefined : { height: "auto" }}>
         {/* Page-level edge glows from Figma (Group 38): shared pre-rendered white
             blob, sitting on the body behind the hero card and follow strip. */}
-        <img className={styles.glowLeft} src="/page-glow.webp" alt="" aria-hidden="true" />
+        <div className={styles.glowLeft} aria-hidden="true" />
         <m.section
           className={styles.hero}
           aria-label="Sleevy"
@@ -100,7 +113,7 @@ export function Hero({ children }: { children: ReactNode }) {
           onPointerEnter={() => !reduceMotion && setGlowVisible(true)}
           onPointerLeave={() => setGlowVisible(false)}
           style={
-            animateHero
+            animateHero && hasScrolled
               ? {
                   width: heroWidth,
                   height: heroHeight,
@@ -111,12 +124,12 @@ export function Hero({ children }: { children: ReactNode }) {
               : { position: "relative" }
           }
         >
-          {/* Glow blobs pre-rendered as 2x transparent lossless WebPs (no SVG-filter banding),
+          {/* Glow blobs pre-rendered as transparent AVIFs (no SVG-filter banding),
               split across two layers to match the Figma stacking: back sits behind
               the phone, front floats above it. */}
           <div className={styles.bg} aria-hidden="true">
             <img className={styles.bgGrid} src="/hero-grid.svg" alt="" />
-            <img className={styles.bgLayer} src="/hero-blobs-back.webp" alt="" />
+            <img className={styles.bgLayer} src="/hero-blobs-back.avif" alt="" />
           </div>
           {reduceMotion ? null : (
             <m.div
@@ -129,7 +142,7 @@ export function Hero({ children }: { children: ReactNode }) {
           )}
           <m.div
             className={styles.content}
-            style={animateHero ? { opacity: contentOpacity, pointerEvents: contentPointer } : undefined}
+            style={animateHero && hasScrolled ? { opacity: contentOpacity, pointerEvents: contentPointer } : undefined}
           >
             <h1 className={styles.title}>
               <span>One tap to save.</span>
@@ -149,10 +162,7 @@ export function Hero({ children }: { children: ReactNode }) {
               <img src="/app-store-352.webp" alt="Download on the App Store" width={352} height={118} />
             </m.a>
           </m.div>
-          <m.div
-            className={styles.phoneWrap}
-            style={animateHero ? { transform: phoneTransform } : undefined}
-          >
+          <m.div className={styles.phoneWrap} style={animateHero && hasScrolled ? { transform: phoneTransform } : undefined}>
             <m.img
               className={styles.phone}
               src="/hero-phone-full.webp"
@@ -166,15 +176,11 @@ export function Hero({ children }: { children: ReactNode }) {
                   : { y: "40%", scale: 1.3, filter: "blur(18px)", opacity: 0 }
               }
               animate={{ y: 0, scale: 1, filter: "blur(0px)", opacity: 1 }}
-              transition={
-                reduceMotion
-                  ? { duration: 0 }
-                  : { delay: 0.45, duration: 1.7, ease: [0.22, 1, 0.36, 1] }
-              }
+              transition={reduceMotion ? { duration: 0 } : { delay: 0.45, duration: 1.7, ease: [0.22, 1, 0.36, 1] }}
             />
           </m.div>
           <div className={`${styles.bg} ${styles.bgOver}`} aria-hidden="true">
-            <img className={styles.bgLayer} src="/hero-blobs-front.webp" alt="" />
+            <img className={styles.bgLayer} src="/hero-blobs-front.avif" alt="" />
           </div>
           <div className={styles.grain} aria-hidden="true" />
           <div className={styles.fade} aria-hidden="true">
@@ -199,12 +205,18 @@ export function Hero({ children }: { children: ReactNode }) {
             takes over exactly as the hero's real one gets squeezed out. */}
         <m.div
           className={styles.followInner}
-          style={animateHero ? ({ "--hero-seam": heightExpand } as MotionStyle) : { position: "static" }}
+          style={
+            animateHero
+              ? hasScrolled
+                ? ({ "--hero-seam": heightExpand } as MotionStyle)
+                : undefined
+              : { position: "static" }
+          }
         >
           {/* Right-edge glow lives inside the strip (the strip's solid background
               would curtain a track-level glow); the ellipse fades in from the strip
               top so nothing pokes over the hero card. */}
-          <img className={styles.glowRight} src="/page-glow.webp" alt="" aria-hidden="true" />
+          <div className={styles.glowRight} aria-hidden="true" />
 
           {children}
         </m.div>

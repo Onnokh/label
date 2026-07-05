@@ -197,14 +197,28 @@
 }
 
 .glowLeft {
-  @include page-glow;
-
   top: -11.25rem;
   left: -37.8125rem;
 }
 
+.glowLeft,
 .glowRight {
-  @include page-glow;
+  position: absolute;
+  width: 64.5625rem;
+  height: 92.3125rem;
+  pointer-events: none;
+
+  &::before {
+    position: absolute;
+    inset: 18.75rem;
+    border-radius: 50%;
+    background: rgb(255 255 255 / 5.7%);
+    filter: blur(9.375rem);
+    content: "";
+  }
+}
+
+.glowRight {
 
   /* Inside .followInner (a stacking context): -1 keeps it above the
      strip's background but under the section content. -18.75rem is exactly the

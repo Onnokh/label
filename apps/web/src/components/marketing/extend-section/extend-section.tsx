@@ -6,7 +6,7 @@ import styles from "./extend-section.module.scss"
 export function ExtendSection() {
   return (
     <section className={styles.section} aria-labelledby="extend-title">
-      <img className={styles.glow} src="/page-glow.webp" alt="" aria-hidden="true" />
+      <div className={styles.glow} aria-hidden="true" />
       <h2 className={styles.title} id="extend-title">
         Built to extend.
       </h2>
