@@ -22,31 +22,69 @@
   top: 20%;
   left: 50%;
   transform: translateX(-50%);
-  width: 500px;
-  max-height: 380px;
+  width: min(720px, calc(100vw - 32px));
+  max-height: 650px;
   background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
   overflow: hidden;
   z-index: 101;
   padding: 0;
-  box-shadow: 0 16px 48px var(--shadow);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px var(--shadow);
 
   [cmdk-root] {
     display: flex;
     flex-direction: column;
-    max-height: 380px;
+    max-height: 650px;
+  }
+}
+
+.cmdk-search {
+  display: flex;
+  align-items: center;
+  height: 2.75rem;
+  margin: 0.5rem;
+  background: var(--panel-muted);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+
+  > svg {
+    width: 16px;
+    height: 16px;
+    margin-left: 0.75rem;
+    flex-shrink: 0;
+    color: var(--faint);
+  }
+
+  > kbd {
+    display: inline-grid;
+    place-items: center;
+    min-width: 24px;
+    height: 20px;
+    margin-right: 0.5rem;
+    padding: 0 0.375rem;
+    flex-shrink: 0;
+    color: var(--faint);
+    background: var(--panel-muted);
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+    font-size: 0.625rem;
+    font-family: inherit;
+    line-height: 1;
   }
 }
 
 [cmdk-input] {
-  width: 100%;
-  padding: 14px 12px;
+  width: auto;
+  min-width: 0;
+  flex: 1;
+  height: 100%;
+  padding: 0.5rem 0.75rem;
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   color: var(--text);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   outline: none;
   flex-shrink: 0;
 
@@ -60,7 +98,8 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 4px 6px 6px;
+  max-height: 500px;
+  padding: 0 0.25rem 0.25rem;
   scroll-padding-block-end: 32px;
 }
 
@@ -68,7 +107,7 @@
   font-size: 0.625rem;
   font-weight: 500;
   color: var(--faint);
-  padding: 6px 8px 4px;
+  padding: 0.5rem 0.5rem 0.25rem;
   user-select: none;
 }
 
@@ -76,9 +115,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 30px;
-  padding: 0 8px;
-  border-radius: 5px;
+  min-height: 2.5rem;
+  height: auto;
+  padding: 0.375rem 0.5rem;
+  border: 0;
+  border-radius: 0.375rem;
   cursor: pointer;
   font-size: 0.75rem;
   color: var(--text);
@@ -86,6 +127,7 @@
 
   &[data-selected="true"] {
     background: var(--panel-muted);
+    outline: none;
   }
 
   &[aria-disabled="true"] {
@@ -106,8 +148,8 @@
 .cmdk-icon,
 .cmdk-favicon {
   flex-shrink: 0;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -194,8 +236,8 @@
 .cmdk-footer {
   display: flex;
   align-items: center;
-  height: 30px;
-  padding: 0 12px;
+  height: 2.5rem;
+  padding: 0 0.75rem;
   border-top: 1px solid var(--border);
   background: var(--panel);
   flex-shrink: 0;
@@ -227,5 +269,25 @@
     font-size: 0.5625rem;
     font-family: inherit;
     color: var(--faint);
+  }
+}
+
+.cmdk-footer-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--faint);
+  font-size: 0.625rem;
+
+  kbd {
+    display: inline-grid;
+    place-items: center;
+    min-width: 20px;
+    height: 16px;
+    padding: 0 4px;
+    background: var(--panel-muted);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font: inherit;
   }
 }

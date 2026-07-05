@@ -1,7 +1,9 @@
 import { Outlet } from "@tanstack/react-router"
+import { Moon, Sun } from "lucide-react"
 
 import { Logo } from "../../Logo"
 import { useKeyboardNav } from "../../contexts/keyboard-nav-context"
+import { useTheme } from "../../contexts/theme-context"
 import { AccountMenu } from "../account-menu/account-menu"
 import { CaptureDialog } from "../capture-dialog/capture-dialog"
 import { CommandPalette } from "../command-palette/command-palette"
@@ -20,7 +22,10 @@ export function Dashboard({ user }: { readonly user: User }) {
       <div className="dashboard">
         <aside className="sidebar">
           <div className="sidebar-top">
-            <Logo size={28} />
+            <div className="sidebar-brand">
+              <Logo size={28} />
+              <SidebarThemeToggle />
+            </div>
             <SidebarCaptureButton />
             <LibraryNav />
             <FolderSidebar />
@@ -39,5 +44,24 @@ export function Dashboard({ user }: { readonly user: User }) {
       <CommandPalette />
       <KeyboardHelp />
     </>
+  )
+}
+
+function SidebarThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme()
+  const label = resolvedTheme === "dark" ? "Use light theme" : "Use dark theme"
+
+  return (
+    <button
+      type="button"
+      className="sidebar-theme-toggle"
+      data-theme={resolvedTheme}
+      aria-label={label}
+      title={label}
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+    >
+      <Sun className="sidebar-theme-icon sidebar-theme-icon-sun" size={16} aria-hidden="true" />
+      <Moon className="sidebar-theme-icon sidebar-theme-icon-moon" size={16} aria-hidden="true" />
+    </button>
   )
 }

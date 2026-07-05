@@ -1,5 +1,6 @@
 import { CommandDialog, CommandGroup, CommandInput, CommandList } from "cmdk"
 import { Description as DialogDescription, Title as DialogTitle } from "@radix-ui/react-dialog"
+import { Search } from "lucide-react"
 
 import { CaptureCommandItem } from "../capture-command-item/capture-command-item"
 import { useCapture } from "../../sleevy/saved-items"
@@ -34,22 +35,29 @@ export function CaptureDialog({ initialUrl, onClose }: { readonly initialUrl: st
     >
       <DialogTitle className="sr-only">Capture URL</DialogTitle>
       <DialogDescription className="sr-only">Paste a URL to save it to your reading list.</DialogDescription>
-      <CommandInput
-        placeholder="Paste a URL..."
-        value={capture.url}
-        onValueChange={capture.setUrl}
-      />
+      <div className="cmdk-search">
+        <Search aria-hidden="true" />
+        <CommandInput
+          placeholder="Paste a URL..."
+          value={capture.url}
+          onValueChange={capture.setUrl}
+        />
+        <kbd>esc</kbd>
+      </div>
       <CommandList>
         <CommandGroup forceMount>
           <CaptureCommandItem
             url={trimmedUrl}
             disabled={!trimmedUrl || capture.isPending}
-            actionLabel={capture.isPending ? "Saving..." : "Capture"}
+            actionLabel={capture.isPending ? "Saving..." : undefined}
             onSelect={captureAndClose}
           />
         </CommandGroup>
       </CommandList>
       {capture.formError ? <div className="cmdk-error">{capture.formError}</div> : null}
+      <div className="cmdk-footer">
+        <span className="cmdk-footer-hint"><kbd>↵</kbd> Capture</span>
+      </div>
     </CommandDialog>
   )
 }
