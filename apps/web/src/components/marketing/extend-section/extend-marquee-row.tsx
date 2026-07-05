@@ -1,7 +1,7 @@
 import { useRef } from "react"
 import clsx from "clsx"
 import {
-  motion,
+  m,
   useAnimationFrame,
   useMotionValue,
   useReducedMotion,
@@ -57,13 +57,13 @@ export function ExtendMarqueeRow({ baseVelocity, offset }: { baseVelocity: numbe
   // behind a stationary center mask, so the tile passing the middle lights up.
   return (
     <div className={clsx(styles.row, offset && styles.rowOffset)}>
-      <motion.div className={clsx(styles.track, styles.trackDim)} style={{ x }}>
+      <m.div className={clsx(styles.track, styles.trackDim)} style={{ x }}>
         {tiles}
-      </motion.div>
+      </m.div>
       <div className={styles.spotlight}>
-        <motion.div className={styles.track} style={{ x }}>
+        <m.div className={styles.track} style={{ x }}>
           {tiles}
-        </motion.div>
+        </m.div>
       </div>
     </div>
   )

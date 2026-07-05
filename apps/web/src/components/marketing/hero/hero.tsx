@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from "react"
 import {
-  motion,
+  m,
   type MotionStyle,
   useMotionTemplate,
   useMotionValue,
@@ -93,7 +93,7 @@ export function Hero({ children }: { children: ReactNode }) {
         {/* Page-level edge glows from Figma (Group 38): shared pre-rendered white
             blob, sitting on the body behind the hero card and follow strip. */}
         <img className={styles.glowLeft} src="/page-glow.webp" alt="" aria-hidden="true" />
-        <motion.section
+        <m.section
           className={styles.hero}
           aria-label="Sleevy"
           onPointerMove={handleHeroPointerMove}
@@ -119,7 +119,7 @@ export function Hero({ children }: { children: ReactNode }) {
             <img className={styles.bgLayer} src="/hero-blobs-back.webp" alt="" />
           </div>
           {reduceMotion ? null : (
-            <motion.div
+            <m.div
               className={styles.glow}
               aria-hidden="true"
               style={{ x: springX, y: springY }}
@@ -127,7 +127,7 @@ export function Hero({ children }: { children: ReactNode }) {
               transition={{ duration: 0.4, ease: "easeOut" }}
             />
           )}
-          <motion.div
+          <m.div
             className={styles.content}
             style={animateHero ? { opacity: contentOpacity, pointerEvents: contentPointer } : undefined}
           >
@@ -138,7 +138,7 @@ export function Hero({ children }: { children: ReactNode }) {
             <p className={styles.sub}>
               A bookmark manager you can script, <strong>automate</strong>, and extend.
             </p>
-            <motion.a
+            <m.a
               className={styles.cta}
               href={appStoreUrl}
               aria-label="Download on the App Store"
@@ -147,13 +147,13 @@ export function Hero({ children }: { children: ReactNode }) {
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
             >
               <img src="/app-store-352.webp" alt="Download on the App Store" width={352} height={118} />
-            </motion.a>
-          </motion.div>
-          <motion.div
+            </m.a>
+          </m.div>
+          <m.div
             className={styles.phoneWrap}
             style={animateHero ? { transform: phoneTransform } : undefined}
           >
-            <motion.img
+            <m.img
               className={styles.phone}
               src="/hero-phone-full.webp"
               alt="Sleevy inbox on iPhone"
@@ -172,7 +172,7 @@ export function Hero({ children }: { children: ReactNode }) {
                   : { delay: 0.45, duration: 1.7, ease: [0.22, 1, 0.36, 1] }
               }
             />
-          </motion.div>
+          </m.div>
           <div className={`${styles.bg} ${styles.bgOver}`} aria-hidden="true">
             <img className={styles.bgLayer} src="/hero-blobs-front.webp" alt="" />
           </div>
@@ -184,7 +184,7 @@ export function Hero({ children }: { children: ReactNode }) {
             <div className={styles.fadeLayer} />
             <div className={styles.fadeLayer} />
           </div>
-        </motion.section>
+        </m.section>
       </div>
 
       {/* Everything after the hero is pulled up over the track's runway so the page
@@ -197,7 +197,7 @@ export function Hero({ children }: { children: ReactNode }) {
             re-cast from the strip side of the seam — see hero.module.scss). It tracks
             heightExpand: the same ramp that closes the rest gap, so the fake shadow
             takes over exactly as the hero's real one gets squeezed out. */}
-        <motion.div
+        <m.div
           className={styles.followInner}
           style={animateHero ? ({ "--hero-seam": heightExpand } as MotionStyle) : { position: "static" }}
         >
@@ -207,7 +207,7 @@ export function Hero({ children }: { children: ReactNode }) {
           <img className={styles.glowRight} src="/page-glow.webp" alt="" aria-hidden="true" />
 
           {children}
-        </motion.div>
+        </m.div>
         {/* Sticky park range for .followInner — must be a sibling, not the
             inner's own margin (see hero.module.scss). Collapsed in the static layout. */}
         <div className={styles.spacer} aria-hidden="true" style={animateHero ? undefined : { height: 0 }} />
