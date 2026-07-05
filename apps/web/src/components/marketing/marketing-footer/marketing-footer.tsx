@@ -20,8 +20,8 @@ export function MarketingFooter() {
 
         <nav className={styles.col} aria-label="Integrations">
           <span className={styles.colTitle}>Integrations</span>
-          <a href={raycastStoreUrl}>Raycast Extension</a>
-          <a href={chromeStoreUrl}>Chrome Extension</a>
+          <a href={raycastStoreUrl} target="_blank" rel="noreferrer">Raycast Extension</a>
+          <a href={chromeStoreUrl} target="_blank" rel="noreferrer">Chrome Extension</a>
           <Link to="/inbox">Web Companion</Link>
         </nav>
 

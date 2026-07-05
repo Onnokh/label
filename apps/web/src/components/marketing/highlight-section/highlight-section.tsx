@@ -1,7 +1,7 @@
 import clsx from "clsx"
 
 import { GlassPill } from "../glass-pill/glass-pill"
-import { appStoreUrl, raycastStoreUrl } from "../store-links"
+import { appStoreUrl, raycastDeeplink } from "../store-links"
 import styles from "./highlight-section.module.scss"
 
 /* Straddle the frame's bottom edge, as the old .cta did. Inline because
@@ -75,7 +75,7 @@ export function HighlightSection() {
             loading="lazy"
           />
           <GlassPill radius={28} style={ctaGlassPosition}>
-            <a className={clsx(styles.cta, styles.ctaRaycast)} href={raycastStoreUrl}>
+            <a className={clsx(styles.cta, styles.ctaRaycast)} href={raycastDeeplink}>
               <img src="/raycast-82.webp" alt="" width={82} height={82} loading="lazy" />
               Add to your Raycast
             </a>

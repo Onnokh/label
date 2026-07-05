@@ -35,10 +35,8 @@ export function MarketingNav() {
         <div className={styles.menu}>
           <div className={styles.menuInner}>
             <div className={styles.navigation}>
-              {/* TODO: Demo is a placeholder — no destination yet */}
-              <a className={styles.link} href="#" aria-disabled="true" onClick={closeMenu}>Demo</a>
-              <a className={styles.link} href={raycastStoreUrl} onClick={closeMenu}>Raycast Extension</a>
-              <a className={styles.link} href={chromeStoreUrl} onClick={closeMenu}>Chrome Extension</a>
+              <a className={styles.link} href={raycastStoreUrl} target="_blank" rel="noreferrer" onClick={closeMenu}>Raycast Extension</a>
+              <a className={styles.link} href={chromeStoreUrl} target="_blank" rel="noreferrer" onClick={closeMenu}>Chrome Extension</a>
               <Link className={styles.link} to="/docs" onClick={closeMenu}>Docs</Link>
             </div>
             <div className={styles.secondary}>
