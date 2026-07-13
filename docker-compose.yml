@@ -97,7 +97,7 @@ services:
       args:
         VITE_API_BASE_URL: ${SERVICE_URL_API:-http://localhost:3002}
         VITE_WEB_BASE_URL: ${SERVICE_URL_WEB:-http://localhost:8080}
-        VITE_RYBBIT_SITE_ID: ${VITE_RYBBIT_SITE_ID:-}
+        VITE_RYBBIT_SITE_ID: ${RYBBIT_SITE_ID:-}
         VITE_RYBBIT_SCRIPT_SRC: ${VITE_RYBBIT_SCRIPT_SRC:-}
     restart: unless-stopped
     depends_on:
