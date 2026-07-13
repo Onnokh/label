@@ -31,12 +31,12 @@ const definitions = {
     ],
   },
   footer: {
-    base: [10, 11, 20],
+    base: [8, 9, 15],
     anchors: [
-      { x: 0.08, y: 0.18, color: [52, 30, 70], reach: 0.7, radius: 0.6 },
-      { x: 0.74, y: 0.16, color: [30, 45, 93], reach: 0.7, radius: 0.64 },
-      { x: 0.26, y: 0.94, color: [35, 26, 63], reach: 0.72, radius: 0.54 },
-      { x: 0.9, y: 0.82, color: [33, 52, 101], reach: 0.82, radius: 0.68 },
+      { x: 0.12, y: 0.2, color: [71, 39, 91], reach: 0.4, radius: 0.3 },
+      { x: 0.76, y: 0.18, color: [39, 66, 135], reach: 0.42, radius: 0.28 },
+      { x: 0.28, y: 0.94, color: [54, 31, 82], reach: 0.38, radius: 0.26 },
+      { x: 0.9, y: 0.82, color: [41, 73, 145], reach: 0.4, radius: 0.3 },
     ],
   },
 } as const
@@ -47,7 +47,7 @@ const illumination = {
   hero: 0.42,
   share: 0.29,
   workflow: 0.29,
-  footer: 0.13,
+  footer: 0.34,
 } as const
 
 const canvasStyle = {
