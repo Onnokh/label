@@ -1,6 +1,7 @@
 import clsx from "clsx"
 
 import { GlassPill } from "../glass-pill/glass-pill"
+import { BlueMeshGradient } from "../hero/blue-mesh-gradient"
 import { appStoreUrl, raycastDeeplink } from "../store-links"
 import styles from "./highlight-section.module.scss"
 
@@ -32,6 +33,7 @@ export function HighlightSection() {
       <div className={styles.grid}>
         <article className={styles.card}>
           <div className={clsx(styles.frame, styles.frameShare)}>
+            <BlueMeshGradient variant="share" />
             <h3>Native Share</h3>
             <p>Hit share in any app, pick Sleevy, and the link is saved. Nothing to copy or paste.</p>
             <img
@@ -54,6 +56,7 @@ export function HighlightSection() {
         </article>
         <article className={styles.card}>
           <div className={clsx(styles.frame, styles.frameRaycast)}>
+            <BlueMeshGradient variant="workflow" />
             <h3>In your workflow</h3>
             <p>Capture and search from Raycast without leaving the keyboard.</p>
             <img

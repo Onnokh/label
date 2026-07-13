@@ -11,6 +11,7 @@ import {
 } from "motion/react"
 
 import { appStoreUrl } from "../store-links"
+import { BlueMeshGradient } from "./blue-mesh-gradient"
 import styles from "./hero.module.scss"
 
 /**
@@ -128,8 +129,8 @@ export function Hero({ children }: { children: ReactNode }) {
               split across two layers to match the Figma stacking: back sits behind
               the phone, front floats above it. */}
           <div className={styles.bg} aria-hidden="true">
+            <BlueMeshGradient />
             <img className={styles.bgGrid} src="/hero-grid.svg" alt="" />
-            <div className={`${styles.bgLayer} ${styles.bgBack}`} />
           </div>
           {reduceMotion ? null : (
             <m.div
@@ -178,9 +179,6 @@ export function Hero({ children }: { children: ReactNode }) {
               height={1252}
             />
           </m.div>
-          <div className={`${styles.bg} ${styles.bgOver}`} aria-hidden="true">
-            <div className={`${styles.bgLayer} ${styles.bgFront}`} />
-          </div>
           <div className={styles.grain} aria-hidden="true" />
           <div className={styles.fade} aria-hidden="true">
             <div className={styles.fadeLayer} />

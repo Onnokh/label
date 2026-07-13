@@ -59,6 +59,8 @@
   @include card-border(0.75rem, 0 8px 24px rgba(0, 0, 0, 0.4));
 
   h3 {
+    position: relative;
+    z-index: 1;
     margin: 2.8125rem 0 0;
     color: #fff;
     font-size: 1.5rem;
@@ -68,6 +70,8 @@
   }
 
   p {
+    position: relative;
+    z-index: 1;
     margin: 0.625rem auto 0;
     max-width: 24.3125rem;
     padding: 0 1.25rem;
@@ -75,37 +79,6 @@
     font-size: 1rem;
     line-height: 1.65;
     text-align: center;
-  }
-}
-
-/* Figma's glow blobs: #243771 ellipses at 24% with layer blur σ48, rebuilt as
-   radial gradients so no image assets are needed. Geometry comes straight from
-   the Figma node boxes (card box 565×566): each gradient box is the ellipse
-   oversized by the 2σ blur bleed (96px ≈ 17%), holding the fill to roughly the
-   pre-blur edge before fading out. */
-.frameShare {
-  background-image:
-    radial-gradient(64.1% 61.7% at 108% 62.5%, rgba(36, 55, 113, 0.24) 46%, transparent 100%),
-    radial-gradient(86.8% 81.1% at -6.8% -3.7%, rgba(36, 55, 113, 0.24) 60%, transparent 100%);
-}
-
-/* Only one blob sits behind the screenshot; the other three float above it
-   (see ::after below). */
-.frameRaycast {
-  background-image: radial-gradient(39% 37.9% at 104.2% 52.9%, rgba(36, 55, 113, 0.24) 12%, transparent 100%);
-
-  /* Foreground blobs: painted over the screenshot (and, as in Figma, over the
-     card text). Pseudo-element is the frame's last box, so it stacks above the
-     absolutely-positioned screenshot without z-index games. */
-  &::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background-image:
-      radial-gradient(78.4% 50.1% at 112% -4.5%, rgba(36, 55, 113, 0.24) 45%, transparent 100%),
-      radial-gradient(63.3% 65% at -12.5% 67.3%, rgba(36, 55, 113, 0.24) 47%, transparent 100%),
-      radial-gradient(33% 33% at 116.5% 94%, rgba(36, 55, 113, 0.24) 0%, transparent 100%);
   }
 }
 
