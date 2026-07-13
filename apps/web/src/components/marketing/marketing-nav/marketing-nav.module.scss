@@ -208,6 +208,21 @@
   }
 }
 
+.iconLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  @media (max-width: 768px) {
+    justify-content: flex-start;
+  }
+}
+
 .secondary {
   position: absolute;
   top: 50%;
