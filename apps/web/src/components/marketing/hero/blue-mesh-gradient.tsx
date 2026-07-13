@@ -37,6 +37,22 @@ const definitions = {
       { x: 0.88, y: 0.86, color: [32, 62, 123], reach: 0.7, radius: 0.6 },
     ],
   },
+  login: {
+    base: [10, 11, 21],
+    anchors: [
+      { x: 0.12, y: 0.82, color: [112, 18, 77], reach: 0.8, radius: 0.62 },
+      { x: 0.82, y: 0.22, color: [44, 77, 157], reach: 0.74, radius: 0.68 },
+      { x: 0.58, y: 0.62, color: [98, 45, 119], reach: 0.78, radius: 0.6 },
+    ],
+  },
+  settings: {
+    base: [13, 14, 25],
+    anchors: [
+      { x: 0.08, y: 0.86, color: [43, 62, 134], reach: 0.72, radius: 0.58 },
+      { x: 0.88, y: 0.1, color: [95, 35, 96], reach: 0.68, radius: 0.62 },
+      { x: 0.55, y: 0.45, color: [58, 66, 142], reach: 0.74, radius: 0.6 },
+    ],
+  },
 } as const
 
 const falloff = 1.75
@@ -46,6 +62,8 @@ const illumination = {
   share: 0.29,
   workflow: 0.29,
   footer: 0.24,
+  login: 0.36,
+  settings: 0.3,
 } as const
 
 const canvasStyle = {

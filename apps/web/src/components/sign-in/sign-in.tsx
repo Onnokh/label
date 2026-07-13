@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { authClient } from "../../auth"
+import { BlueMeshGradient } from "../marketing/hero/blue-mesh-gradient"
 import styles from "./sign-in.module.scss"
 
 export function SignIn() {
@@ -28,6 +29,7 @@ export function SignIn() {
   return (
     <div className={styles.page}>
       <div className={styles.brandPanel}>
+        <BlueMeshGradient variant="login" />
         <div className={styles.grain} aria-hidden="true" />
         <a href="/" className={styles.brand}>
           <img src="/logo-mark.svg" alt="" height={28} />

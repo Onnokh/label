@@ -20,12 +20,7 @@
   }
 }
 
-/* Hero-family backdrop, rebuilt as pure CSS so it composes at any aspect
-   ratio (the hero's pre-rendered blob rasters are card-shaped and squish
-   when stretched into a portrait panel). Blob radii are fixed rem — same
-   ellipse colors as the hero (#600E44 / #243771, Figma layer-blur look) —
-   only their anchor points track the panel size. The grid is the hero
-   grid's line recipe (1px white @5%) as repeating gradients. */
+/* The mesh sits beneath the shared hero grid and grain texture. */
 .brandPanel {
   position: relative;
   display: flex;
@@ -34,21 +29,6 @@
   padding: 2.5rem;
   overflow: hidden;
   background-color: #0a0b12;
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-    radial-gradient(38rem 34rem at 80% -8rem, rgba(96, 14, 68, 0.85) 10%, transparent 75%),
-    radial-gradient(42rem 38rem at calc(100% + 10rem) 60%, rgba(36, 55, 113, 0.55) 10%, transparent 75%),
-    radial-gradient(36rem 32rem at -10rem 105%, rgba(96, 14, 68, 0.6) 10%, transparent 75%),
-    radial-gradient(30rem 28rem at 30% 45%, rgba(36, 55, 113, 0.35) 0%, transparent 80%);
-  background-size:
-    9.6rem 100%,
-    100% 14.5rem,
-    100% 100%,
-    100% 100%,
-    100% 100%,
-    100% 100%;
-  background-repeat: repeat, repeat, no-repeat, no-repeat, no-repeat, no-repeat;
 
   @include card-border(1rem, 0 8px 24px rgba(0, 0, 0, 0.4));
 
@@ -60,6 +40,18 @@
     border-radius: 0;
     box-shadow: none;
   }
+}
+
+.brandPanel::before {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  content: "";
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 9.6rem 100%, 100% 14.5rem;
 }
 
 /* Grain dither, same trick as the hero: breaks banding in the blurred glows. */
