@@ -33,10 +33,8 @@ const definitions = {
   footer: {
     base: [8, 9, 15],
     anchors: [
-      { x: 0.12, y: 0.2, color: [71, 39, 91], reach: 0.4, radius: 0.3 },
-      { x: 0.76, y: 0.18, color: [39, 66, 135], reach: 0.42, radius: 0.28 },
-      { x: 0.28, y: 0.94, color: [54, 31, 82], reach: 0.38, radius: 0.26 },
-      { x: 0.9, y: 0.82, color: [41, 73, 145], reach: 0.4, radius: 0.3 },
+      { x: 0.08, y: 0.14, color: [55, 30, 78], reach: 0.7, radius: 0.58 },
+      { x: 0.88, y: 0.86, color: [32, 62, 123], reach: 0.7, radius: 0.6 },
     ],
   },
 } as const
@@ -47,7 +45,7 @@ const illumination = {
   hero: 0.42,
   share: 0.29,
   workflow: 0.29,
-  footer: 0.34,
+  footer: 0.24,
 } as const
 
 const canvasStyle = {
