@@ -1,40 +1,54 @@
 import { useEffect, useRef } from "react"
 
 const definitions = {
-  // Geometry from the mesh-gradient handoff, recoloured with Sleevy's original
-  // indigo and wine-magenta palette.
+  // Geometry from the mesh-gradient handoff, with a cooler take on Sleevy's
+  // original indigo and wine-magenta palette.
   hero: {
-    base: [10, 11, 18],
+    base: [13, 16, 30],
     anchors: [
-      { x: 0.19, y: 0.32, color: [36, 55, 113], reach: 0.76, radius: 0.52 },
-      { x: 0.84, y: 0.14, color: [116, 41, 103], reach: 0.52, radius: 0.72 },
-      { x: 0.06, y: 0.94, color: [96, 14, 68], reach: 0.78, radius: 0.4 },
-      { x: 0.55, y: 0.68, color: [76, 55, 126], reach: 0.98, radius: 0.62 },
+      { x: 0.19, y: 0.32, color: [47, 83, 164], reach: 0.76, radius: 0.52 },
+      { x: 0.84, y: 0.14, color: [128, 57, 127], reach: 0.52, radius: 0.72 },
+      { x: 0.06, y: 0.94, color: [105, 25, 84], reach: 0.78, radius: 0.4 },
+      { x: 0.55, y: 0.68, color: [82, 91, 169], reach: 0.98, radius: 0.62 },
     ],
   },
   share: {
-    base: [17, 14, 24],
+    base: [29, 25, 44],
     anchors: [
-      { x: 0.1, y: 0.2, color: [52, 61, 130], reach: 0.62, radius: 0.48 },
-      { x: 0.88, y: 0.34, color: [124, 49, 105], reach: 0.68, radius: 0.64 },
-      { x: 0.24, y: 0.94, color: [96, 14, 68], reach: 0.68, radius: 0.42 },
-      { x: 0.56, y: 0.66, color: [89, 61, 145], reach: 0.82, radius: 0.58 },
+      { x: 0.1, y: 0.2, color: [60, 84, 148], reach: 0.62, radius: 0.48 },
+      { x: 0.88, y: 0.34, color: [112, 62, 109], reach: 0.68, radius: 0.64 },
+      { x: 0.24, y: 0.94, color: [84, 39, 82], reach: 0.68, radius: 0.42 },
+      { x: 0.56, y: 0.66, color: [87, 79, 137], reach: 0.82, radius: 0.58 },
     ],
   },
   workflow: {
-    base: [15, 12, 22],
+    base: [27, 24, 42],
     anchors: [
-      { x: 0.24, y: 0.16, color: [46, 45, 112], reach: 0.6, radius: 0.52 },
-      { x: 0.78, y: 0.2, color: [132, 59, 118], reach: 0.56, radius: 0.7 },
-      { x: 0.08, y: 0.78, color: [78, 20, 79], reach: 0.72, radius: 0.44 },
-      { x: 0.62, y: 0.74, color: [104, 46, 111], reach: 0.9, radius: 0.6 },
+      { x: 0.24, y: 0.16, color: [56, 76, 142], reach: 0.6, radius: 0.52 },
+      { x: 0.78, y: 0.2, color: [118, 67, 112], reach: 0.56, radius: 0.7 },
+      { x: 0.08, y: 0.78, color: [82, 42, 84], reach: 0.72, radius: 0.44 },
+      { x: 0.62, y: 0.74, color: [88, 71, 129], reach: 0.9, radius: 0.6 },
+    ],
+  },
+  footer: {
+    base: [10, 11, 20],
+    anchors: [
+      { x: 0.08, y: 0.18, color: [52, 30, 70], reach: 0.7, radius: 0.6 },
+      { x: 0.74, y: 0.16, color: [30, 45, 93], reach: 0.7, radius: 0.64 },
+      { x: 0.26, y: 0.94, color: [35, 26, 63], reach: 0.72, radius: 0.54 },
+      { x: 0.9, y: 0.82, color: [33, 52, 101], reach: 0.82, radius: 0.68 },
     ],
   },
 } as const
 
 const falloff = 1.75
 // Keep the field present but comfortably behind the product imagery and copy.
-const illumination = 0.38
+const illumination = {
+  hero: 0.42,
+  share: 0.29,
+  workflow: 0.29,
+  footer: 0.13,
+} as const
 
 const canvasStyle = {
   position: "absolute",
@@ -77,7 +91,7 @@ export function BlueMeshGradient({ variant = "hero" }: { variant?: keyof typeof 
           for (const anchor of definition.anchors) {
             const distanceSquared = (pointX - anchor.x) ** 2 + (pointY - anchor.y) ** 2
             const spread = (anchor.radius * anchor.reach) ** 2
-            const weight = Math.exp((-falloff * distanceSquared) / spread) * illumination
+            const weight = Math.exp((-falloff * distanceSquared) / spread) * illumination[variant]
 
             red += (anchor.color[0] - red) * weight
             green += (anchor.color[1] - green) * weight

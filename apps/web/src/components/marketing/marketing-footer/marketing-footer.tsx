@@ -1,11 +1,13 @@
 import { Link } from "@tanstack/react-router"
 
+import { BlueMeshGradient } from "../hero/blue-mesh-gradient"
 import { chromeStoreUrl, raycastStoreUrl } from "../store-links"
 import styles from "./marketing-footer.module.scss"
 
 export function MarketingFooter() {
   return (
     <footer className={styles.footer}>
+      <BlueMeshGradient variant="footer" />
       <div className={styles.inner}>
         <div className={styles.brand}>
           <div className={styles.logo}>

@@ -1,27 +1,13 @@
 @use "../shared" as *;
 
-/* Glass footer band (Figma Footer / Rectangle 80): near-transparent black fill
-   under a 1px white hairline, with two blurred ellipse glows washing in from
-   outside the band — magenta (#600E44, blur σ150) hanging above the left edge,
-   blue (#243771 at 24%, blur σ48) rising from below the right. Both rebuilt as
-   radial gradients (ellipse radii oversized by the 2σ blur bleed, fill held to
-   the pre-blur edge) so no image assets are needed; the band's box crops them
-   exactly like the Figma mask. Figma also backdrop-blurs the band, but the page
-   behind it is flat #101113, so the blur is omitted. Geometry in rem, authored
-   at 1440 (1rem = 16px). */
+/* A low-contrast mesh closes the page while preserving the footer's dark glass feel. */
 .footer {
   position: relative;
   margin-top: auto;
   overflow: hidden;
   min-height: 18.625rem;
   border-top: 1px solid rgba(255, 255, 255, 0.35);
-  background-color: rgba(0, 0, 0, 0.06);
-  /* The band cuts the magenta ellipse ~59% out along its ry, where the σ150
-     blur has already dropped it to roughly half strength — so the fade starts
-     well inside the pre-blur edge instead of holding solid fill. */
-  background-image:
-    radial-gradient(58.3rem 53rem at 4rem -31.3rem, rgba(96, 14, 68, 1) 40%, transparent 88%),
-    radial-gradient(46.7rem 44.7rem at calc(100% - 12.7rem) 44.8rem, rgba(36, 55, 113, 0.24) 87%, transparent 100%);
+  background: #0a0b14;
 }
 
 .inner {
