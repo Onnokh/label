@@ -6,7 +6,7 @@ const articles = [
   {
     href: "/pocket-alternative",
     title: "A simpler home for the links you mean to return to.",
-    description: "Pocket is no longer available. Here is a calmer way to think about what should replace it—and whether Sleevy is the right fit.",
+    description: "Looking for a Pocket alternative? Compare a read-later app for saving links from iPhone, Chrome, Raycast, and scripts in one synced queue.",
     dateTime: "2026-07-16",
     date: "July 16, 2026",
     topic: "Pocket alternative",
