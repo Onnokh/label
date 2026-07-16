@@ -1,0 +1,159 @@
+@use "../components/marketing/shared" as *;
+
+.page {
+  padding: 5.5rem 0 9rem;
+
+  @media (max-width: 768px) {
+    padding: 4rem 0 6rem;
+  }
+}
+
+.hero,
+.content {
+  @include container;
+  max-width: 44rem;
+}
+
+.hero {
+  text-align: center;
+}
+
+.eyebrow,
+.updated {
+  color: #a8a8a8;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.eyebrow {
+  display: block;
+  color: #d3d3d3;
+}
+
+.hero h1,
+.closing h2 {
+  margin: 0.9rem 0 0;
+  color: #fff;
+  font-size: clamp(2.5rem, 5.2vw, 4.25rem);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+
+.description {
+  max-width: 37rem;
+  margin: 1.25rem auto 0;
+  color: #b4b4b4;
+  font-size: 1.2rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.updated {
+  margin: 1.25rem 0 0;
+}
+
+.primaryAction {
+  @include download-button;
+  min-height: 2.75rem;
+  margin-top: 1.75rem;
+  padding: 0.75rem 1rem;
+  transition-property: background-color, box-shadow, scale;
+  transition-duration: 160ms;
+  transition-timing-function: ease;
+
+  &:active {
+    scale: 0.96;
+  }
+}
+
+.content {
+  margin-top: 5rem;
+}
+
+.callout,
+.closing {
+  @include card-border(1rem, 0 1.5rem 3.5rem rgb(0 0 0 / 18%));
+  background: linear-gradient(135deg, rgb(255 255 255 / 10%), rgb(255 255 255 / 4%));
+}
+
+.callout {
+  padding: 1.5rem;
+}
+
+.callout h2,
+.content section > h2,
+.questions > h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.45rem;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.callout p,
+.content section > p,
+details p,
+.closing p {
+  color: #adadad;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+.callout p {
+  margin: 0.65rem 0 0;
+}
+
+.content > section:not(.questions, .closing) {
+  padding: 2.75rem 0;
+  border-bottom: 1px solid rgb(255 255 255 / 9%);
+}
+
+.content section > p {
+  margin: 0.85rem 0 0;
+}
+
+.questions {
+  padding-top: 2.75rem;
+}
+
+details {
+  padding: 1.2rem 0;
+  border-bottom: 1px solid rgb(255 255 255 / 9%);
+}
+
+summary {
+  color: #f3f3f3;
+  cursor: pointer;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+details p {
+  margin: 0.75rem 0 0;
+}
+
+.closing {
+  margin-top: 4rem;
+  padding: 2.25rem;
+  text-align: center;
+}
+
+.closing h2 {
+  font-size: clamp(1.8rem, 3.2vw, 2.5rem);
+}
+
+.closing p {
+  max-width: 34rem;
+  margin: 0.9rem auto 0;
+}
+
+@media (max-width: 768px) {
+  .callout,
+  .closing {
+    padding: 1.25rem;
+  }
+}
