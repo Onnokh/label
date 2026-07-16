@@ -13,6 +13,22 @@
   @include container;
 }
 
+.relatedLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1.5rem;
+  color: #d8d8d8;
+  font-size: 0.9rem;
+  text-decoration-color: rgb(255 255 255 / 30%);
+  text-underline-offset: 0.25em;
+
+  &:hover {
+    color: #fff;
+    text-decoration-color: rgb(255 255 255 / 70%);
+  }
+}
+
 .hero {
   max-width: 42rem;
   text-align: center;

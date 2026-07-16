@@ -116,9 +116,41 @@
 }
 
 .callout,
-.closing {
+.closing,
+.proof {
   @include card-border(1rem, 0 1.5rem 3.5rem rgb(0 0 0 / 18%));
   background: linear-gradient(135deg, rgb(255 255 255 / 10%), rgb(255 255 255 / 4%));
+}
+
+.proof {
+  overflow: hidden;
+  margin: 2.4rem 0 0;
+  padding: 0;
+
+  figcaption {
+    padding: 1.5rem;
+  }
+
+  h2 {
+    margin: 0;
+    color: #fff;
+    font-size: 1.45rem;
+    letter-spacing: -0.035em;
+  }
+
+  p {
+    margin: 0.65rem 0 0;
+    color: #b7b7b7;
+    font-size: 1.05rem;
+    line-height: 1.65;
+  }
+
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-top: 1px solid rgb(255 255 255 / 10%);
+  }
 }
 
 .callout {
@@ -176,6 +208,31 @@ summary {
 
 details p {
   margin: 0.75rem 0 0;
+}
+
+.relatedLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  align-items: baseline;
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgb(255 255 255 / 12%);
+  font-size: 0.9rem;
+
+  span:first-child {
+    color: #888;
+  }
+
+  a {
+    color: #e2e2e2;
+    text-decoration-color: rgb(255 255 255 / 30%);
+    text-underline-offset: 0.25em;
+
+    &:hover {
+      color: #fff;
+    }
+  }
 }
 
 .closing {

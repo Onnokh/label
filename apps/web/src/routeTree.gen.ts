@@ -25,6 +25,9 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppLibraryRouteImport } from './routes/_app/library'
 import { Route as AppInboxRouteImport } from './routes/_app/inbox'
 import { Route as AppConnectRouteImport } from './routes/_app/connect'
+import { Route as MarketingArticlesSaveLinksWithRaycastRouteImport } from './routes/_marketing/articles_.save-links-with-raycast'
+import { Route as MarketingArticlesReadLaterAppChromeIphoneRouteImport } from './routes/_marketing/articles_.read-later-app-chrome-iphone'
+import { Route as MarketingArticlesReadLaterApiRouteImport } from './routes/_marketing/articles_.read-later-api'
 import { Route as AppLibraryFoldersFolderIdRouteImport } from './routes/_app/library_.folders.$folderId'
 
 const MarketingRoute = MarketingRouteImport.update({
@@ -107,6 +110,24 @@ const AppConnectRoute = AppConnectRouteImport.update({
   path: '/connect',
   getParentRoute: () => AppRoute,
 } as any)
+const MarketingArticlesSaveLinksWithRaycastRoute =
+  MarketingArticlesSaveLinksWithRaycastRouteImport.update({
+    id: '/articles_/save-links-with-raycast',
+    path: '/articles/save-links-with-raycast',
+    getParentRoute: () => MarketingRoute,
+  } as any)
+const MarketingArticlesReadLaterAppChromeIphoneRoute =
+  MarketingArticlesReadLaterAppChromeIphoneRouteImport.update({
+    id: '/articles_/read-later-app-chrome-iphone',
+    path: '/articles/read-later-app-chrome-iphone',
+    getParentRoute: () => MarketingRoute,
+  } as any)
+const MarketingArticlesReadLaterApiRoute =
+  MarketingArticlesReadLaterApiRouteImport.update({
+    id: '/articles_/read-later-api',
+    path: '/articles/read-later-api',
+    getParentRoute: () => MarketingRoute,
+  } as any)
 const AppLibraryFoldersFolderIdRoute =
   AppLibraryFoldersFolderIdRouteImport.update({
     id: '/library_/folders/$folderId',
@@ -129,6 +150,9 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof MarketingPrivacyRoute
   '/raycast': typeof MarketingRaycastRoute
   '/support': typeof MarketingSupportRoute
+  '/articles/read-later-api': typeof MarketingArticlesReadLaterApiRoute
+  '/articles/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
+  '/articles/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
   '/library/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
 }
 export interface FileRoutesByTo {
@@ -146,6 +170,9 @@ export interface FileRoutesByTo {
   '/privacy': typeof MarketingPrivacyRoute
   '/raycast': typeof MarketingRaycastRoute
   '/support': typeof MarketingSupportRoute
+  '/articles/read-later-api': typeof MarketingArticlesReadLaterApiRoute
+  '/articles/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
+  '/articles/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
   '/library/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
 }
 export interface FileRoutesById {
@@ -166,6 +193,9 @@ export interface FileRoutesById {
   '/_marketing/raycast': typeof MarketingRaycastRoute
   '/_marketing/support': typeof MarketingSupportRoute
   '/_marketing/': typeof MarketingIndexRoute
+  '/_marketing/articles_/read-later-api': typeof MarketingArticlesReadLaterApiRoute
+  '/_marketing/articles_/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
+  '/_marketing/articles_/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
   '/_app/library_/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
 }
 export interface FileRouteTypes {
@@ -185,6 +215,9 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/raycast'
     | '/support'
+    | '/articles/read-later-api'
+    | '/articles/read-later-app-chrome-iphone'
+    | '/articles/save-links-with-raycast'
     | '/library/folders/$folderId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -202,6 +235,9 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/raycast'
     | '/support'
+    | '/articles/read-later-api'
+    | '/articles/read-later-app-chrome-iphone'
+    | '/articles/save-links-with-raycast'
     | '/library/folders/$folderId'
   id:
     | '__root__'
@@ -221,6 +257,9 @@ export interface FileRouteTypes {
     | '/_marketing/raycast'
     | '/_marketing/support'
     | '/_marketing/'
+    | '/_marketing/articles_/read-later-api'
+    | '/_marketing/articles_/read-later-app-chrome-iphone'
+    | '/_marketing/articles_/save-links-with-raycast'
     | '/_app/library_/folders/$folderId'
   fileRoutesById: FileRoutesById
 }
@@ -344,6 +383,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConnectRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_marketing/articles_/save-links-with-raycast': {
+      id: '/_marketing/articles_/save-links-with-raycast'
+      path: '/articles/save-links-with-raycast'
+      fullPath: '/articles/save-links-with-raycast'
+      preLoaderRoute: typeof MarketingArticlesSaveLinksWithRaycastRouteImport
+      parentRoute: typeof MarketingRoute
+    }
+    '/_marketing/articles_/read-later-app-chrome-iphone': {
+      id: '/_marketing/articles_/read-later-app-chrome-iphone'
+      path: '/articles/read-later-app-chrome-iphone'
+      fullPath: '/articles/read-later-app-chrome-iphone'
+      preLoaderRoute: typeof MarketingArticlesReadLaterAppChromeIphoneRouteImport
+      parentRoute: typeof MarketingRoute
+    }
+    '/_marketing/articles_/read-later-api': {
+      id: '/_marketing/articles_/read-later-api'
+      path: '/articles/read-later-api'
+      fullPath: '/articles/read-later-api'
+      preLoaderRoute: typeof MarketingArticlesReadLaterApiRouteImport
+      parentRoute: typeof MarketingRoute
+    }
     '/_app/library_/folders/$folderId': {
       id: '/_app/library_/folders/$folderId'
       path: '/library/folders/$folderId'
@@ -382,6 +442,9 @@ interface MarketingRouteChildren {
   MarketingRaycastRoute: typeof MarketingRaycastRoute
   MarketingSupportRoute: typeof MarketingSupportRoute
   MarketingIndexRoute: typeof MarketingIndexRoute
+  MarketingArticlesReadLaterApiRoute: typeof MarketingArticlesReadLaterApiRoute
+  MarketingArticlesReadLaterAppChromeIphoneRoute: typeof MarketingArticlesReadLaterAppChromeIphoneRoute
+  MarketingArticlesSaveLinksWithRaycastRoute: typeof MarketingArticlesSaveLinksWithRaycastRoute
 }
 
 const MarketingRouteChildren: MarketingRouteChildren = {
@@ -394,6 +457,11 @@ const MarketingRouteChildren: MarketingRouteChildren = {
   MarketingRaycastRoute: MarketingRaycastRoute,
   MarketingSupportRoute: MarketingSupportRoute,
   MarketingIndexRoute: MarketingIndexRoute,
+  MarketingArticlesReadLaterApiRoute: MarketingArticlesReadLaterApiRoute,
+  MarketingArticlesReadLaterAppChromeIphoneRoute:
+    MarketingArticlesReadLaterAppChromeIphoneRoute,
+  MarketingArticlesSaveLinksWithRaycastRoute:
+    MarketingArticlesSaveLinksWithRaycastRoute,
 }
 
 const MarketingRouteWithChildren = MarketingRoute._addFileChildren(

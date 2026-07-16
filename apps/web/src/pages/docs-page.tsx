@@ -195,6 +195,10 @@ function SchemaDefinition({ name, schema }: { name: string; schema: Schema }) {
 function SideNav() {
   return (
     <nav className={styles.sidenav} aria-label="API sections">
+      <div className={styles.sidenavGroup}>
+        <a href="#quick-start" className={styles.sidenavHeading}>quick start</a>
+        <a href="#automation" className={styles.sidenavItem}>script example</a>
+      </div>
       {[...groups.entries()].map(([tag, endpoints]) => (
         <div key={tag} className={styles.sidenavGroup}>
           <a href={`#${tag}`} className={styles.sidenavHeading}>{tag}</a>
@@ -228,11 +232,39 @@ export function DocsPage() {
             <h1>{spec.info.title}</h1>
             <span className={styles.version}>v{spec.info.version}</span>
           </div>
-          <p className={styles.description}>{spec.info.description}</p>
+          <p className={styles.description}>Use the Sleevy read-later API to save URLs from scripts and automations, list saved links, and manage one personal reading queue.</p>
           <p className={styles.meta}>Base URL: <code>https://api.sleevy.app</code></p>
           <p className={styles.meta}>
             All endpoints except <code>/health</code> require an <code>Authorization: Bearer &lt;API_KEY&gt;</code> header.
           </p>
+          <section className={styles.quickStart} id="quick-start">
+            <h2>Save a URL with curl</h2>
+            <p>Create a personal API key in <a href="/settings">Sleevy settings</a>, set it as <code>SLEEVY_API_KEY</code>, and send a URL to your read-later queue:</p>
+            <pre><code>{`curl -X POST https://api.sleevy.app/v1/captures \\
+  -H "Authorization: Bearer $SLEEVY_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"url":"https://example.com/article","captureChannel":"api"}'`}</code></pre>
+            <p>The same capture endpoint can be called from a script, shortcut, command-line tool, or personal automation.</p>
+          </section>
+          <section className={styles.quickStart} id="automation">
+            <h2>Save a URL from a script</h2>
+            <p>Pass a URL to this JavaScript file with <code>bun save-link.ts https://example.com/article</code> or <code>node save-link.mjs https://example.com/article</code>:</p>
+            <pre><code>{`const url = process.argv[2]
+
+if (!url) throw new Error("Pass the URL to save as the first argument")
+
+const response = await fetch("https://api.sleevy.app/v1/captures", {
+  method: "POST",
+  headers: {
+    Authorization: \`Bearer \${process.env.SLEEVY_API_KEY}\`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({ url, captureChannel: "api" }),
+})
+
+if (!response.ok) throw new Error(\`Sleevy returned \${response.status}\`)`}</code></pre>
+            <p>Keep the API key in an environment variable rather than committing it to the script. The endpoint reference below documents the response and possible errors.</p>
+          </section>
           {[...groups.entries()].map(([tag, endpoints]) => (
             <div key={tag} className={styles.group} id={tag}>
               <h2 className={styles.groupTitle}>{tag}</h2>

@@ -24,6 +24,7 @@ export const Route = createFileRoute("/_marketing/ios-app")({
       icon={{ src: "/ios26-82.webp", alt: "Sleevy for iPhone", width: 82, height: 82 }}
       primaryAction={{ href: appStoreUrl, label: "View in App Store" }}
       secondaryAction={{ href: appStoreDeeplink, label: "Open in App Store", iosOnly: true, openInNewTab: false }}
+      relatedLink={{ href: "/articles/read-later-app-chrome-iphone", label: "Read about syncing a queue between iPhone and Chrome" }}
       proof={{
         title: "Stay in the moment.",
         body: "Sleevy sits beside the apps you already use, so an interesting page does not become another open tab.",

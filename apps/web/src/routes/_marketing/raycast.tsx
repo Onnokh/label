@@ -6,9 +6,9 @@ import { IntegrationPage } from "../../pages/integration-page"
 export const Route = createFileRoute("/_marketing/raycast")({
   head: () => ({
     meta: [
-      { title: "Sleevy for Raycast | Save Links from Your Launcher" },
-      { name: "description", content: "Use the Sleevy Raycast extension to save links and search your read-later queue without leaving the keyboard." },
-      { property: "og:title", content: "Sleevy for Raycast" },
+      { title: "Raycast Read-Later Extension: Save and Search Links | Sleevy" },
+      { name: "description", content: "Save links with the Sleevy Raycast read-later extension and search your synced queue without leaving the keyboard." },
+      { property: "og:title", content: "Raycast Read-Later Extension | Sleevy" },
       { property: "og:description", content: "Save links and search your read-later queue without leaving Raycast." },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://sleevy.app/raycast" },
@@ -18,8 +18,9 @@ export const Route = createFileRoute("/_marketing/raycast")({
   component: () => (
     <IntegrationPage
       eyebrow="Raycast extension"
-      title="Save links from Raycast."
-      description="A Raycast extension for saving the links you find at work, then searching your personal reading queue without leaving the keyboard."
+      title="Save and search links with Raycast."
+      description="Use the Sleevy Raycast read-later extension to save URLs from your clipboard and search your synced queue from the launcher."
+      intro="Save a link with Raycast while you work, then search the same read-later queue from Raycast, Chrome, iPhone, or the web."
       icon={{ src: "/raycast-82.webp", alt: "Raycast", width: 82, height: 82 }}
       primaryAction={{ href: raycastStoreUrl, label: "View in Raycast Store" }}
       secondaryAction={{
@@ -28,6 +29,7 @@ export const Route = createFileRoute("/_marketing/raycast")({
         trailingIcon: { src: "/raycast-symbol.svg", alt: "", width: 228, height: 228 },
         openInNewTab: false,
       }}
+      relatedLink={{ href: "/articles/save-links-with-raycast", label: "Read the Raycast link-saving guide" }}
       proof={{
         title: "Your saved work stays close.",
         body: "One shortcut opens your library whenever a reference comes back into play.",

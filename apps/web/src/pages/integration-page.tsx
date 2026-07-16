@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { Link } from "@tanstack/react-router"
 
 import styles from "./integration-page.module.scss"
 
@@ -19,6 +20,7 @@ type IntegrationPageProps = {
   readonly icon: { readonly src: string; readonly alt: string; readonly width: number; readonly height: number }
   readonly primaryAction: Action
   readonly secondaryAction?: Action
+  readonly relatedLink?: { readonly href: string; readonly label: string }
   readonly proof?: {
     readonly title: string
     readonly body: string
@@ -27,7 +29,7 @@ type IntegrationPageProps = {
   }
 }
 
-export function IntegrationPage({ eyebrow, title, description, intro = "Sleevy keeps one reading queue across the places where you find useful things. Save it now; decide what to do with it later.", benefits, icon, primaryAction, secondaryAction, proof }: IntegrationPageProps) {
+export function IntegrationPage({ eyebrow, title, description, intro = "Sleevy keeps one reading queue across the places where you find useful things. Save it now; decide what to do with it later.", benefits, icon, primaryAction, secondaryAction, relatedLink, proof }: IntegrationPageProps) {
   const [isIOS, setIsIOS] = useState(false)
   const visibleSecondaryAction = secondaryAction && (!secondaryAction.iosOnly || isIOS) ? secondaryAction : undefined
 
@@ -83,6 +85,11 @@ export function IntegrationPage({ eyebrow, title, description, intro = "Sleevy k
             <p>{benefit.body}</p>
           </article>
         ))}
+        {relatedLink && (
+          <Link className={styles.relatedLink} to={relatedLink.href}>
+            {relatedLink.label} <span aria-hidden="true">→</span>
+          </Link>
+        )}
       </section>
 
       {proof && (
