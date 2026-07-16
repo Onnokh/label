@@ -25,6 +25,7 @@ export const Route = createFileRoute("/_marketing/pocket-alternative")({
       description="Pocket is no longer available. Here is a calmer way to think about what should replace it—and whether Sleevy is the right fit."
       updatedAt={{ dateTime: "2026-07-16", label: "Updated July 2026" }}
       primaryAction={{ href: appStoreUrl, label: "Get Sleevy for iPhone" }}
+      secondaryAction={{ href: "/ios-app", label: "How it works", openInNewTab: false }}
       callout={{
         title: "The short version",
         body: "A replacement does not need to recreate every feature Pocket had. It needs to make it easy to trust the next useful link will still be waiting when you have time for it.",

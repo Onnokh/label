@@ -56,28 +56,40 @@
   margin: 1.25rem 0 0;
 }
 
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}
+
 .primaryAction {
+  @include download-button;
+
+  gap: 0;
+}
+
+.secondaryAction {
   display: inline-flex;
   align-items: center;
-  min-height: 2.5rem;
-  margin-top: 1.5rem;
+  justify-content: center;
+  min-height: 2.25rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 0.5rem;
   color: #fff;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1rem;
+  letter-spacing: 0.0125rem;
+  white-space: nowrap;
   text-decoration: none;
-  border-bottom: 1px solid rgb(255 255 255 / 45%);
-  transition-property: color, border-color, scale;
-  transition-duration: 160ms;
-  transition-timing-function: ease;
-
-  &::after {
-    margin-left: 0.5rem;
-    content: "→";
-  }
+  background: rgb(255 255 255 / 10%);
+  transition: background-color 160ms ease, scale 160ms ease;
 
   &:hover {
-    color: #d3d3d3;
-    border-color: #d3d3d3;
+    background: rgb(255 255 255 / 17%);
+    scale: 1.02;
   }
 
   &:active {

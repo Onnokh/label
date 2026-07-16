@@ -5,6 +5,12 @@ type ArticleSection = {
   readonly paragraphs: readonly string[]
 }
 
+type Action = {
+  readonly href: string
+  readonly label: string
+  readonly openInNewTab?: boolean
+}
+
 type ArticlePageProps = {
   readonly eyebrow: string
   readonly title: string
@@ -13,11 +19,37 @@ type ArticlePageProps = {
   readonly callout: { readonly title: string; readonly body: string }
   readonly sections: readonly ArticleSection[]
   readonly questions?: readonly { readonly question: string; readonly answer: string }[]
-  readonly primaryAction: { readonly href: string; readonly label: string }
+  readonly primaryAction: Action
+  readonly secondaryAction?: Action
+}
+
+function ArticleActions({ primaryAction, secondaryAction }: { readonly primaryAction: Action; readonly secondaryAction?: Action }) {
+  return (
+    <div className={styles.actions}>
+      <a
+        className={styles.primaryAction}
+        href={primaryAction.href}
+        target={primaryAction.openInNewTab === false ? undefined : "_blank"}
+        rel={primaryAction.openInNewTab === false ? undefined : "noreferrer"}
+      >
+        {primaryAction.label}
+      </a>
+      {secondaryAction && (
+        <a
+          className={styles.secondaryAction}
+          href={secondaryAction.href}
+          target={secondaryAction.openInNewTab === false ? undefined : "_blank"}
+          rel={secondaryAction.openInNewTab === false ? undefined : "noreferrer"}
+        >
+          {secondaryAction.label}
+        </a>
+      )}
+    </div>
+  )
 }
 
 /** A reusable long-form marketing page for comparisons and workflow guides. */
-export function ArticlePage({ eyebrow, title, description, updatedAt, callout, sections, questions, primaryAction }: ArticlePageProps) {
+export function ArticlePage({ eyebrow, title, description, updatedAt, callout, sections, questions, primaryAction, secondaryAction }: ArticlePageProps) {
   return (
     <article className={styles.page}>
       <header className={styles.hero}>
@@ -25,9 +57,7 @@ export function ArticlePage({ eyebrow, title, description, updatedAt, callout, s
         <h1>{title}</h1>
         <p className={styles.description}>{description}</p>
         <time className={styles.updated} dateTime={updatedAt.dateTime}>{updatedAt.label}</time>
-        <a className={styles.primaryAction} href={primaryAction.href} target="_blank" rel="noreferrer">
-          {primaryAction.label}
-        </a>
+        <ArticleActions primaryAction={primaryAction} secondaryAction={secondaryAction} />
       </header>
 
       <div className={styles.content}>
@@ -58,9 +88,7 @@ export function ArticlePage({ eyebrow, title, description, updatedAt, callout, s
         <section className={styles.closing}>
           <h2>Keep the good links. Lose the open tabs.</h2>
           <p>Save something when you find it, then come back to one calm, searchable queue when you have the time.</p>
-          <a className={styles.primaryAction} href={primaryAction.href} target="_blank" rel="noreferrer">
-            {primaryAction.label}
-          </a>
+          <ArticleActions primaryAction={primaryAction} />
         </section>
       </div>
     </article>
