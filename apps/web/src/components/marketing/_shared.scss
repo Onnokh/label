@@ -29,6 +29,44 @@
   }
 }
 
+/* Primary marketing CTA used in the navigation and integration pages. */
+@mixin download-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0.5rem 0.75rem;
+  color: #2f3031;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1rem;
+  letter-spacing: 0.0125rem;
+  white-space: nowrap;
+  text-decoration: none;
+  background: #e6e6e6;
+  border-radius: 0.5rem;
+  box-shadow:
+    0 0 0 2px rgb(0 0 0 / 50%),
+    0 0 14px 0 rgb(255 255 255 / 19%),
+    inset 0 -1px 0.4px 0 rgb(0 0 0 / 20%),
+    inset 0 1px 0.4px 0 #fff;
+  transition: background-color 0.2s, box-shadow 0.2s ease-in-out;
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  &:hover {
+    background: #fff;
+  }
+
+  &:active {
+    background: #cdcece;
+  }
+}
+
 /* Progressive blur anchored to a clipped container's bottom — stacked layers,
    each with a higher blur radius revealed in its own band, so the blur ramps
    from 0 at the top of the fade to the max near the bottom edge (a single

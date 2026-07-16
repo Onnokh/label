@@ -14,8 +14,11 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as MarketingIndexRouteImport } from './routes/_marketing/index'
 import { Route as MarketingSupportRouteImport } from './routes/_marketing/support'
+import { Route as MarketingRaycastRouteImport } from './routes/_marketing/raycast'
 import { Route as MarketingPrivacyRouteImport } from './routes/_marketing/privacy'
+import { Route as MarketingIosAppRouteImport } from './routes/_marketing/ios-app'
 import { Route as MarketingDocsRouteImport } from './routes/_marketing/docs'
+import { Route as MarketingChromeExtensionRouteImport } from './routes/_marketing/chrome-extension'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppLibraryRouteImport } from './routes/_app/library'
 import { Route as AppInboxRouteImport } from './routes/_app/inbox'
@@ -45,9 +48,19 @@ const MarketingSupportRoute = MarketingSupportRouteImport.update({
   path: '/support',
   getParentRoute: () => MarketingRoute,
 } as any)
+const MarketingRaycastRoute = MarketingRaycastRouteImport.update({
+  id: '/raycast',
+  path: '/raycast',
+  getParentRoute: () => MarketingRoute,
+} as any)
 const MarketingPrivacyRoute = MarketingPrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => MarketingRoute,
+} as any)
+const MarketingIosAppRoute = MarketingIosAppRouteImport.update({
+  id: '/ios-app',
+  path: '/ios-app',
   getParentRoute: () => MarketingRoute,
 } as any)
 const MarketingDocsRoute = MarketingDocsRouteImport.update({
@@ -55,6 +68,12 @@ const MarketingDocsRoute = MarketingDocsRouteImport.update({
   path: '/docs',
   getParentRoute: () => MarketingRoute,
 } as any)
+const MarketingChromeExtensionRoute =
+  MarketingChromeExtensionRouteImport.update({
+    id: '/chrome-extension',
+    path: '/chrome-extension',
+    getParentRoute: () => MarketingRoute,
+  } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -89,8 +108,11 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AppInboxRoute
   '/library': typeof AppLibraryRoute
   '/settings': typeof AppSettingsRoute
+  '/chrome-extension': typeof MarketingChromeExtensionRoute
   '/docs': typeof MarketingDocsRoute
+  '/ios-app': typeof MarketingIosAppRoute
   '/privacy': typeof MarketingPrivacyRoute
+  '/raycast': typeof MarketingRaycastRoute
   '/support': typeof MarketingSupportRoute
   '/library/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
 }
@@ -101,8 +123,11 @@ export interface FileRoutesByTo {
   '/inbox': typeof AppInboxRoute
   '/library': typeof AppLibraryRoute
   '/settings': typeof AppSettingsRoute
+  '/chrome-extension': typeof MarketingChromeExtensionRoute
   '/docs': typeof MarketingDocsRoute
+  '/ios-app': typeof MarketingIosAppRoute
   '/privacy': typeof MarketingPrivacyRoute
+  '/raycast': typeof MarketingRaycastRoute
   '/support': typeof MarketingSupportRoute
   '/library/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
 }
@@ -115,8 +140,11 @@ export interface FileRoutesById {
   '/_app/inbox': typeof AppInboxRoute
   '/_app/library': typeof AppLibraryRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_marketing/chrome-extension': typeof MarketingChromeExtensionRoute
   '/_marketing/docs': typeof MarketingDocsRoute
+  '/_marketing/ios-app': typeof MarketingIosAppRoute
   '/_marketing/privacy': typeof MarketingPrivacyRoute
+  '/_marketing/raycast': typeof MarketingRaycastRoute
   '/_marketing/support': typeof MarketingSupportRoute
   '/_marketing/': typeof MarketingIndexRoute
   '/_app/library_/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
@@ -130,8 +158,11 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/library'
     | '/settings'
+    | '/chrome-extension'
     | '/docs'
+    | '/ios-app'
     | '/privacy'
+    | '/raycast'
     | '/support'
     | '/library/folders/$folderId'
   fileRoutesByTo: FileRoutesByTo
@@ -142,8 +173,11 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/library'
     | '/settings'
+    | '/chrome-extension'
     | '/docs'
+    | '/ios-app'
     | '/privacy'
+    | '/raycast'
     | '/support'
     | '/library/folders/$folderId'
   id:
@@ -155,8 +189,11 @@ export interface FileRouteTypes {
     | '/_app/inbox'
     | '/_app/library'
     | '/_app/settings'
+    | '/_marketing/chrome-extension'
     | '/_marketing/docs'
+    | '/_marketing/ios-app'
     | '/_marketing/privacy'
+    | '/_marketing/raycast'
     | '/_marketing/support'
     | '/_marketing/'
     | '/_app/library_/folders/$folderId'
@@ -205,6 +242,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketingSupportRouteImport
       parentRoute: typeof MarketingRoute
     }
+    '/_marketing/raycast': {
+      id: '/_marketing/raycast'
+      path: '/raycast'
+      fullPath: '/raycast'
+      preLoaderRoute: typeof MarketingRaycastRouteImport
+      parentRoute: typeof MarketingRoute
+    }
     '/_marketing/privacy': {
       id: '/_marketing/privacy'
       path: '/privacy'
@@ -212,11 +256,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketingPrivacyRouteImport
       parentRoute: typeof MarketingRoute
     }
+    '/_marketing/ios-app': {
+      id: '/_marketing/ios-app'
+      path: '/ios-app'
+      fullPath: '/ios-app'
+      preLoaderRoute: typeof MarketingIosAppRouteImport
+      parentRoute: typeof MarketingRoute
+    }
     '/_marketing/docs': {
       id: '/_marketing/docs'
       path: '/docs'
       fullPath: '/docs'
       preLoaderRoute: typeof MarketingDocsRouteImport
+      parentRoute: typeof MarketingRoute
+    }
+    '/_marketing/chrome-extension': {
+      id: '/_marketing/chrome-extension'
+      path: '/chrome-extension'
+      fullPath: '/chrome-extension'
+      preLoaderRoute: typeof MarketingChromeExtensionRouteImport
       parentRoute: typeof MarketingRoute
     }
     '/_app/settings': {
@@ -276,15 +334,21 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface MarketingRouteChildren {
+  MarketingChromeExtensionRoute: typeof MarketingChromeExtensionRoute
   MarketingDocsRoute: typeof MarketingDocsRoute
+  MarketingIosAppRoute: typeof MarketingIosAppRoute
   MarketingPrivacyRoute: typeof MarketingPrivacyRoute
+  MarketingRaycastRoute: typeof MarketingRaycastRoute
   MarketingSupportRoute: typeof MarketingSupportRoute
   MarketingIndexRoute: typeof MarketingIndexRoute
 }
 
 const MarketingRouteChildren: MarketingRouteChildren = {
+  MarketingChromeExtensionRoute: MarketingChromeExtensionRoute,
   MarketingDocsRoute: MarketingDocsRoute,
+  MarketingIosAppRoute: MarketingIosAppRoute,
   MarketingPrivacyRoute: MarketingPrivacyRoute,
+  MarketingRaycastRoute: MarketingRaycastRoute,
   MarketingSupportRoute: MarketingSupportRoute,
   MarketingIndexRoute: MarketingIndexRoute,
 }

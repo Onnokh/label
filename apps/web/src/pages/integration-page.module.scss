@@ -1,0 +1,149 @@
+@use "../components/marketing/shared" as *;
+
+.page {
+  padding: 5.5rem 0 9rem;
+
+  @media (max-width: 768px) {
+    padding: 4rem 0 6rem;
+  }
+}
+
+.hero,
+.article {
+  @include container;
+}
+
+.hero {
+  max-width: 42rem;
+  text-align: center;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+}
+
+.hero h1 {
+  margin: 1rem 0 0;
+  color: #fff;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: clamp(2.5rem, 5.2vw, 4rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+  text-wrap: balance;
+
+  @media (max-width: 768px) {
+    font-size: clamp(1.75rem, 8vw, 2.25rem);
+    line-height: 1.06;
+  }
+}
+
+.hero p {
+  margin: 1.25rem auto 0;
+  color: #aaa;
+  font-size: 1.15rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.eyebrow {
+  display: block;
+  margin-top: 0.8rem;
+  color: #c9c9c9;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  object-fit: contain;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
+.secondaryAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1rem;
+  letter-spacing: 0.0125rem;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background-color 160ms ease, scale 160ms ease;
+
+  &:active {
+    scale: 0.96;
+  }
+}
+
+.primaryAction {
+  @include download-button;
+}
+
+.actionIcon {
+  width: 1rem;
+  height: 1rem;
+  object-fit: contain;
+}
+
+.secondaryAction {
+  border: 1px solid rgb(255 255 255 / 12%);
+  color: #fff;
+  background: rgb(255 255 255 / 10%);
+
+  &:hover {
+    background: rgb(255 255 255 / 17%);
+    scale: 1.02;
+  }
+}
+
+.article {
+  max-width: 42rem;
+  margin-top: 5rem;
+  text-align: center;
+
+  article {
+    padding: 2.5rem 0;
+    border-top: 1px solid rgb(255 255 255 / 9%);
+  }
+
+  h2 {
+    margin: 0;
+    color: #fff;
+    font-size: 1.45rem;
+    letter-spacing: -0.035em;
+  }
+
+  p {
+    margin: 0.75rem 0 0;
+    max-width: 34rem;
+    margin-right: auto;
+    margin-left: auto;
+    color: #a0a0a0;
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
+}
+
+.intro {
+  margin-bottom: 1rem;
+  color: #d3d3d3;
+  font-size: 1.2rem;
+  line-height: 1.5;
+  text-wrap: pretty;
+}

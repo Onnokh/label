@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router"
 
 import { BlueMeshGradient } from "../hero/blue-mesh-gradient"
-import { chromeStoreUrl, raycastStoreUrl } from "../store-links"
 import styles from "./marketing-footer.module.scss"
 
 export function MarketingFooter() {
@@ -22,8 +21,9 @@ export function MarketingFooter() {
 
         <nav className={styles.col} aria-label="Integrations">
           <span className={styles.colTitle}>Integrations</span>
-          <a href={raycastStoreUrl} target="_blank" rel="noreferrer">Raycast Extension</a>
-          <a href={chromeStoreUrl} target="_blank" rel="noreferrer">Chrome Extension</a>
+          <Link to="/ios-app">iOS</Link>
+          <Link to="/raycast">Raycast</Link>
+          <Link to="/chrome-extension">Google Chrome</Link>
           <Link to="/inbox">Web Companion</Link>
         </nav>
 

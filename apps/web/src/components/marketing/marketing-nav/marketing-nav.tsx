@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router"
 import clsx from "clsx"
 
 import { authClient } from "../../../auth"
-import { appStoreUrl, chromeStoreUrl, raycastStoreUrl } from "../store-links"
+import { appStoreUrl } from "../store-links"
 import styles from "./marketing-nav.module.scss"
 
 export function MarketingNav() {
@@ -35,8 +35,9 @@ export function MarketingNav() {
         <div className={styles.menu}>
           <div className={styles.menuInner}>
             <div className={styles.navigation}>
-              <a className={styles.link} href={raycastStoreUrl} target="_blank" rel="noreferrer" onClick={closeMenu}>Raycast Extension</a>
-              <a className={styles.link} href={chromeStoreUrl} target="_blank" rel="noreferrer" onClick={closeMenu}>Chrome Extension</a>
+              <Link className={styles.link} to="/ios-app" onClick={closeMenu}>iOS</Link>
+              <Link className={styles.link} to="/raycast" onClick={closeMenu}>Raycast</Link>
+              <Link className={styles.link} to="/chrome-extension" onClick={closeMenu}>Google Chrome</Link>
               <Link className={styles.link} to="/docs" onClick={closeMenu}>Docs</Link>
               <a
                 className={clsx(styles.link, styles.iconLink)}
