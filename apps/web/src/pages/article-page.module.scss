@@ -11,7 +11,7 @@
 .hero,
 .content {
   @include container;
-  max-width: 40rem;
+  max-width: 44rem;
 }
 
 .hero {
@@ -43,7 +43,7 @@
 }
 
 .description {
-  max-width: 39rem;
+  max-width: 41rem;
   margin: 1.4rem 0 0;
   color: #b4b4b4;
   font-size: 1.2rem;
@@ -162,7 +162,7 @@ details p {
 }
 
 .closing p {
-  max-width: 37rem;
+  max-width: 40rem;
   margin: 0.9rem 0 0;
 }
 
