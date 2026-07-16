@@ -182,14 +182,9 @@ details p,
   margin: 0.65rem 0 0;
 }
 
-.comparison {
-  > p {
-    margin-bottom: 1.75rem;
-  }
-}
-
 .tableScroll {
   overflow-x: auto;
+  margin-top: 1.75rem;
   border-radius: 0.75rem;
   outline: none;
 
