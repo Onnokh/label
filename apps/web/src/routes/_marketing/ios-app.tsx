@@ -24,7 +24,6 @@ export const Route = createFileRoute("/_marketing/ios-app")({
       primaryAction={{ href: appStoreUrl, label: "View in App Store" }}
       secondaryAction={{ href: appStoreDeeplink, label: "Open in App Store", iosOnly: true, openInNewTab: false }}
       proof={{
-        eyebrow: "Built into iOS",
         title: "Save from the Share sheet.",
         body: "Choose Sleevy from the native iOS Share sheet. No copying or pasting.",
         image: { src: "/share-sheet-750.webp", alt: "iOS Share sheet with Sleevy available as a save destination", width: 750, height: 906 },

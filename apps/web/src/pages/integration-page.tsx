@@ -19,7 +19,6 @@ type IntegrationPageProps = {
   readonly primaryAction: Action
   readonly secondaryAction?: Action
   readonly proof?: {
-    readonly eyebrow: string
     readonly title: string
     readonly body: string
     readonly image: { readonly src: string; readonly alt: string; readonly width: number; readonly height: number }
@@ -77,7 +76,6 @@ export function IntegrationPage({ eyebrow, title, description, benefits, icon, p
         <section className={styles.proof} aria-label={proof.title}>
           <div className={proof.portrait ? `${styles.proofCard} ${styles.proofCardPortrait}` : styles.proofCard}>
             <div className={styles.proofCopy}>
-              <span className={styles.proofEyebrow}>{proof.eyebrow}</span>
               <h2>{proof.title}</h2>
               <p>{proof.body}</p>
             </div>
