@@ -33,6 +33,7 @@ function ArticleActions({ primaryAction, secondaryAction }: { readonly primaryAc
         rel={primaryAction.openInNewTab === false ? undefined : "noreferrer"}
       >
         {primaryAction.label}
+        {primaryAction.openInNewTab !== false && <span className={styles.actionAdornment} aria-hidden="true">↗</span>}
       </a>
       {secondaryAction && (
         <a
@@ -42,6 +43,7 @@ function ArticleActions({ primaryAction, secondaryAction }: { readonly primaryAc
           rel={secondaryAction.openInNewTab === false ? undefined : "noreferrer"}
         >
           {secondaryAction.label}
+          {secondaryAction.openInNewTab !== false && <span className={styles.actionAdornment} aria-hidden="true">↗</span>}
         </a>
       )}
     </div>

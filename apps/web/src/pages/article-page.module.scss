@@ -69,6 +69,20 @@
   gap: 0;
 }
 
+.actionAdornment {
+  display: inline-flex;
+  align-items: center;
+  align-self: stretch;
+  justify-content: center;
+  min-width: 2.5rem;
+  margin: -0.5rem -0.75rem -0.5rem 0.75rem;
+  border-left: 1px solid rgb(255 255 255 / 16%);
+}
+
+.primaryAction .actionAdornment {
+  border-color: rgb(47 48 49 / 18%);
+}
+
 .secondaryAction {
   display: inline-flex;
   align-items: center;
