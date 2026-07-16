@@ -89,9 +89,14 @@
   margin-top: 4rem;
 }
 
+.callout,
+.closing {
+  @include card-border(1rem, 0 1.5rem 3.5rem rgb(0 0 0 / 18%));
+  background: linear-gradient(135deg, rgb(255 255 255 / 10%), rgb(255 255 255 / 4%));
+}
+
 .callout {
-  padding: 0.25rem 0 0.25rem 1.5rem;
-  border-left: 2px solid rgb(255 255 255 / 40%);
+  padding: 1.5rem;
 }
 
 .callout h2,
@@ -149,8 +154,7 @@ details p {
 
 .closing {
   margin-top: 4rem;
-  padding-top: 2.75rem;
-  border-top: 1px solid rgb(255 255 255 / 18%);
+  padding: 2.25rem;
 }
 
 .closing h2 {
@@ -165,5 +169,10 @@ details p {
 @media (max-width: 768px) {
   .page {
     padding-top: 3.25rem;
+  }
+
+  .callout,
+  .closing {
+    padding: 1.25rem;
   }
 }
