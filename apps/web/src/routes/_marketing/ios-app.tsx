@@ -23,6 +23,13 @@ export const Route = createFileRoute("/_marketing/ios-app")({
       icon={{ src: "/ios26-82.webp", alt: "Sleevy for iPhone", width: 82, height: 82 }}
       primaryAction={{ href: appStoreUrl, label: "View in App Store" }}
       secondaryAction={{ href: appStoreDeeplink, label: "Open in App Store", iosOnly: true, openInNewTab: false }}
+      proof={{
+        eyebrow: "Built into iOS",
+        title: "Save from the share sheet, right where you find it.",
+        body: "Sleevy appears alongside the apps you already use. Pick it from the native Share sheet to send a link to your queue without copying, pasting, or leaving Safari.",
+        image: { src: "/share-sheet-750.webp", alt: "iOS Share sheet with Sleevy available as a save destination", width: 750, height: 906 },
+        portrait: true,
+      }}
       benefits={[
         { title: "Save links with the iOS share sheet", body: "When you find an article, video, or website in Safari or another iPhone app, open the Share sheet and choose Sleevy. The link is added to your reading queue without copying a URL or switching through a browser tab later." },
         { title: "A calmer way to read on iPhone", body: "Sleevy is for the links that are worth keeping but not worth interrupting your day for. Save them in the moment, then choose what to read from a single queue when you have the time and attention." },

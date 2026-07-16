@@ -18,9 +18,16 @@ type IntegrationPageProps = {
   readonly icon: { readonly src: string; readonly alt: string; readonly width: number; readonly height: number }
   readonly primaryAction: Action
   readonly secondaryAction?: Action
+  readonly proof?: {
+    readonly eyebrow: string
+    readonly title: string
+    readonly body: string
+    readonly image: { readonly src: string; readonly alt: string; readonly width: number; readonly height: number }
+    readonly portrait?: boolean
+  }
 }
 
-export function IntegrationPage({ eyebrow, title, description, benefits, icon, primaryAction, secondaryAction }: IntegrationPageProps) {
+export function IntegrationPage({ eyebrow, title, description, benefits, icon, primaryAction, secondaryAction, proof }: IntegrationPageProps) {
   const [isIOS, setIsIOS] = useState(false)
   const visibleSecondaryAction = secondaryAction && (!secondaryAction.iosOnly || isIOS) ? secondaryAction : undefined
 
@@ -65,6 +72,19 @@ export function IntegrationPage({ eyebrow, title, description, benefits, icon, p
           )}
         </div>
       </section>
+
+      {proof && (
+        <section className={styles.proof} aria-label={proof.title}>
+          <div className={styles.proofCopy}>
+            <span className={styles.proofEyebrow}>{proof.eyebrow}</span>
+            <h2>{proof.title}</h2>
+            <p>{proof.body}</p>
+          </div>
+          <figure className={proof.portrait ? styles.proofVisualPortrait : styles.proofVisual}>
+            <img src={proof.image.src} alt={proof.image.alt} width={proof.image.width} height={proof.image.height} loading="lazy" />
+          </figure>
+        </section>
+      )}
 
       <section className={styles.article} aria-label={`About Sleevy ${eyebrow}`}>
         <div className={styles.intro}>
