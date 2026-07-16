@@ -44,7 +44,7 @@ export function IntegrationPage({ eyebrow, title, description, benefits, icon, p
             rel={primaryAction.openInNewTab === false ? undefined : "noreferrer"}
           >
             {primaryAction.label}
-            <span aria-hidden="true">↗</span>
+            <span className={styles.actionAdornment} aria-hidden="true">↗</span>
           </a>
           {visibleSecondaryAction && (
             <a
@@ -55,9 +55,11 @@ export function IntegrationPage({ eyebrow, title, description, benefits, icon, p
             >
               {visibleSecondaryAction.label}
               {visibleSecondaryAction.trailingIcon ? (
-                <img className={styles.actionIcon} src={visibleSecondaryAction.trailingIcon.src} alt={visibleSecondaryAction.trailingIcon.alt} width={visibleSecondaryAction.trailingIcon.width} height={visibleSecondaryAction.trailingIcon.height} />
+                <span className={styles.actionAdornment}>
+                  <img className={styles.actionIcon} src={visibleSecondaryAction.trailingIcon.src} alt={visibleSecondaryAction.trailingIcon.alt} width={visibleSecondaryAction.trailingIcon.width} height={visibleSecondaryAction.trailingIcon.height} />
+                </span>
               ) : (
-                <span aria-hidden="true">↗</span>
+                <span className={styles.actionAdornment} aria-hidden="true">↗</span>
               )}
             </a>
           )}
