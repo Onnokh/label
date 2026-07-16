@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_marketing/chrome-extension")({
   component: () => (
     <IntegrationPage
       eyebrow="Chrome extension"
-      title="A Chrome read-later extension for your tabs."
+      title="Save tabs for later in Chrome."
       description="Save tabs for later in Chrome and add the page you are viewing to one synced read-later queue in one click."
       intro="Use the Chrome read-later extension to save tabs for later and keep the useful pages you find in one synced queue."
       icon={{ src: "/chrome-76.webp", alt: "Google Chrome", width: 76, height: 82 }}
