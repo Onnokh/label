@@ -131,22 +131,55 @@
 .proof {
   @include container;
 
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: center;
-  gap: clamp(2.5rem, 6vw, 5rem);
   max-width: 62rem;
   margin-top: 6rem;
 
   @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    gap: 2rem;
     margin-top: 4.5rem;
   }
 }
 
+.proofCard {
+  position: relative;
+  height: 37rem;
+  overflow: hidden;
+  isolation: isolate;
+  background: #170e0f;
+
+  @include card-border(0.75rem, 0 8px 24px rgb(0 0 0 / 40%));
+
+  &::after {
+    position: absolute;
+    z-index: 1;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 8rem;
+    background: linear-gradient(transparent, #170e0f 92%);
+    content: "";
+    pointer-events: none;
+  }
+
+  @media (max-width: 768px) {
+    height: 32rem;
+  }
+}
+
+.proofCardPortrait {
+  background: #0f1215;
+
+  &::after {
+    background: linear-gradient(transparent, #0f1215 92%);
+  }
+}
+
 .proofCopy {
-  text-align: left;
+  position: relative;
+  z-index: 2;
+  max-width: 36rem;
+  padding: 3rem 2rem 0;
+  margin: 0 auto;
+  text-align: center;
 
   h2 {
     margin: 0.75rem 0 0;
@@ -164,6 +197,11 @@
     line-height: 1.55;
     text-wrap: pretty;
   }
+
+  @media (max-width: 768px) {
+    padding: 2.5rem 1.5rem 0;
+    text-align: center;
+  }
 }
 
 .proofEyebrow {
@@ -174,16 +212,18 @@
   text-transform: uppercase;
 }
 
-.proofVisual,
-.proofVisualPortrait {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.proofVisual {
+  position: absolute;
+  top: 14rem;
+  left: 50%;
+  z-index: 0;
+  width: min(88%, 53rem);
   margin: 0;
+  transform: translateX(-50%);
 
   img {
     display: block;
-    max-width: 100%;
+    width: 100%;
     height: auto;
     border: 1px solid rgb(255 255 255 / 10%);
     border-radius: 1.125rem;
@@ -191,12 +231,21 @@
   }
 }
 
-.proofVisual img {
-  width: 100%;
+.proofCardPortrait .proofVisual {
+  top: 16rem;
+  width: min(66%, 20rem);
 }
 
-.proofVisualPortrait img {
-  width: min(100%, 18rem);
+@media (max-width: 768px) {
+  .proofVisual {
+    top: 15.5rem;
+    width: 120%;
+  }
+
+  .proofCardPortrait .proofVisual {
+    top: 16rem;
+    width: min(68%, 18rem);
+  }
 }
 
 .article {

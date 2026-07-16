@@ -75,14 +75,16 @@ export function IntegrationPage({ eyebrow, title, description, benefits, icon, p
 
       {proof && (
         <section className={styles.proof} aria-label={proof.title}>
-          <div className={styles.proofCopy}>
-            <span className={styles.proofEyebrow}>{proof.eyebrow}</span>
-            <h2>{proof.title}</h2>
-            <p>{proof.body}</p>
+          <div className={proof.portrait ? `${styles.proofCard} ${styles.proofCardPortrait}` : styles.proofCard}>
+            <div className={styles.proofCopy}>
+              <span className={styles.proofEyebrow}>{proof.eyebrow}</span>
+              <h2>{proof.title}</h2>
+              <p>{proof.body}</p>
+            </div>
+            <figure className={styles.proofVisual}>
+              <img src={proof.image.src} alt={proof.image.alt} width={proof.image.width} height={proof.image.height} loading="lazy" />
+            </figure>
           </div>
-          <figure className={proof.portrait ? styles.proofVisualPortrait : styles.proofVisual}>
-            <img src={proof.image.src} alt={proof.image.alt} width={proof.image.width} height={proof.image.height} loading="lazy" />
-          </figure>
         </section>
       )}
 
