@@ -25,7 +25,7 @@ export const Route = createFileRoute("/_marketing/raycast")({
       secondaryAction={{
         href: raycastDeeplink,
         label: "Install in Raycast",
-        icon: { src: "/raycast-82.webp", alt: "", width: 82, height: 82 },
+        trailingIcon: { src: "/raycast-82.webp", alt: "", width: 82, height: 82 },
         openInNewTab: false,
       }}
       benefits={[

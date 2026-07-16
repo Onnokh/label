@@ -5,7 +5,7 @@ import styles from "./integration-page.module.scss"
 type Action = {
   readonly href: string
   readonly label: string
-  readonly icon?: { readonly src: string; readonly alt: string; readonly width: number; readonly height: number }
+  readonly trailingIcon?: { readonly src: string; readonly alt: string; readonly width: number; readonly height: number }
   readonly iosOnly?: boolean
   readonly openInNewTab?: boolean
 }
@@ -43,9 +43,6 @@ export function IntegrationPage({ eyebrow, title, description, benefits, icon, p
             target={primaryAction.openInNewTab === false ? undefined : "_blank"}
             rel={primaryAction.openInNewTab === false ? undefined : "noreferrer"}
           >
-            {primaryAction.icon && (
-              <img className={styles.actionIcon} src={primaryAction.icon.src} alt={primaryAction.icon.alt} width={primaryAction.icon.width} height={primaryAction.icon.height} />
-            )}
             {primaryAction.label}
             <span aria-hidden="true">↗</span>
           </a>
@@ -56,11 +53,12 @@ export function IntegrationPage({ eyebrow, title, description, benefits, icon, p
               target={visibleSecondaryAction.openInNewTab === false ? undefined : "_blank"}
               rel={visibleSecondaryAction.openInNewTab === false ? undefined : "noreferrer"}
             >
-              {visibleSecondaryAction.icon && (
-                <img className={styles.actionIcon} src={visibleSecondaryAction.icon.src} alt={visibleSecondaryAction.icon.alt} width={visibleSecondaryAction.icon.width} height={visibleSecondaryAction.icon.height} />
-              )}
               {visibleSecondaryAction.label}
-              <span aria-hidden="true">↗</span>
+              {visibleSecondaryAction.trailingIcon ? (
+                <img className={styles.actionIcon} src={visibleSecondaryAction.trailingIcon.src} alt={visibleSecondaryAction.trailingIcon.alt} width={visibleSecondaryAction.trailingIcon.width} height={visibleSecondaryAction.trailingIcon.height} />
+              ) : (
+                <span aria-hidden="true">↗</span>
+              )}
             </a>
           )}
         </div>
