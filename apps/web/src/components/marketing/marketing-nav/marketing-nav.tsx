@@ -38,6 +38,7 @@ export function MarketingNav() {
               <Link className={styles.link} to="/ios-app" onClick={closeMenu}>iOS</Link>
               <Link className={styles.link} to="/raycast" onClick={closeMenu}>Raycast</Link>
               <Link className={styles.link} to="/chrome-extension" onClick={closeMenu}>Google Chrome</Link>
+              <Link className={styles.link} to="/articles" onClick={closeMenu}>Articles</Link>
               <Link className={styles.link} to="/docs" onClick={closeMenu}>Docs</Link>
               <a
                 className={clsx(styles.link, styles.iconLink)}

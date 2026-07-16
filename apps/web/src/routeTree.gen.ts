@@ -20,6 +20,7 @@ import { Route as MarketingPocketAlternativeRouteImport } from './routes/_market
 import { Route as MarketingIosAppRouteImport } from './routes/_marketing/ios-app'
 import { Route as MarketingDocsRouteImport } from './routes/_marketing/docs'
 import { Route as MarketingChromeExtensionRouteImport } from './routes/_marketing/chrome-extension'
+import { Route as MarketingArticlesRouteImport } from './routes/_marketing/articles'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppLibraryRouteImport } from './routes/_app/library'
 import { Route as AppInboxRouteImport } from './routes/_app/inbox'
@@ -81,6 +82,11 @@ const MarketingChromeExtensionRoute =
     path: '/chrome-extension',
     getParentRoute: () => MarketingRoute,
   } as any)
+const MarketingArticlesRoute = MarketingArticlesRouteImport.update({
+  id: '/articles',
+  path: '/articles',
+  getParentRoute: () => MarketingRoute,
+} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AppInboxRoute
   '/library': typeof AppLibraryRoute
   '/settings': typeof AppSettingsRoute
+  '/articles': typeof MarketingArticlesRoute
   '/chrome-extension': typeof MarketingChromeExtensionRoute
   '/docs': typeof MarketingDocsRoute
   '/ios-app': typeof MarketingIosAppRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/inbox': typeof AppInboxRoute
   '/library': typeof AppLibraryRoute
   '/settings': typeof AppSettingsRoute
+  '/articles': typeof MarketingArticlesRoute
   '/chrome-extension': typeof MarketingChromeExtensionRoute
   '/docs': typeof MarketingDocsRoute
   '/ios-app': typeof MarketingIosAppRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/_app/inbox': typeof AppInboxRoute
   '/_app/library': typeof AppLibraryRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_marketing/articles': typeof MarketingArticlesRoute
   '/_marketing/chrome-extension': typeof MarketingChromeExtensionRoute
   '/_marketing/docs': typeof MarketingDocsRoute
   '/_marketing/ios-app': typeof MarketingIosAppRoute
@@ -168,6 +177,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/library'
     | '/settings'
+    | '/articles'
     | '/chrome-extension'
     | '/docs'
     | '/ios-app'
@@ -184,6 +194,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/library'
     | '/settings'
+    | '/articles'
     | '/chrome-extension'
     | '/docs'
     | '/ios-app'
@@ -201,6 +212,7 @@ export interface FileRouteTypes {
     | '/_app/inbox'
     | '/_app/library'
     | '/_app/settings'
+    | '/_marketing/articles'
     | '/_marketing/chrome-extension'
     | '/_marketing/docs'
     | '/_marketing/ios-app'
@@ -297,6 +309,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketingChromeExtensionRouteImport
       parentRoute: typeof MarketingRoute
     }
+    '/_marketing/articles': {
+      id: '/_marketing/articles'
+      path: '/articles'
+      fullPath: '/articles'
+      preLoaderRoute: typeof MarketingArticlesRouteImport
+      parentRoute: typeof MarketingRoute
+    }
     '/_app/settings': {
       id: '/_app/settings'
       path: '/settings'
@@ -354,6 +373,7 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface MarketingRouteChildren {
+  MarketingArticlesRoute: typeof MarketingArticlesRoute
   MarketingChromeExtensionRoute: typeof MarketingChromeExtensionRoute
   MarketingDocsRoute: typeof MarketingDocsRoute
   MarketingIosAppRoute: typeof MarketingIosAppRoute
@@ -365,6 +385,7 @@ interface MarketingRouteChildren {
 }
 
 const MarketingRouteChildren: MarketingRouteChildren = {
+  MarketingArticlesRoute: MarketingArticlesRoute,
   MarketingChromeExtensionRoute: MarketingChromeExtensionRoute,
   MarketingDocsRoute: MarketingDocsRoute,
   MarketingIosAppRoute: MarketingIosAppRoute,
