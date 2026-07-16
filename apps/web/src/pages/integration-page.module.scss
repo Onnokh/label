@@ -176,25 +176,26 @@
 .proofCopy {
   position: relative;
   z-index: 2;
-  max-width: 36rem;
-  padding: 3rem 2rem 0;
+  max-width: 26rem;
+  padding: 2.8125rem 1.25rem 0;
   margin: 0 auto;
   text-align: center;
 
   h2 {
-    margin: 0.75rem 0 0;
+    margin: 0.625rem 0 0;
     color: #fff;
-    font-size: clamp(1.75rem, 3vw, 2.5rem);
-    letter-spacing: -0.04em;
-    line-height: 1.08;
+    font-size: 1.5rem;
+    font-weight: 400;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
     text-wrap: balance;
   }
 
   p {
-    margin: 1rem 0 0;
-    color: #aaa;
-    font-size: 1.05rem;
-    line-height: 1.55;
+    margin: 0.625rem 0 0;
+    color: #808080;
+    font-size: 1rem;
+    line-height: 1.65;
     text-wrap: pretty;
   }
 
@@ -214,7 +215,7 @@
 
 .proofVisual {
   position: absolute;
-  top: 14rem;
+  top: 11rem;
   left: 50%;
   z-index: 0;
   width: min(88%, 53rem);
@@ -232,18 +233,18 @@
 }
 
 .proofCardPortrait .proofVisual {
-  top: 16rem;
+  top: 10rem;
   width: min(66%, 20rem);
 }
 
 @media (max-width: 768px) {
   .proofVisual {
-    top: 15.5rem;
+    top: 11rem;
     width: 120%;
   }
 
   .proofCardPortrait .proofVisual {
-    top: 16rem;
+    top: 10rem;
     width: min(68%, 18rem);
   }
 }

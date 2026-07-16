@@ -30,8 +30,8 @@ export const Route = createFileRoute("/_marketing/raycast")({
       }}
       proof={{
         eyebrow: "Your library, one shortcut away",
-        title: "Search the links you have already saved.",
-        body: "Bring up your Sleevy library from Raycast, search by title or site, and open the original page when it becomes useful again. It is a direct view of the same queue you save into from every other Sleevy surface.",
+        title: "Your library, in Raycast.",
+        body: "Search saved links, then open the original page when you need it.",
         image: { src: "/raycast-search-1508.webp", alt: "Sleevy saved links shown in Raycast search", width: 1508, height: 942 },
       }}
       benefits={[
