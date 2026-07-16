@@ -2,6 +2,8 @@ import handler from "./dist/server/server.js"
 
 const port = Number(process.env.PORT ?? 3000)
 const staticRoots = [`${import.meta.dir}/dist/client`, `${import.meta.dir}/dist`]
+const indexNowKey = process.env.INDEXNOW_KEY
+const hasValidIndexNowKey = /^[A-Za-z0-9-]{8,128}$/.test(indexNowKey ?? "")
 const contentTypes: Record<string, string> = {
   avif: "image/avif",
   css: "text/css; charset=utf-8",
@@ -132,6 +134,18 @@ Bun.serve({
 
     if (url.pathname === "/health") {
       return Response.json({ ok: true })
+    }
+
+    // IndexNow verifies site ownership by fetching a public text file whose
+    // filename and contents both equal the configured key. Keep the key in
+    // deployment configuration so it can be rotated without a rebuild.
+    if (hasValidIndexNowKey && url.pathname === `/${indexNowKey}.txt`) {
+      return new Response(indexNowKey, {
+        headers: {
+          "Cache-Control": "public, max-age=3600",
+          "Content-Type": "text/plain; charset=utf-8",
+        },
+      })
     }
 
     const staticResponse = await serveStatic(url)

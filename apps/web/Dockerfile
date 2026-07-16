@@ -29,6 +29,7 @@ COPY --from=build /app/packages/contract /app/packages/contract
 COPY --from=build /app/apps/web/dist ./dist
 COPY --from=build /app/apps/web/favicon.ico ./
 COPY --from=build /app/apps/web/server.ts ./
+COPY --from=build /app/apps/web/indexnow-notify.ts ./
 ENV PORT=3000
 EXPOSE 3000
 CMD ["bun", "server.ts"]
