@@ -150,7 +150,7 @@ export function Hero({ children }: { children: ReactNode }) {
               <span>every device in sync.</span>
             </h1>
             <p className={styles.sub}>
-              A bookmark manager you can script, <strong>automate</strong>, and extend.
+              A scriptable read-later app and bookmark manager you can <strong>automate</strong> and extend.
             </p>
             <m.a
               className={styles.cta}
