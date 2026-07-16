@@ -11,11 +11,13 @@
 .hero,
 .content {
   @include container;
-  max-width: 44rem;
+  max-width: none;
 }
 
 .hero {
-  max-width: 46rem;
+  > * {
+    max-width: 46rem;
+  }
 }
 
 .eyebrow,
@@ -92,6 +94,7 @@
 .callout,
 .closing {
   @include card-border(1rem, 0 1.5rem 3.5rem rgb(0 0 0 / 18%));
+  max-width: 44rem;
   background: linear-gradient(135deg, rgb(255 255 255 / 10%), rgb(255 255 255 / 4%));
 }
 
@@ -125,6 +128,7 @@ details p,
 }
 
 .content > section:not(.questions, .closing) {
+  max-width: 44rem;
   padding: 2.4rem 0 0;
 }
 
@@ -133,6 +137,7 @@ details p,
 }
 
 .questions {
+  max-width: 44rem;
   padding-top: 3.5rem;
 }
 
