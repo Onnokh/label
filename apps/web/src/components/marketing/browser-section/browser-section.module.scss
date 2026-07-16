@@ -47,6 +47,20 @@
   height: 2.4375rem;
 }
 
+.link {
+  display: inline-flex;
+  gap: 0.4rem;
+  margin-top: 1rem;
+  color: #d8d8d8;
+  font-size: 0.9rem;
+  text-decoration-color: rgb(255 255 255 / 30%);
+  text-underline-offset: 0.25em;
+
+  &:hover {
+    color: #fff;
+  }
+}
+
 .frame {
   position: relative;
   overflow: hidden;

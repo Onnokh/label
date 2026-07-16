@@ -13,6 +13,7 @@ import { Route as MarketingRouteImport } from './routes/_marketing'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as MarketingIndexRouteImport } from './routes/_marketing/index'
+import { Route as MarketingWebCompanionRouteImport } from './routes/_marketing/web-companion'
 import { Route as MarketingSupportRouteImport } from './routes/_marketing/support'
 import { Route as MarketingRaycastRouteImport } from './routes/_marketing/raycast'
 import { Route as MarketingPrivacyRouteImport } from './routes/_marketing/privacy'
@@ -46,6 +47,11 @@ const SplatRoute = SplatRouteImport.update({
 const MarketingIndexRoute = MarketingIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => MarketingRoute,
+} as any)
+const MarketingWebCompanionRoute = MarketingWebCompanionRouteImport.update({
+  id: '/web-companion',
+  path: '/web-companion',
   getParentRoute: () => MarketingRoute,
 } as any)
 const MarketingSupportRoute = MarketingSupportRouteImport.update({
@@ -150,6 +156,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof MarketingPrivacyRoute
   '/raycast': typeof MarketingRaycastRoute
   '/support': typeof MarketingSupportRoute
+  '/web-companion': typeof MarketingWebCompanionRoute
   '/articles/read-later-api': typeof MarketingArticlesReadLaterApiRoute
   '/articles/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/articles/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof MarketingPrivacyRoute
   '/raycast': typeof MarketingRaycastRoute
   '/support': typeof MarketingSupportRoute
+  '/web-companion': typeof MarketingWebCompanionRoute
   '/articles/read-later-api': typeof MarketingArticlesReadLaterApiRoute
   '/articles/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/articles/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
@@ -192,6 +200,7 @@ export interface FileRoutesById {
   '/_marketing/privacy': typeof MarketingPrivacyRoute
   '/_marketing/raycast': typeof MarketingRaycastRoute
   '/_marketing/support': typeof MarketingSupportRoute
+  '/_marketing/web-companion': typeof MarketingWebCompanionRoute
   '/_marketing/': typeof MarketingIndexRoute
   '/_marketing/articles_/read-later-api': typeof MarketingArticlesReadLaterApiRoute
   '/_marketing/articles_/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
@@ -215,6 +224,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/raycast'
     | '/support'
+    | '/web-companion'
     | '/articles/read-later-api'
     | '/articles/read-later-app-chrome-iphone'
     | '/articles/save-links-with-raycast'
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/raycast'
     | '/support'
+    | '/web-companion'
     | '/articles/read-later-api'
     | '/articles/read-later-app-chrome-iphone'
     | '/articles/save-links-with-raycast'
@@ -256,6 +267,7 @@ export interface FileRouteTypes {
     | '/_marketing/privacy'
     | '/_marketing/raycast'
     | '/_marketing/support'
+    | '/_marketing/web-companion'
     | '/_marketing/'
     | '/_marketing/articles_/read-later-api'
     | '/_marketing/articles_/read-later-app-chrome-iphone'
@@ -297,6 +309,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof MarketingIndexRouteImport
+      parentRoute: typeof MarketingRoute
+    }
+    '/_marketing/web-companion': {
+      id: '/_marketing/web-companion'
+      path: '/web-companion'
+      fullPath: '/web-companion'
+      preLoaderRoute: typeof MarketingWebCompanionRouteImport
       parentRoute: typeof MarketingRoute
     }
     '/_marketing/support': {
@@ -441,6 +460,7 @@ interface MarketingRouteChildren {
   MarketingPrivacyRoute: typeof MarketingPrivacyRoute
   MarketingRaycastRoute: typeof MarketingRaycastRoute
   MarketingSupportRoute: typeof MarketingSupportRoute
+  MarketingWebCompanionRoute: typeof MarketingWebCompanionRoute
   MarketingIndexRoute: typeof MarketingIndexRoute
   MarketingArticlesReadLaterApiRoute: typeof MarketingArticlesReadLaterApiRoute
   MarketingArticlesReadLaterAppChromeIphoneRoute: typeof MarketingArticlesReadLaterAppChromeIphoneRoute
@@ -456,6 +476,7 @@ const MarketingRouteChildren: MarketingRouteChildren = {
   MarketingPrivacyRoute: MarketingPrivacyRoute,
   MarketingRaycastRoute: MarketingRaycastRoute,
   MarketingSupportRoute: MarketingSupportRoute,
+  MarketingWebCompanionRoute: MarketingWebCompanionRoute,
   MarketingIndexRoute: MarketingIndexRoute,
   MarketingArticlesReadLaterApiRoute: MarketingArticlesReadLaterApiRoute,
   MarketingArticlesReadLaterAppChromeIphoneRoute:

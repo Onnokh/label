@@ -182,6 +182,59 @@ details p,
   margin: 0.65rem 0 0;
 }
 
+.comparison {
+  > p {
+    margin-bottom: 1rem;
+  }
+}
+
+.tableScroll {
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  outline: none;
+
+  @include card-border(0.75rem, 0 1.5rem 3.5rem rgb(0 0 0 / 18%));
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px rgb(255 255 255 / 35%);
+  }
+}
+
+.comparison table {
+  width: 100%;
+  min-width: 40rem;
+  border-collapse: collapse;
+  background: rgb(255 255 255 / 3%);
+  color: #b7b7b7;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.comparison th,
+.comparison td {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  text-align: left;
+  vertical-align: top;
+}
+
+.comparison thead th {
+  color: #f3f3f3;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.comparison tbody th {
+  width: 32%;
+  color: #e5e5e5;
+  font-weight: 500;
+}
+
+.comparison tr:last-child > * {
+  border-bottom: 0;
+}
+
 .content > section:not(.questions, .closing) {
   padding: 2.4rem 0 0;
 }

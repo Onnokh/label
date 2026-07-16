@@ -24,7 +24,7 @@ export function MarketingFooter() {
           <Link to="/ios-app">iOS</Link>
           <Link to="/raycast">Raycast</Link>
           <Link to="/chrome-extension">Google Chrome</Link>
-          <Link to="/inbox">Web Companion</Link>
+          <Link to="/web-companion">Web Companion</Link>
         </nav>
 
         <nav className={styles.col} aria-label="Extras">

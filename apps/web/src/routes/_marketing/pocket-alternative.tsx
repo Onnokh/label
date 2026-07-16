@@ -22,13 +22,28 @@ export const Route = createFileRoute("/_marketing/pocket-alternative")({
     <ArticlePage
       eyebrow="Pocket alternative"
       title="A simpler home for the links you mean to return to."
-      description="Pocket is no longer available. Here is a calmer way to think about what should replace it—and whether Sleevy is the right fit."
+      description="Compare Sleevy with Pocket's former save-for-later workflow, including iPhone and Chrome capture, web access, API automation, and offline reading limitations."
       updatedAt={{ dateTime: "2026-07-16", label: "Updated July 2026" }}
       primaryAction={{ href: appStoreUrl, label: "Get Sleevy for iPhone" }}
       secondaryAction={{ href: "/ios-app", label: "How it works", openInNewTab: false }}
       callout={{
         title: "The short version",
         body: "A replacement does not need to recreate every feature Pocket had. It needs to make it easy to trust the next useful link will still be waiting when you have time for it.",
+      }}
+      comparison={{
+        title: "Pocket and Sleevy compared",
+        note: "Pocket's feature rows describe the service before it closed. Sleevy is a synced link queue, not a full article reader.",
+        columns: ["Workflow", "Pocket", "Sleevy today"],
+        rows: [
+          { label: "Availability", values: ["Closed July 8, 2025", "Available"] },
+          { label: "Save from iPhone", values: ["Share extension", "iOS Share Sheet"] },
+          { label: "Save from Chrome", values: ["Browser extension", "Chrome extension"] },
+          { label: "Web library", values: ["Available", "Available"] },
+          { label: "Save and search from Raycast", values: ["Not built into Pocket", "Dedicated Raycast extension"] },
+          { label: "Automation", values: ["API discontinued with the service", "Personal REST API"] },
+          { label: "Full offline article reading", values: ["Supported", "Not supported"] },
+          { label: "Pocket data migration", values: ["Export window closed", "No direct Pocket import"] },
+        ],
       }}
       sections={[
         {
@@ -43,6 +58,7 @@ export const Route = createFileRoute("/_marketing/pocket-alternative")({
           paragraphs: [
             "Some people mostly find articles on their phone. Others collect documentation, repositories, and half-read tabs while working at a computer. A replacement that asks you to change those habits is likely to become another abandoned inbox.",
             "It is worth asking two plain questions: can I save a link where I naturally find it, and can I find it again from where I naturally return to it? Those answers matter more than a long comparison table.",
+            "If everything stays inside one browser ecosystem, its native Reading List may already be enough. Sleevy is useful when the same queue needs to cross iPhone, Chrome, Raycast, the web, and your own automations.",
           ],
         },
         {

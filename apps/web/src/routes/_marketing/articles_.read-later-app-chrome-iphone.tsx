@@ -63,7 +63,10 @@ export const Route = createFileRoute("/_marketing/articles_/read-later-app-chrom
         { question: "Can I save links from apps other than Safari?", answer: "Yes. Any iPhone app that shares a web URL through the standard iOS Share Sheet can send that link to Sleevy." },
         { question: "Can I open Chrome links on my iPhone later?", answer: "Yes. Links saved with the Chrome extension sync to the same Sleevy account and can be opened from your queue on iPhone." },
       ]}
-      relatedLinks={[{ href: "/docs", label: "Save links with the Sleevy API", openInNewTab: false }]}
+      relatedLinks={[
+        { href: "/web-companion", label: "View the Sleevy web companion", openInNewTab: false },
+        { href: "/docs", label: "Save links with the Sleevy API", openInNewTab: false },
+      ]}
       primaryAction={{ href: appStoreUrl, label: "View in App Store" }}
       secondaryAction={{ href: chromeStoreUrl, label: "View in Chrome Web Store" }}
       closing={{ title: "Use one queue on Chrome and iPhone.", body: "Add Sleevy to both devices and save links wherever you find them." }}

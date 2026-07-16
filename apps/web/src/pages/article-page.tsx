@@ -22,6 +22,12 @@ type ArticlePageProps = {
     readonly body: string
     readonly image: { readonly src: string; readonly alt: string; readonly width: number; readonly height: number }
   }
+  readonly comparison?: {
+    readonly title: string
+    readonly note?: string
+    readonly columns: readonly [string, string, string]
+    readonly rows: readonly { readonly label: string; readonly values: readonly [string, string] }[]
+  }
   readonly sections: readonly ArticleSection[]
   readonly questions?: readonly { readonly question: string; readonly answer: string }[]
   readonly relatedLinks?: readonly Action[]
@@ -53,7 +59,7 @@ function ArticleActions({ primaryAction, secondaryAction }: { readonly primaryAc
 }
 
 /** A reusable long-form marketing page for comparisons and workflow guides. */
-export function ArticlePage({ eyebrow, title, description, updatedAt, callout, proof, sections, questions, relatedLinks, primaryAction, secondaryAction, closing }: ArticlePageProps) {
+export function ArticlePage({ eyebrow, title, description, updatedAt, callout, proof, comparison, sections, questions, relatedLinks, primaryAction, secondaryAction, closing }: ArticlePageProps) {
   return (
     <article className={styles.page}>
       <header className={styles.hero}>
@@ -78,6 +84,30 @@ export function ArticlePage({ eyebrow, title, description, updatedAt, callout, p
             </figcaption>
             <img src={proof.image.src} alt={proof.image.alt} width={proof.image.width} height={proof.image.height} loading="lazy" />
           </figure>
+        )}
+
+        {comparison && (
+          <section className={styles.comparison} aria-labelledby="comparison-title">
+            <h2 id="comparison-title">{comparison.title}</h2>
+            {comparison.note && <p>{comparison.note}</p>}
+            <div className={styles.tableScroll} role="region" tabIndex={0} aria-labelledby="comparison-title">
+              <table>
+                <thead>
+                  <tr>
+                    {comparison.columns.map((column) => <th key={column} scope="col">{column}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparison.rows.map((row) => (
+                    <tr key={row.label}>
+                      <th scope="row">{row.label}</th>
+                      {row.values.map((value, index) => <td key={`${row.label}-${index}`}>{value}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
         )}
 
         {sections.map((section) => (
