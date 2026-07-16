@@ -6,10 +6,10 @@ import { IntegrationPage } from "../../pages/integration-page"
 export const Route = createFileRoute("/_marketing/ios-app")({
   head: () => ({
     meta: [
-      { title: "Sleevy for iPhone | iOS Read-Later App" },
-      { name: "description", content: "Save links from the iOS share sheet and keep your personal read-later queue in sync with Sleevy for iPhone." },
-      { property: "og:title", content: "Sleevy for iPhone" },
-      { property: "og:description", content: "Save links from the iOS share sheet and keep your read-later queue in sync." },
+      { title: "Save Links from iPhone | iOS Read-Later App | Sleevy" },
+      { name: "description", content: "Save links from iPhone with Sleevy, an iOS read-later app for the Share Sheet. Keep your reading queue synced across your devices." },
+      { property: "og:title", content: "Save Links from iPhone | Sleevy" },
+      { property: "og:description", content: "Save links from the iOS Share Sheet to a synced read-later queue." },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://sleevy.app/ios-app" },
     ],
@@ -18,8 +18,9 @@ export const Route = createFileRoute("/_marketing/ios-app")({
   component: () => (
     <IntegrationPage
       eyebrow="iOS"
-      title="Save links from iOS."
-      description="An iOS read-later app that uses the native share sheet to turn an interesting link into something you can return to later."
+      title="Save links from iPhone."
+      description="Use the Sleevy iOS Share Sheet to save links from any app to a synced read-later queue."
+      intro="Save links from iPhone with the native iOS Share Sheet, then return to them from a synced queue when you are ready."
       icon={{ src: "/ios26-82.webp", alt: "Sleevy for iPhone", width: 82, height: 82 }}
       primaryAction={{ href: appStoreUrl, label: "View in App Store" }}
       secondaryAction={{ href: appStoreDeeplink, label: "Open in App Store", iosOnly: true, openInNewTab: false }}

@@ -14,6 +14,7 @@ type IntegrationPageProps = {
   readonly eyebrow: string
   readonly title: string
   readonly description: string
+  readonly intro?: string
   readonly benefits: readonly { readonly title: string; readonly body: string }[]
   readonly icon: { readonly src: string; readonly alt: string; readonly width: number; readonly height: number }
   readonly primaryAction: Action
@@ -26,7 +27,7 @@ type IntegrationPageProps = {
   }
 }
 
-export function IntegrationPage({ eyebrow, title, description, benefits, icon, primaryAction, secondaryAction, proof }: IntegrationPageProps) {
+export function IntegrationPage({ eyebrow, title, description, intro = "Sleevy keeps one reading queue across the places where you find useful things. Save it now; decide what to do with it later.", benefits, icon, primaryAction, secondaryAction, proof }: IntegrationPageProps) {
   const [isIOS, setIsIOS] = useState(false)
   const visibleSecondaryAction = secondaryAction && (!secondaryAction.iosOnly || isIOS) ? secondaryAction : undefined
 
@@ -74,7 +75,7 @@ export function IntegrationPage({ eyebrow, title, description, benefits, icon, p
 
       <section className={styles.article} aria-label={`About Sleevy ${eyebrow}`}>
         <div className={styles.intro}>
-          <p>Sleevy keeps one reading queue across the places where you find useful things. Save it now; decide what to do with it later.</p>
+          <p>{intro}</p>
         </div>
         {benefits.map((benefit) => (
           <article key={benefit.title}>

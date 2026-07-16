@@ -6,10 +6,10 @@ import { IntegrationPage } from "../../pages/integration-page"
 export const Route = createFileRoute("/_marketing/chrome-extension")({
   head: () => ({
     meta: [
-      { title: "Sleevy Chrome Extension | Save Tabs to Read Later" },
-      { name: "description", content: "Use the Sleevy Chrome extension to save the tab you are viewing to your synced read-later queue in one click." },
-      { property: "og:title", content: "Sleevy Chrome Extension" },
-      { property: "og:description", content: "Save the tab you are viewing to your synced read-later queue in one click." },
+      { title: "Chrome Read-Later Extension: Save Tabs for Later | Sleevy" },
+      { name: "description", content: "Save tabs for later with the Sleevy Chrome read-later extension. Add the page you are viewing to one synced reading queue in one click." },
+      { property: "og:title", content: "Chrome Read-Later Extension | Sleevy" },
+      { property: "og:description", content: "Save tabs for later in Chrome and keep one synced reading queue." },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://sleevy.app/chrome-extension" },
     ],
@@ -18,8 +18,9 @@ export const Route = createFileRoute("/_marketing/chrome-extension")({
   component: () => (
     <IntegrationPage
       eyebrow="Chrome extension"
-      title="Save any tab for later."
-      description="A Chrome extension for getting useful tabs out of your browser and into one synced read-later queue."
+      title="A Chrome read-later extension for your tabs."
+      description="Save tabs for later in Chrome and add the page you are viewing to one synced read-later queue in one click."
+      intro="Use the Chrome read-later extension to save tabs for later and keep the useful pages you find in one synced queue."
       icon={{ src: "/chrome-76.webp", alt: "Google Chrome", width: 76, height: 82 }}
       primaryAction={{ href: chromeStoreUrl, label: "View in Chrome Web Store" }}
       benefits={[
