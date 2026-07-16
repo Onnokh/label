@@ -17,9 +17,7 @@ export function ArticlesPage() {
   return (
     <article className={styles.page}>
       <header className={styles.hero}>
-        <span className={styles.eyebrow}>Sleevy articles</span>
-        <h1>For the things worth returning to.</h1>
-        <p>Thoughtful notes on saving links, choosing calmer tools, and finding your way back to what matters.</p>
+        <h1>Articles</h1>
       </header>
 
       <section className={styles.list} aria-label="Articles">

@@ -17,7 +17,6 @@
   max-width: none;
 }
 
-.eyebrow,
 .topic,
 time {
   color: #aaa;
@@ -26,30 +25,19 @@ time {
   letter-spacing: 0.03em;
 }
 
-.eyebrow,
 .topic,
 time {
   display: block;
 }
 
 .hero h1 {
-  max-width: 50rem;
-  margin: 1rem 0 0;
+  margin: 0;
   color: #fff;
-  font-size: clamp(2.5rem, 5vw, 4.25rem);
+  font-size: clamp(2.25rem, 4vw, 3.25rem);
   font-weight: 700;
   letter-spacing: -0.045em;
   line-height: 1.02;
   text-wrap: balance;
-}
-
-.hero p {
-  max-width: 42rem;
-  margin: 1.4rem 0 0;
-  color: #b4b4b4;
-  font-size: 1.2rem;
-  line-height: 1.55;
-  text-wrap: pretty;
 }
 
 .list {
