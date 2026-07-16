@@ -22,47 +22,42 @@ export const Route = createFileRoute("/_marketing/pocket-alternative")({
     <ArticlePage
       eyebrow="Pocket alternative"
       title="A simpler home for the links you mean to return to."
-      description="Pocket is no longer available. Sleevy keeps one calm queue for the articles, videos, references, and tabs you find across your day."
+      description="Pocket is no longer available. Here is a calmer way to think about what should replace it—and whether Sleevy is the right fit."
       updatedAt={{ dateTime: "2026-07-16", label: "Updated July 2026" }}
       primaryAction={{ href: appStoreUrl, label: "Get Sleevy for iPhone" }}
       callout={{
         title: "The short version",
-        body: "Sleevy is built for saving a link in the moment and finding it again later—whether you are on your iPhone, in Chrome, at your keyboard with Raycast, or working in a script.",
+        body: "A replacement does not need to recreate every feature Pocket had. It needs to make it easy to trust the next useful link will still be waiting when you have time for it.",
       }}
       sections={[
         {
-          title: "Pocket is gone. The reading problem is not.",
+          title: "Replacing a habit, not just an app",
           paragraphs: [
-            "Finding something useful is easy. Giving it your full attention right then usually is not. A good read-later queue lets you close the tab, carry on with your day, and trust that the link will still be there when you are ready.",
-            "Sleevy keeps that job deliberately small: capture the link, keep it in one personal queue, and return when it matters.",
+            "Pocket was rarely the destination. It was the small pause between finding something interesting and deciding whether it deserved your attention. The link left a crowded browser, landed somewhere dependable, and stopped asking for an immediate decision.",
+            "That is the habit worth preserving. The right replacement is less about matching a feature checklist and more about making it frictionless to capture a thought without breaking the moment you are in.",
           ],
         },
         {
-          title: "Save from the tools you already use.",
+          title: "Start with how you actually discover things",
           paragraphs: [
-            "On iPhone, save a page through the Share sheet. In Chrome, capture the current tab in one click. In Raycast, save and search links without leaving the keyboard. Your own scripts can add links through the personal REST API too.",
-            "Every capture arrives in the same Sleevy account, so a link found on one device is waiting from the next one.",
+            "Some people mostly find articles on their phone. Others collect documentation, repositories, and half-read tabs while working at a computer. A replacement that asks you to change those habits is likely to become another abandoned inbox.",
+            "It is worth asking two plain questions: can I save a link where I naturally find it, and can I find it again from where I naturally return to it? Those answers matter more than a long comparison table.",
           ],
         },
         {
-          title: "A queue, not another place to manage.",
+          title: "Where Sleevy fits",
           paragraphs: [
-            "Sleevy is for the things that are worth keeping but do not need action yet. Use it to clear research tabs, collect a few articles for later, or hold onto a useful reference without turning your browser into a to-do list.",
-            "When you come back, search your saved links, filter the queue, and open the original page when you have the time to give it attention.",
+            "Sleevy is deliberately focused on that handoff. A link can arrive from the iPhone Share sheet, the Chrome extension, Raycast, or a small script. It becomes part of the same personal queue rather than a separate pile for each device.",
+            "When you come back, the point is not to manufacture a reading ritual. It is simply to search the queue, filter what matters, and open the original page when you are ready to give it attention.",
           ],
         },
         {
-          title: "Is Sleevy the right Pocket alternative for you?",
+          title: "Choose the shape of the tool, not the loudest replacement",
           paragraphs: [
-            "Choose Sleevy if your main need is a reliable, synced place to save links from the surfaces where you discover them. It is especially useful if you want iPhone sharing, Chrome capture, keyboard access, and a lightweight API in one workflow.",
-            "If your workflow depends on a dedicated offline article reader or extensive annotation tools, make sure the product you choose supports those needs before committing to a new workflow.",
+            "Sleevy makes sense when your saved links need to move with you: from a phone to a browser, from a browser to the keyboard, or from a quick automation back to a single queue. It is a useful fit for people who want their reading list to feel like a lightweight memory rather than another project to maintain.",
+            "If your workflow depends on a dedicated offline article reader or extensive annotation tools, choose a service that treats those as first-class concerns. A calm link queue is valuable, but it should not pretend to be every kind of reading tool.",
           ],
         },
-      ]}
-      questions={[
-        { question: "Can I save a link from my iPhone?", answer: "Yes. Use the Sleevy action in the iOS Share sheet to add a link to your queue." },
-        { question: "Does Sleevy work with Chrome?", answer: "Yes. The Sleevy Chrome extension saves the tab you are viewing to your queue." },
-        { question: "Can I automate link saving?", answer: "Yes. Sleevy provides a personal REST API for capturing links from scripts and automations." },
       ]}
     />
   ),

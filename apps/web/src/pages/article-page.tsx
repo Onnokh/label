@@ -12,7 +12,7 @@ type ArticlePageProps = {
   readonly updatedAt: { readonly dateTime: string; readonly label: string }
   readonly callout: { readonly title: string; readonly body: string }
   readonly sections: readonly ArticleSection[]
-  readonly questions: readonly { readonly question: string; readonly answer: string }[]
+  readonly questions?: readonly { readonly question: string; readonly answer: string }[]
   readonly primaryAction: { readonly href: string; readonly label: string }
 }
 
@@ -43,15 +43,17 @@ export function ArticlePage({ eyebrow, title, description, updatedAt, callout, s
           </section>
         ))}
 
-        <section className={styles.questions} aria-label="Frequently asked questions">
-          <h2>Questions, answered.</h2>
-          {questions.map((item) => (
-            <details key={item.question}>
-              <summary>{item.question}</summary>
-              <p>{item.answer}</p>
-            </details>
-          ))}
-        </section>
+        {questions && questions.length > 0 && (
+          <section className={styles.questions} aria-label="Frequently asked questions">
+            <h2>Questions, answered.</h2>
+            {questions.map((item) => (
+              <details key={item.question}>
+                <summary>{item.question}</summary>
+                <p>{item.answer}</p>
+              </details>
+            ))}
+          </section>
+        )}
 
         <section className={styles.closing}>
           <h2>Keep the good links. Lose the open tabs.</h2>
