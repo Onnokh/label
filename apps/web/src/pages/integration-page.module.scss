@@ -203,7 +203,7 @@
 
 .proofVisual {
   position: absolute;
-  top: 11rem;
+  top: 14rem;
   left: 50%;
   z-index: 0;
   width: min(88%, 53rem);
@@ -221,18 +221,18 @@
 }
 
 .proofCardPortrait .proofVisual {
-  top: 10rem;
+  top: 14rem;
   width: min(66%, 20rem);
 }
 
 @media (max-width: 768px) {
   .proofVisual {
-    top: 11rem;
+    top: 14rem;
     width: 120%;
   }
 
   .proofCardPortrait .proofVisual {
-    top: 10rem;
+    top: 14rem;
     width: min(68%, 18rem);
   }
 }

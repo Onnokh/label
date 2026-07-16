@@ -29,8 +29,8 @@ export const Route = createFileRoute("/_marketing/raycast")({
         openInNewTab: false,
       }}
       proof={{
-        title: "Your library, in Raycast.",
-        body: "Search saved links, then open the original page when you need it.",
+        title: "Your saved work stays close.",
+        body: "One shortcut opens your library whenever a reference comes back into play.",
         image: { src: "/raycast-search-1508.webp", alt: "Sleevy saved links shown in Raycast search", width: 1508, height: 942 },
       }}
       benefits={[
