@@ -132,10 +132,10 @@
   @include container;
 
   max-width: 62rem;
-  margin-top: 6rem;
+  margin-top: 8rem;
 
   @media (max-width: 768px) {
-    margin-top: 4.5rem;
+    margin-top: 6rem;
   }
 }
 
