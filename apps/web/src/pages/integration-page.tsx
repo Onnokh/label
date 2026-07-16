@@ -72,6 +72,18 @@ export function IntegrationPage({ eyebrow, title, description, benefits, icon, p
         </div>
       </section>
 
+      <section className={styles.article} aria-label={`About Sleevy ${eyebrow}`}>
+        <div className={styles.intro}>
+          <p>Sleevy keeps one reading queue across the places where you find useful things. Save it now; decide what to do with it later.</p>
+        </div>
+        {benefits.map((benefit) => (
+          <article key={benefit.title}>
+            <h2>{benefit.title}</h2>
+            <p>{benefit.body}</p>
+          </article>
+        ))}
+      </section>
+
       {proof && (
         <section className={styles.proof} aria-label={proof.title}>
           <div className={proof.portrait ? `${styles.proofCard} ${styles.proofCardPortrait}` : styles.proofCard}>
@@ -85,18 +97,6 @@ export function IntegrationPage({ eyebrow, title, description, benefits, icon, p
           </div>
         </section>
       )}
-
-      <section className={styles.article} aria-label={`About Sleevy ${eyebrow}`}>
-        <div className={styles.intro}>
-          <p>Sleevy keeps one reading queue across the places where you find useful things. Save it now; decide what to do with it later.</p>
-        </div>
-        {benefits.map((benefit) => (
-          <article key={benefit.title}>
-            <h2>{benefit.title}</h2>
-            <p>{benefit.body}</p>
-          </article>
-        ))}
-      </section>
     </article>
   )
 }
