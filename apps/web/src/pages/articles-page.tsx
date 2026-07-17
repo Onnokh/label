@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router"
 
+import { StructuredData } from "../components/marketing/structured-data"
+
 import styles from "./articles-page.module.scss"
 
 const articles = [
@@ -40,6 +42,26 @@ const articles = [
 export function ArticlesPage() {
   return (
     <article className={styles.page}>
+      <StructuredData
+        data={{
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          "@id": "https://sleevy.app/articles#collection",
+          url: "https://sleevy.app/articles",
+          name: "Sleevy articles",
+          description: "Articles about saving links from iPhone, Chrome, Raycast, and personal automations.",
+          isPartOf: { "@id": "https://sleevy.app/#website" },
+          mainEntity: {
+            "@type": "ItemList",
+            itemListElement: articles.map((article, index) => ({
+              "@type": "ListItem",
+              position: index + 1,
+              url: new URL(article.href, "https://sleevy.app").href,
+              name: article.title,
+            })),
+          },
+        }}
+      />
       <header className={styles.hero}>
         <h1>Articles</h1>
       </header>

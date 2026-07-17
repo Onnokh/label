@@ -17,10 +17,11 @@ export const Route = createFileRoute("/_marketing/articles_/read-later-app-chrom
   }),
   component: () => (
     <ArticlePage
+      schema={{ url: "https://sleevy.app/articles/read-later-app-chrome-iphone", datePublished: "2026-07-16" }}
       eyebrow="Cross-device read later"
       title="A read-later app for Chrome and iPhone."
       description="Save links from Chrome and iPhone to the same synced reading queue, then return to them from either device."
-      updatedAt={{ dateTime: "2026-07-16", label: "Updated July 2026" }}
+      updatedAt={{ dateTime: "2026-07-17", label: "Updated July 2026" }}
       callout={{
         title: "How it works",
         body: "Use the Chrome extension on your computer and the iOS Share Sheet on your iPhone. Both save to the same Sleevy account and reading queue.",

@@ -16,10 +16,11 @@ export const Route = createFileRoute("/_marketing/articles_/read-later-api")({
   }),
   component: () => (
     <ArticlePage
+      schema={{ url: "https://sleevy.app/articles/read-later-api", datePublished: "2026-07-16" }}
       eyebrow="Read-later API"
       title="Save URLs with a read-later API."
       description="Send links to a personal reading queue from scripts, shortcuts, command-line tools, and your own automations."
-      updatedAt={{ dateTime: "2026-07-16", label: "Updated July 2026" }}
+      updatedAt={{ dateTime: "2026-07-17", label: "Updated July 2026" }}
       callout={{
         title: "The basic request",
         body: "Create an API key, send an authenticated POST request to /v1/captures, and include the URL you want to save in the JSON body.",

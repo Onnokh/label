@@ -17,10 +17,11 @@ export const Route = createFileRoute("/_marketing/articles_/save-links-with-rayc
   }),
   component: () => (
     <ArticlePage
+      schema={{ url: "https://sleevy.app/articles/save-links-with-raycast", datePublished: "2026-07-16" }}
       eyebrow="Raycast read later"
       title="How to save links with Raycast."
       description="Use Raycast to save a URL from your clipboard, search your read-later queue, and reopen saved links without leaving the launcher."
-      updatedAt={{ dateTime: "2026-07-16", label: "Updated July 2026" }}
+      updatedAt={{ dateTime: "2026-07-17", label: "Updated July 2026" }}
       callout={{
         title: "The short version",
         body: "Install the Sleevy extension from the Raycast Store. Copy a URL and run the save command, or open the search command to find a link already in your queue.",

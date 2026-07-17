@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_marketing/pocket-alternative")({
       { property: "og:description", content: "Keep one synced queue for the links you want to return to." },
       { property: "og:type", content: "article" },
       { property: "og:url", content: "https://sleevy.app/pocket-alternative" },
-      { property: "article:modified_time", content: "2026-07-16" },
+      { property: "article:modified_time", content: "2026-07-17" },
       { name: "twitter:title", content: "A Pocket Alternative for Your Link Queue | Sleevy" },
       { name: "twitter:description", content: "Keep one synced queue for the links you want to return to." },
     ],
@@ -20,10 +20,11 @@ export const Route = createFileRoute("/_marketing/pocket-alternative")({
   }),
   component: () => (
     <ArticlePage
+      schema={{ url: "https://sleevy.app/pocket-alternative", datePublished: "2026-07-16" }}
       eyebrow="Pocket alternative"
       title="A simpler home for the links you mean to return to."
       description="Compare Sleevy with Pocket's former save-for-later workflow, including iPhone and Chrome capture, web access, API automation, and offline reading limitations."
-      updatedAt={{ dateTime: "2026-07-16", label: "Updated July 2026" }}
+      updatedAt={{ dateTime: "2026-07-17", label: "Updated July 2026" }}
       primaryAction={{ href: appStoreUrl, label: "Get Sleevy for iPhone" }}
       secondaryAction={{ href: "/ios-app", label: "How it works", openInNewTab: false }}
       callout={{

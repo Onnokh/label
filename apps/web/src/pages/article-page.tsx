@@ -1,3 +1,5 @@
+import { StructuredData } from "../components/marketing/structured-data"
+
 import styles from "./article-page.module.scss"
 
 type ArticleSection = {
@@ -12,6 +14,7 @@ type Action = {
 }
 
 type ArticlePageProps = {
+  readonly schema: { readonly url: string; readonly datePublished: string }
   readonly eyebrow: string
   readonly title: string
   readonly description: string
@@ -59,9 +62,49 @@ function ArticleActions({ primaryAction, secondaryAction }: { readonly primaryAc
 }
 
 /** A reusable long-form marketing page for comparisons and workflow guides. */
-export function ArticlePage({ eyebrow, title, description, updatedAt, callout, proof, comparison, sections, questions, relatedLinks, primaryAction, secondaryAction, closing }: ArticlePageProps) {
+export function ArticlePage({ schema, eyebrow, title, description, updatedAt, callout, proof, comparison, sections, questions, relatedLinks, primaryAction, secondaryAction, closing }: ArticlePageProps) {
+  const article = {
+    "@type": "BlogPosting",
+    "@id": `${schema.url}#article`,
+    url: schema.url,
+    mainEntityOfPage: { "@type": "WebPage", "@id": schema.url },
+    headline: title,
+    description,
+    datePublished: schema.datePublished,
+    dateModified: updatedAt.dateTime,
+    author: {
+      "@type": "Organization",
+      "@id": "https://sleevy.app/#organization",
+      name: "Sleevy",
+      url: "https://sleevy.app/",
+    },
+    publisher: { "@id": "https://sleevy.app/#organization" },
+    ...(proof && {
+      image: {
+        "@type": "ImageObject",
+        url: new URL(proof.image.src, "https://sleevy.app").href,
+        width: proof.image.width,
+        height: proof.image.height,
+      },
+    }),
+  }
+
+  const faq = questions && questions.length > 0
+    ? {
+        "@type": "FAQPage",
+        "@id": `${schema.url}#faq`,
+        url: schema.url,
+        mainEntity: questions.map(({ question, answer }) => ({
+          "@type": "Question",
+          name: question,
+          acceptedAnswer: { "@type": "Answer", text: answer },
+        })),
+      }
+    : undefined
+
   return (
     <article className={styles.page}>
+      <StructuredData data={{ "@context": "https://schema.org", "@graph": faq ? [article, faq] : [article] }} />
       <header className={styles.hero}>
         <span className={styles.eyebrow}>{eyebrow}</span>
         <h1>{title}</h1>
