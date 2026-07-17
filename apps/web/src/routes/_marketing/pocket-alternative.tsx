@@ -77,6 +77,10 @@ export const Route = createFileRoute("/_marketing/pocket-alternative")({
           ],
         },
       ]}
+      relatedLinks={[
+        { href: "/chrome-extension", label: "Save tabs for later in Chrome", openInNewTab: false },
+        { href: "/web-companion", label: "View the Sleevy web companion", openInNewTab: false },
+      ]}
     />
   ),
 })

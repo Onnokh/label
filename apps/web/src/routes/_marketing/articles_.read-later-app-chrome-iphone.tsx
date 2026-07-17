@@ -67,6 +67,7 @@ export const Route = createFileRoute("/_marketing/articles_/read-later-app-chrom
       relatedLinks={[
         { href: "/web-companion", label: "View the Sleevy web companion", openInNewTab: false },
         { href: "/docs", label: "Save links with the Sleevy API", openInNewTab: false },
+        { href: "/pocket-alternative", label: "Compare Sleevy with Pocket", openInNewTab: false },
       ]}
       primaryAction={{ href: appStoreUrl, label: "View in App Store" }}
       secondaryAction={{ href: chromeStoreUrl, label: "View in Chrome Web Store" }}
