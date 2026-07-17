@@ -22,12 +22,12 @@ const articles = [
     topic: "Cross-device read later",
   },
   {
-    href: "/articles/read-later-api",
-    title: "Save URLs with a read-later API.",
-    description: "Send links to a personal reading queue from scripts, shortcuts, command-line tools, and your own automations.",
+    href: "/articles/bookmark-manager-for-developers",
+    title: "A bookmark manager for developers.",
+    description: "Save links from Raycast, Chrome, iPhone, or your own scripts into one personal research queue you can actually come back to.",
     dateTime: "2026-07-16",
     date: "July 16, 2026",
-    topic: "Read-later API",
+    topic: "Developer workflow",
   },
   {
     href: "/pocket-alternative",

@@ -28,7 +28,7 @@ import { Route as AppInboxRouteImport } from './routes/_app/inbox'
 import { Route as AppConnectRouteImport } from './routes/_app/connect'
 import { Route as MarketingArticlesSaveLinksWithRaycastRouteImport } from './routes/_marketing/articles_.save-links-with-raycast'
 import { Route as MarketingArticlesReadLaterAppChromeIphoneRouteImport } from './routes/_marketing/articles_.read-later-app-chrome-iphone'
-import { Route as MarketingArticlesReadLaterApiRouteImport } from './routes/_marketing/articles_.read-later-api'
+import { Route as MarketingArticlesBookmarkManagerForDevelopersRouteImport } from './routes/_marketing/articles_.bookmark-manager-for-developers'
 import { Route as AppLibraryFoldersFolderIdRouteImport } from './routes/_app/library_.folders.$folderId'
 
 const MarketingRoute = MarketingRouteImport.update({
@@ -128,10 +128,10 @@ const MarketingArticlesReadLaterAppChromeIphoneRoute =
     path: '/articles/read-later-app-chrome-iphone',
     getParentRoute: () => MarketingRoute,
   } as any)
-const MarketingArticlesReadLaterApiRoute =
-  MarketingArticlesReadLaterApiRouteImport.update({
-    id: '/articles_/read-later-api',
-    path: '/articles/read-later-api',
+const MarketingArticlesBookmarkManagerForDevelopersRoute =
+  MarketingArticlesBookmarkManagerForDevelopersRouteImport.update({
+    id: '/articles_/bookmark-manager-for-developers',
+    path: '/articles/bookmark-manager-for-developers',
     getParentRoute: () => MarketingRoute,
   } as any)
 const AppLibraryFoldersFolderIdRoute =
@@ -157,7 +157,7 @@ export interface FileRoutesByFullPath {
   '/raycast': typeof MarketingRaycastRoute
   '/support': typeof MarketingSupportRoute
   '/web-companion': typeof MarketingWebCompanionRoute
-  '/articles/read-later-api': typeof MarketingArticlesReadLaterApiRoute
+  '/articles/bookmark-manager-for-developers': typeof MarketingArticlesBookmarkManagerForDevelopersRoute
   '/articles/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/articles/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
   '/library/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
@@ -178,7 +178,7 @@ export interface FileRoutesByTo {
   '/raycast': typeof MarketingRaycastRoute
   '/support': typeof MarketingSupportRoute
   '/web-companion': typeof MarketingWebCompanionRoute
-  '/articles/read-later-api': typeof MarketingArticlesReadLaterApiRoute
+  '/articles/bookmark-manager-for-developers': typeof MarketingArticlesBookmarkManagerForDevelopersRoute
   '/articles/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/articles/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
   '/library/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
@@ -202,7 +202,7 @@ export interface FileRoutesById {
   '/_marketing/support': typeof MarketingSupportRoute
   '/_marketing/web-companion': typeof MarketingWebCompanionRoute
   '/_marketing/': typeof MarketingIndexRoute
-  '/_marketing/articles_/read-later-api': typeof MarketingArticlesReadLaterApiRoute
+  '/_marketing/articles_/bookmark-manager-for-developers': typeof MarketingArticlesBookmarkManagerForDevelopersRoute
   '/_marketing/articles_/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/_marketing/articles_/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
   '/_app/library_/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
@@ -225,7 +225,7 @@ export interface FileRouteTypes {
     | '/raycast'
     | '/support'
     | '/web-companion'
-    | '/articles/read-later-api'
+    | '/articles/bookmark-manager-for-developers'
     | '/articles/read-later-app-chrome-iphone'
     | '/articles/save-links-with-raycast'
     | '/library/folders/$folderId'
@@ -246,7 +246,7 @@ export interface FileRouteTypes {
     | '/raycast'
     | '/support'
     | '/web-companion'
-    | '/articles/read-later-api'
+    | '/articles/bookmark-manager-for-developers'
     | '/articles/read-later-app-chrome-iphone'
     | '/articles/save-links-with-raycast'
     | '/library/folders/$folderId'
@@ -269,7 +269,7 @@ export interface FileRouteTypes {
     | '/_marketing/support'
     | '/_marketing/web-companion'
     | '/_marketing/'
-    | '/_marketing/articles_/read-later-api'
+    | '/_marketing/articles_/bookmark-manager-for-developers'
     | '/_marketing/articles_/read-later-app-chrome-iphone'
     | '/_marketing/articles_/save-links-with-raycast'
     | '/_app/library_/folders/$folderId'
@@ -416,11 +416,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketingArticlesReadLaterAppChromeIphoneRouteImport
       parentRoute: typeof MarketingRoute
     }
-    '/_marketing/articles_/read-later-api': {
-      id: '/_marketing/articles_/read-later-api'
-      path: '/articles/read-later-api'
-      fullPath: '/articles/read-later-api'
-      preLoaderRoute: typeof MarketingArticlesReadLaterApiRouteImport
+    '/_marketing/articles_/bookmark-manager-for-developers': {
+      id: '/_marketing/articles_/bookmark-manager-for-developers'
+      path: '/articles/bookmark-manager-for-developers'
+      fullPath: '/articles/bookmark-manager-for-developers'
+      preLoaderRoute: typeof MarketingArticlesBookmarkManagerForDevelopersRouteImport
       parentRoute: typeof MarketingRoute
     }
     '/_app/library_/folders/$folderId': {
@@ -462,7 +462,7 @@ interface MarketingRouteChildren {
   MarketingSupportRoute: typeof MarketingSupportRoute
   MarketingWebCompanionRoute: typeof MarketingWebCompanionRoute
   MarketingIndexRoute: typeof MarketingIndexRoute
-  MarketingArticlesReadLaterApiRoute: typeof MarketingArticlesReadLaterApiRoute
+  MarketingArticlesBookmarkManagerForDevelopersRoute: typeof MarketingArticlesBookmarkManagerForDevelopersRoute
   MarketingArticlesReadLaterAppChromeIphoneRoute: typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   MarketingArticlesSaveLinksWithRaycastRoute: typeof MarketingArticlesSaveLinksWithRaycastRoute
 }
@@ -478,7 +478,8 @@ const MarketingRouteChildren: MarketingRouteChildren = {
   MarketingSupportRoute: MarketingSupportRoute,
   MarketingWebCompanionRoute: MarketingWebCompanionRoute,
   MarketingIndexRoute: MarketingIndexRoute,
-  MarketingArticlesReadLaterApiRoute: MarketingArticlesReadLaterApiRoute,
+  MarketingArticlesBookmarkManagerForDevelopersRoute:
+    MarketingArticlesBookmarkManagerForDevelopersRoute,
   MarketingArticlesReadLaterAppChromeIphoneRoute:
     MarketingArticlesReadLaterAppChromeIphoneRoute,
   MarketingArticlesSaveLinksWithRaycastRoute:
