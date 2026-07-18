@@ -108,6 +108,18 @@ export const makeApiWebHandler = Effect.gen(function* () {
       })
     }
 
+    if (pathname === "/.well-known/mcp/server-card.json") {
+      return new Response(JSON.stringify({
+        url: `${config.auth.baseUrl}/mcp`,
+        authentication: {
+          type: "oauth2",
+          authorization_server: `${config.auth.baseUrl}/api/auth`,
+        },
+      }), {
+        headers: { "content-type": "application/json", "cache-control": "public, max-age=300" },
+      })
+    }
+
     if (pathname === "/mcp") {
       return withApiKeyRateLimit(request, auth, rateLimiter, mcpFetch)
     }

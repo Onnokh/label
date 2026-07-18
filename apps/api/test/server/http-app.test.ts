@@ -318,6 +318,24 @@ describe("HttpApp", () => {
     }),
   )
 
+  it.effect("publishes an MCP server card", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/.well-known/mcp/server-card.json").pipe(
+        Effect.provide(routeLayer()),
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get("content-type")).toContain("application/json")
+      expect(JSON.parse(yield* text(response))).toEqual({
+        url: "http://localhost/mcp",
+        authentication: {
+          type: "oauth2",
+          authorization_server: "http://localhost/api/auth",
+        },
+      })
+    }),
+  )
+
   it.effect("requires credentials before MCP initialization", () =>
     Effect.gen(function* () {
       const response = yield* mcpRequest({
