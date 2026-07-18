@@ -89,6 +89,9 @@ export class BetterAuth extends Context.Service<BetterAuth>()(
           scopes: [...V1_SCOPES],
           validAudiences: [config.auth.baseUrl, `${config.auth.baseUrl}/mcp`],
           allowDynamicClientRegistration: true,
+          // MCP clients register anonymously; the plugin then forces them to be
+          // public clients (auth method "none", no client_credentials grant).
+          allowUnauthenticatedClientRegistration: true,
         }),
       ]
 
