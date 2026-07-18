@@ -130,7 +130,7 @@ export function Hero({ children }: { children: ReactNode }) {
               the phone, front floats above it. */}
           <div className={styles.bg} aria-hidden="true">
             <BlueMeshGradient />
-            <img className={styles.bgGrid} src="/hero-grid.svg" alt="" />
+            <img className={styles.bgGrid} src="/hero-grid.svg" alt="Decorative grid background" />
           </div>
           {reduceMotion ? null : (
             <m.div
