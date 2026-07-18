@@ -66,9 +66,7 @@ export const makeMcpWebHandler = Effect.gen(function* () {
   const enrichment = yield* EnrichmentWorkflow
   const folders = yield* FolderRepository
   const savedItems = yield* SavedItemRepository
-  const oauthClient = config.auth.oauthProviderEnabled
-    ? createAuthClient({ plugins: [oauthProviderResourceClient(auth)] })
-    : undefined
+  const oauthClient = createAuthClient({ plugins: [oauthProviderResourceClient(auth)] })
 
   return async (request: Request): Promise<Response> => {
     const credential = bearerCredential(request.headers.get("authorization"))
@@ -80,7 +78,7 @@ export const makeMcpWebHandler = Effect.gen(function* () {
     if (apiKey.valid && apiKey.key) {
       userId = apiKey.key.referenceId as UserId
       scopes = permissionsToScopes(apiKey.key.permissions ?? null)
-    } else if (oauthClient) {
+    } else {
       try {
         const token = await oauthClient.verifyAccessToken(credential, {
           verifyOptions: { audience: `${config.auth.baseUrl}/mcp` },

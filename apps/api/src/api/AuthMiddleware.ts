@@ -42,9 +42,7 @@ export const SessionOrApiKeyAuthLive = Layer.effect(SessionOrApiKeyAuth)(
   Effect.gen(function* () {
     const { auth } = yield* BetterAuth
     const config = yield* AppConfig
-    const oauthResourceClient = config.auth.oauthProviderEnabled
-      ? createAuthClient({ plugins: [oauthProviderResourceClient(auth)] })
-      : undefined
+    const oauthResourceClient = createAuthClient({ plugins: [oauthProviderResourceClient(auth)] })
 
     return SessionOrApiKeyAuth.of({
       bearer: (handler) =>
@@ -80,7 +78,7 @@ export const SessionOrApiKeyAuthLive = Layer.effect(SessionOrApiKeyAuth)(
                 }
               }
 
-              if (credential && oauthResourceClient) {
+              if (credential) {
                 const token = await oauthResourceClient.verifyAccessToken(credential, {
                   verifyOptions: { audience: oauthAudience(request, config.auth.baseUrl) },
                 })

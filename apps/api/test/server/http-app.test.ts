@@ -56,7 +56,6 @@ const configLayer = Layer.succeed(AppConfig, AppConfig.of({
     secret: "test",
     baseUrl: "http://localhost",
     webUrl: "https://web.sleevy.test",
-    oauthProviderEnabled: false,
     trustedOrigins: ["https://web.sleevy.test"],
   },
   rybbit: {
@@ -86,6 +85,8 @@ const routeLayer = (input: {
     })),
     Layer.succeed(BetterAuth, BetterAuth.of({
       auth: {
+        options: { baseURL: "http://localhost", basePath: "/api/auth" },
+        $context: Promise.resolve({}),
         api: {
           getSession: async () =>
             input.sessionUserId

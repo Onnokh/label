@@ -81,21 +81,16 @@ export class BetterAuth extends Context.Service<BetterAuth>()(
         : undefined
 
       const cookieDomain = crossSubDomainCookieDomain(config.auth.baseUrl)
-      const oauthProviderPlugins = config.auth.oauthProviderEnabled
-        ? [
-            jwt(),
-            oauthProvider({
-              // Keep this opt-in until the web consent routes and generated
-              // OAuth tables are deployed together. Existing connect clients
-              // continue using their current PKCE flow in the meantime.
-              loginPage: `${config.auth.webUrl}/oauth/login`,
-              consentPage: `${config.auth.webUrl}/oauth/consent`,
-              scopes: [...V1_SCOPES],
-              validAudiences: [config.auth.baseUrl, `${config.auth.baseUrl}/mcp`],
-              allowDynamicClientRegistration: true,
-            }),
-          ]
-        : []
+      const oauthProviderPlugins = [
+        jwt(),
+        oauthProvider({
+          loginPage: `${config.auth.webUrl}/oauth/login`,
+          consentPage: `${config.auth.webUrl}/oauth/consent`,
+          scopes: [...V1_SCOPES],
+          validAudiences: [config.auth.baseUrl, `${config.auth.baseUrl}/mcp`],
+          allowDynamicClientRegistration: true,
+        }),
+      ]
 
       const loginMethod = async (userId: string): Promise<string | undefined> => {
         const [a] = await authDb

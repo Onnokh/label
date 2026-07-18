@@ -44,7 +44,6 @@ type AppConfigShape = {
     readonly secret: string;
     readonly baseUrl: string;
     readonly webUrl: string;
-    readonly oauthProviderEnabled: boolean;
     readonly trustedOrigins: readonly string[];
   };
   readonly rybbit: {
@@ -130,9 +129,6 @@ export class AppConfig extends Context.Service<AppConfig, AppConfigShape>()(
       const authWebUrl = yield* Config.string("SLEEVY_WEB_URL").pipe(
         Config.withDefault("http://localhost:4000"),
       );
-      const oauthProviderEnabled = yield* Config.boolean("OAUTH_PROVIDER_ENABLED").pipe(
-        Config.withDefault(false),
-      );
       const trustedOrigins = yield* Config.string("BETTER_AUTH_TRUSTED_ORIGINS").pipe(
         Config.withDefault("http://localhost:4000,http://127.0.0.1:4000,https://web.sleevy.localhost,https://sleevy.app,https://api.sleevy.app"),
       );
@@ -185,7 +181,6 @@ export class AppConfig extends Context.Service<AppConfig, AppConfigShape>()(
           secret: authSecret,
           baseUrl: authBaseUrl,
           webUrl: authWebUrl,
-          oauthProviderEnabled,
           trustedOrigins: trustedOrigins
             .split(",")
             .map((origin) => origin.trim())
