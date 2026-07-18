@@ -87,6 +87,12 @@
   width: 0.875rem;
   height: 1.3125rem;
   object-fit: contain;
+  // The mark is a white SVG; flatten it to black on the light theme.
+  filter: brightness(0);
+}
+
+:global(html[data-theme="dark"]) .brandLogo {
+  filter: none;
 }
 
 .themeSwitch {
