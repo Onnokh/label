@@ -25,7 +25,7 @@ export const Route = createFileRoute("/docs/$")({
   head: ({ loaderData }: { loaderData?: DocsLoaderData }) => {
     if (!loaderData) return {}
     const { title, description, url } = loaderData
-    const fullTitle = `${title} | Sleevy API`
+    const fullTitle = `${title} | Sleevy Docs`
     return {
       meta: [
         { title: fullTitle },

@@ -1,0 +1,46 @@
+---
+title: Model Context Protocol
+description: Connect an AI agent to save, find, and organize your Sleevy reading queue.
+icon: Bot
+---
+
+Sleevy supports the [Model Context Protocol](https://modelcontextprotocol.io/) (MCP). Connect it to an AI agent to save links, find saved items, organize folders, and manage your reading queue without leaving your workflow.
+
+## Install Sleevy
+
+Run this command in a terminal:
+
+```bash
+npx add-mcp https://api.sleevy.app/mcp --name sleevy
+```
+
+The installer detects supported MCP clients and lets you choose where to add Sleevy. It uses the Streamable HTTP endpoint at `https://api.sleevy.app/mcp`.
+
+## Sign in and permissions
+
+The first time your agent connects, Sleevy opens an OAuth sign-in and consent flow. Sign in, then approve only the permissions your agent needs. You do not need to add a personal API key to the MCP configuration.
+
+<Callout title="Keep confirmations enabled">
+  Removing a saved item or folder is permanent. Keep your agent's MCP tool-confirmation prompts enabled for destructive actions.
+</Callout>
+
+## Available tools
+
+| Capability | Tools |
+| --- | --- |
+| Save and find links | `save_link`, `list_saved_items` |
+| Organize saved items | `set_saved_item_read_state`, `set_saved_item_folder` |
+| Manage folders | `list_folders`, `add_folder` |
+| Remove content | `delete_saved_item`, `remove_folder` |
+
+The tools available to an agent are determined by the permissions granted during OAuth consent. Reconnect Sleevy to review or change those permissions.
+
+## Connect manually
+
+If your MCP client has a manual connection screen, use this server URL:
+
+```text
+https://api.sleevy.app/mcp
+```
+
+Choose the client’s HTTP or Streamable HTTP transport option, then complete the OAuth sign-in flow when prompted.

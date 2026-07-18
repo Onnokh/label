@@ -4,7 +4,7 @@ import { HttpEffect, HttpMiddleware, HttpRouter, HttpServer } from "effect/unsta
 import { sleevyApiLive } from "../api/ApiHandlers.js"
 import { Analytics } from "../modules/analytics/Analytics.js"
 import { AuthHandler } from "../modules/auth/AuthHandler.js"
-import { BetterAuth } from "../modules/auth/BetterAuth.js"
+import { AUTH_BASE_PATH, authServerUrl, BetterAuth } from "../modules/auth/BetterAuth.js"
 import { CaptureService } from "../modules/capture/CaptureService.js"
 import { ConnectCodeRepository } from "../modules/connect/ConnectCodeRepository.js"
 import { EnrichmentWorkflow } from "../modules/enrichment/EnrichmentWorkflow.js"
@@ -95,7 +95,7 @@ export const makeApiWebHandler = Effect.gen(function* () {
   return (async (request) => {
     const pathname = new URL(request.url).pathname
     const isAuthRequest =
-      pathname.startsWith("/api/auth/") ||
+      pathname.startsWith(`${AUTH_BASE_PATH}/`) ||
       pathname === "/.well-known/oauth-authorization-server/api/auth" ||
       pathname === "/api/auth/.well-known/oauth-authorization-server"
 
@@ -109,7 +109,7 @@ export const makeApiWebHandler = Effect.gen(function* () {
 
       return new Response(JSON.stringify({
         resource,
-        authorization_servers: [`${config.auth.baseUrl}/api/auth`],
+        authorization_servers: [authServerUrl(config.auth.baseUrl)],
         scopes_supported: pathname.endsWith("/mcp") ? MCP_SCOPES : V1_SCOPES,
       }), {
         headers: { "content-type": "application/json", "cache-control": "public, max-age=300" },
@@ -121,7 +121,7 @@ export const makeApiWebHandler = Effect.gen(function* () {
         url: `${config.auth.baseUrl}/mcp`,
         authentication: {
           type: "oauth2",
-          authorization_server: `${config.auth.baseUrl}/api/auth`,
+          authorization_server: authServerUrl(config.auth.baseUrl),
         },
       }), {
         headers: { "content-type": "application/json", "cache-control": "public, max-age=300" },

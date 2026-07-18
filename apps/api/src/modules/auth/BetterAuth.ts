@@ -13,6 +13,11 @@ import { PostgresClient } from "../persistence/PostgresClient.js"
 import { schema, user as userTable, account as accountTable } from "../persistence/schema.js"
 import { scopesToPermissions, V1_SCOPES } from "./Scopes.js"
 
+export const AUTH_BASE_PATH = "/api/auth"
+
+export const authServerUrl = (apiBaseUrl: string) =>
+  `${apiBaseUrl}${AUTH_BASE_PATH}`
+
 const bearerCredential = (authorization: string | null | undefined) =>
   authorization?.match(/^Bearer\s+(.+)$/i)?.[1] ?? null
 
@@ -111,6 +116,7 @@ export class BetterAuth extends Context.Service<BetterAuth>()(
         }),
         secret: config.auth.secret,
         baseURL: config.auth.baseUrl,
+        basePath: AUTH_BASE_PATH,
         trustedOrigins: [...config.auth.trustedOrigins],
         ...(cookieDomain
           ? {
