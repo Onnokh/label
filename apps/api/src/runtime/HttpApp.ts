@@ -18,6 +18,7 @@ import {
   withApiKeyRateLimit,
 } from "./ApiRequestMiddleware.js"
 import { AppConfig } from "./Config.js"
+import { makeMcpWebHandler } from "./McpApp.js"
 
 export type ApiWebHandler = (request: Request) => Promise<Response>
 
@@ -83,17 +84,30 @@ export const makeApiWebHandler = Effect.gen(function* () {
   const authHandler = yield* AuthHandler
   const { auth } = yield* BetterAuth
   const rateLimiter = yield* ApiKeyRateLimiter
+  const mcpFetch = yield* makeMcpWebHandler
   const httpEffect = yield* HttpRouter.toHttpEffect(httpAppLayer)
   const apiFetch = HttpEffect.toWebHandler(
     Effect.provideContext(HttpMiddleware.tracer(httpEffect), context),
   )
 
-  return ((request) => {
+  return (async (request) => {
     const pathname = new URL(request.url).pathname
     const isAuthRequest =
       pathname.startsWith("/api/auth/") ||
       pathname === "/.well-known/oauth-authorization-server/api/auth" ||
       pathname === "/api/auth/.well-known/oauth-authorization-server"
+
+    if (pathname === "/.well-known/oauth-protected-resource/mcp") {
+      return new Response(JSON.stringify({
+        resource: `${config.auth.baseUrl}/mcp`,
+        authorization_servers: [`${config.auth.baseUrl}/api/auth`],
+        scopes_supported: ["saved-items:read"],
+      }), {
+        headers: { "content-type": "application/json", "cache-control": "public, max-age=300" },
+      })
+    }
+
+    if (pathname === "/mcp") return mcpFetch(request)
 
     return withCors(
       request,
