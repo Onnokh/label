@@ -181,16 +181,8 @@ export class SavedItemRepository extends Context.Service<SavedItemRepository>()(
           userId: UserId,
           limit: number,
           cursor?: SavedItemsPageCursor,
-          folderId?: FolderId | null,
         ) {
-          const userFilter = folderId === undefined
-            ? eq(savedItemsTable.userId, userId)
-            : and(
-                eq(savedItemsTable.userId, userId),
-                folderId === null
-                  ? isNull(savedItemsTable.folderId)
-                  : eq(savedItemsTable.folderId, folderId),
-              )
+          const userFilter = eq(savedItemsTable.userId, userId)
           const cursorFilter = cursor
             ? or(
                 lt(savedItemsTable.lastSavedAt, cursor.lastSavedAt),

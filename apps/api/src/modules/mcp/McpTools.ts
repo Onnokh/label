@@ -28,8 +28,10 @@ const asText = (value: unknown) => JSON.stringify(value, null, 2)
 
 const textContent = (value: unknown) => ({ content: [{ type: "text" as const, text: asText(value) }] })
 
-const structuredTextContent = (value: Record<string, unknown>, message: string) => ({
-  content: [{ type: "text" as const, text: message }],
+// Per the MCP spec, tools returning structuredContent should mirror the
+// serialized JSON in a text block; many hosts only surface text to the model.
+const structuredContent = (value: Record<string, unknown>) => ({
+  content: [{ type: "text" as const, text: asText(value) }],
   structuredContent: value,
 })
 
@@ -58,7 +60,7 @@ const savedItemToSummary = ({
   folder: folder ? { id: folder.id, name: folder.name } : null,
   isRead: savedItem.isRead,
   tags: savedItem.tags.length > 0 ? savedItem.tags : enrichment.tags,
-  savedAt: savedItem.lastSavedAt,
+  savedAt: savedItem.lastSavedAt.toISOString(),
 })
 
 const DEFAULT_PAGE_SIZE = 100
@@ -87,8 +89,18 @@ export const decodeSavedItemsCursor = (value: string): SavedItemsPageCursor | nu
   }
 }
 
+const savedItemSummarySchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  url: z.string(),
+  folder: z.object({ id: z.string(), name: z.string() }).nullable(),
+  isRead: z.boolean(),
+  tags: z.array(z.string()),
+  savedAt: z.string(),
+})
+
 const savedItemsPageOutputSchema = {
-  items: z.array(z.record(z.string(), z.unknown())),
+  items: z.array(savedItemSummarySchema),
   nextCursor: z.string().nullable(),
 }
 
@@ -123,10 +135,7 @@ export class McpTools extends Context.Service<McpTools>()(
           items: page.items.map(savedItemToSummary),
           nextCursor: page.nextCursor ? encodeSavedItemsCursor(page.nextCursor) : null,
         }
-        return structuredTextContent(
-          result,
-          `Returned ${result.items.length} saved item summaries${result.nextCursor ? "; more items are available." : "."}`,
-        )
+        return structuredContent(result)
       })
 
       const saveLink = Effect.fn("McpTools.saveLink")(function* (userId: UserId, url: string) {
