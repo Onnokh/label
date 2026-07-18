@@ -71,6 +71,7 @@ const routeLayer = (input: {
   readonly sessionUserId?: UserId | undefined
   readonly apiKeyValid?: boolean | undefined
   readonly apiKeyAllowed?: boolean | undefined
+  readonly apiKeyPermissions?: Record<string, string[]> | undefined
   readonly onCapture?: ((input: {
     readonly userId: UserId
     readonly url: string
@@ -101,7 +102,7 @@ const routeLayer = (input: {
             key: {
               id: "api-key-1",
               referenceId: userId,
-              permissions: { "saved-items": ["read"] },
+              permissions: input.apiKeyPermissions ?? { "saved-items": ["read"] },
             },
           }),
         },
@@ -285,7 +286,13 @@ describe("HttpApp", () => {
       expect(JSON.parse(yield* text(response))).toEqual({
         resource: "http://localhost/mcp",
         authorization_servers: ["http://localhost/api/auth"],
-        scopes_supported: ["saved-items:read"],
+        scopes_supported: [
+          "saved-items:capture",
+          "saved-items:read",
+          "saved-items:write",
+          "saved-items:delete",
+          "folders:read",
+        ],
       })
     }),
   )
@@ -376,6 +383,69 @@ describe("HttpApp", () => {
         id: 3,
         result: { content: [{ type: "text", text: "[]" }] },
       })
+    }),
+  )
+
+  it.effect("offers and runs save_link with only the capture scope", () => {
+    let capturedUrl: string | undefined
+    let capturedChannel: CaptureChannel | undefined
+
+    return Effect.gen(function* () {
+      const layer = routeLayer({
+        apiKeyPermissions: { "saved-items": ["capture"] },
+        onCapture: ({ url, captureChannel }) => {
+          capturedUrl = url
+          capturedChannel = captureChannel
+        },
+      })
+      const tools = yield* mcpRequest(
+        { jsonrpc: "2.0", id: 4, method: "tools/list", params: {} },
+        { credentials: true, protocolVersion: "2025-06-18" },
+      ).pipe(Effect.provide(layer))
+
+      expect(JSON.parse(yield* text(tools))).toMatchObject({
+        result: { tools: [{ name: "save_link" }] },
+      })
+
+      const saved = yield* mcpRequest(
+        {
+          jsonrpc: "2.0",
+          id: 5,
+          method: "tools/call",
+          params: { name: "save_link", arguments: { url: "https://example.com/mcp" } },
+        },
+        { credentials: true, protocolVersion: "2025-06-18" },
+      ).pipe(Effect.provide(layer))
+
+      expect(saved.status).toBe(200)
+      expect(capturedUrl).toBe("https://example.com/mcp")
+      expect(capturedChannel).toBe("api")
+    })
+  })
+
+  it.effect("advertises only tools allowed by the granted scopes", () =>
+    Effect.gen(function* () {
+      const response = yield* mcpRequest(
+        { jsonrpc: "2.0", id: 6, method: "tools/list", params: {} },
+        { credentials: true, protocolVersion: "2025-06-18" },
+      ).pipe(Effect.provide(routeLayer({
+        apiKeyPermissions: {
+          "saved-items": ["capture", "read", "write", "delete"],
+          folders: ["read"],
+        },
+      })))
+
+      const body = JSON.parse(yield* text(response)) as {
+        readonly result: { readonly tools: ReadonlyArray<{ readonly name: string }> }
+      }
+      expect(body.result.tools.map((tool) => tool.name)).toEqual([
+        "list_saved_items",
+        "save_link",
+        "set_saved_item_read_state",
+        "set_saved_item_folder",
+        "delete_saved_item",
+        "list_folders",
+      ])
     }),
   )
 

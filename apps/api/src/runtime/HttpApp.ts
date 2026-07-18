@@ -18,7 +18,7 @@ import {
   withApiKeyRateLimit,
 } from "./ApiRequestMiddleware.js"
 import { AppConfig } from "./Config.js"
-import { makeMcpWebHandler } from "./McpApp.js"
+import { makeMcpWebHandler, MCP_SCOPES } from "./McpApp.js"
 
 export type ApiWebHandler = (request: Request) => Promise<Response>
 
@@ -101,7 +101,7 @@ export const makeApiWebHandler = Effect.gen(function* () {
       return new Response(JSON.stringify({
         resource: `${config.auth.baseUrl}/mcp`,
         authorization_servers: [`${config.auth.baseUrl}/api/auth`],
-        scopes_supported: ["saved-items:read"],
+        scopes_supported: MCP_SCOPES,
       }), {
         headers: { "content-type": "application/json", "cache-control": "public, max-age=300" },
       })
