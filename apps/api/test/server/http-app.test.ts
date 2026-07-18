@@ -130,7 +130,22 @@ const routeLayer = (input: {
     Layer.succeed(EnrichmentWorkflow, EnrichmentWorkflow.of({
       enrich: () => Effect.void as never,
     } as never)),
-    Layer.succeed(FolderRepository, FolderRepository.of({} as never)),
+    Layer.succeed(FolderRepository, FolderRepository.of({
+      listByUser: () => Effect.succeed([]),
+      findByUserAndId: () => Effect.succeed(Option.none()),
+      findByNormalizedName: () => Effect.succeed(Option.none()),
+      create: (_userId: UserId, name: string, emoji: string | null, color: string | null) =>
+        Effect.succeed(Option.some({
+          id: "route-folder-1",
+          userId,
+          name,
+          emoji,
+          color,
+          createdAt: now,
+          updatedAt: now,
+        })),
+      deleteByUserAndId: () => Effect.succeed(true),
+    } as never)),
     Layer.succeed(SavedItemRepository, SavedItemRepository.of({
       findByUserAndId: () => Effect.succeed(Option.none()),
       listByUser: (requestedUserId: UserId) =>
@@ -292,6 +307,8 @@ describe("HttpApp", () => {
           "saved-items:write",
           "saved-items:delete",
           "folders:read",
+          "folders:write",
+          "folders:delete",
         ],
       })
     }),
@@ -431,7 +448,7 @@ describe("HttpApp", () => {
       ).pipe(Effect.provide(routeLayer({
         apiKeyPermissions: {
           "saved-items": ["capture", "read", "write", "delete"],
-          folders: ["read"],
+          folders: ["read", "write", "delete"],
         },
       })))
 
@@ -445,7 +462,42 @@ describe("HttpApp", () => {
         "set_saved_item_folder",
         "delete_saved_item",
         "list_folders",
+        "add_folder",
+        "remove_folder",
       ])
+    }),
+  )
+
+  it.effect("adds and removes folders with their respective scopes", () =>
+    Effect.gen(function* () {
+      const layer = routeLayer({ apiKeyPermissions: { folders: ["write", "delete"] } })
+      const added = yield* mcpRequest(
+        {
+          jsonrpc: "2.0",
+          id: 7,
+          method: "tools/call",
+          params: { name: "add_folder", arguments: { name: "Research", emoji: "🔬" } },
+        },
+        { credentials: true, protocolVersion: "2025-06-18" },
+      ).pipe(Effect.provide(layer))
+
+      expect(JSON.parse(yield* text(added))).toMatchObject({
+        result: { content: [{ text: expect.stringContaining('"name": "Research"') }] },
+      })
+
+      const removed = yield* mcpRequest(
+        {
+          jsonrpc: "2.0",
+          id: 8,
+          method: "tools/call",
+          params: { name: "remove_folder", arguments: { folderId: "route-folder-1" } },
+        },
+        { credentials: true, protocolVersion: "2025-06-18" },
+      ).pipe(Effect.provide(layer))
+
+      expect(JSON.parse(yield* text(removed))).toMatchObject({
+        result: { content: [{ text: expect.stringContaining('"deleted": true') }] },
+      })
     }),
   )
 

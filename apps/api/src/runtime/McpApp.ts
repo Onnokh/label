@@ -21,6 +21,8 @@ export const MCP_SCOPES = [
   "saved-items:write",
   "saved-items:delete",
   "folders:read",
+  "folders:write",
+  "folders:delete",
 ] as const satisfies readonly Scope[]
 
 const bearerCredential = (authorization: string | null) =>
@@ -40,6 +42,13 @@ const textContent = (value: unknown) => ({ content: [{ type: "text" as const, te
 const errorContent = (message: string) => ({
   content: [{ type: "text" as const, text: message }],
   isError: true,
+})
+
+const folderToDto = (folder: { readonly id: string; readonly name: string; readonly emoji: string | null; readonly color: string | null }) => ({
+  id: folder.id,
+  name: folder.name,
+  emoji: folder.emoji,
+  color: folder.color,
 })
 
 const unauthorized = (baseUrl: string) =>
@@ -176,7 +185,43 @@ export const makeMcpWebHandler = Effect.gen(function* () {
         title: "List folders",
         description: "List the authenticated user's folders.",
         annotations: { readOnlyHint: true },
-      }, async () => textContent(await runPromise(folders.listByUser(userId!))))
+      }, async () => textContent((await runPromise(folders.listByUser(userId!))).map(folderToDto)))
+    }
+
+    if (scopes.has("folders:write")) {
+      server.registerTool("add_folder", {
+        title: "Add folder",
+        description: "Create a folder in the authenticated user's Sleevy library.",
+        inputSchema: {
+          name: z.string().min(1).max(80),
+          emoji: z.string().optional(),
+          color: z.string().optional(),
+        },
+        annotations: { destructiveHint: false },
+      }, async ({ name, emoji, color }) => {
+        const normalizedName = name.trim()
+        if (normalizedName.length === 0) return errorContent("Folder name must contain between 1 and 80 characters.")
+        const existing = await runPromise(folders.findByNormalizedName(userId!, normalizedName))
+        if (Option.isSome(existing)) return errorContent("A folder with this name already exists.")
+        const created = await runPromise(folders.create(userId!, normalizedName, emoji ?? null, color ?? null))
+        return Option.isSome(created)
+          ? textContent(folderToDto(created.value))
+          : errorContent("A folder with this name already exists.")
+      })
+    }
+
+    if (scopes.has("folders:delete")) {
+      server.registerTool("remove_folder", {
+        title: "Remove folder",
+        description: "Permanently remove one of the authenticated user's folders.",
+        inputSchema: { folderId: z.string().min(1) },
+        annotations: { destructiveHint: true },
+      }, async ({ folderId }) => {
+        const removed = await runPromise(folders.deleteByUserAndId(userId!, folderId as FolderId))
+        return removed
+          ? textContent({ deleted: true, folderId })
+          : errorContent("Folder not found.")
+      })
     }
 
     const transport = new WebStandardStreamableHTTPServerTransport({
