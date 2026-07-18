@@ -10,7 +10,7 @@ export function MarketingFooter() {
       <div className={styles.inner}>
         <div className={styles.brand}>
           <div className={styles.logo}>
-            <img src="/logo-mark-white.svg" alt="" width={22} height={34} />
+            <img src="/logo-mark-white.svg" alt="Sleevy logo" width={22} height={34} />
             <span>Sleevy</span>
           </div>
           <p>
