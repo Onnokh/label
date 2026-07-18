@@ -13,6 +13,8 @@ import { Route as MarketingRouteImport } from './routes/_marketing'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as MarketingIndexRouteImport } from './routes/_marketing/index'
+import { Route as OauthLoginRouteImport } from './routes/oauth/login'
+import { Route as OauthConsentRouteImport } from './routes/oauth/consent'
 import { Route as MarketingWebCompanionRouteImport } from './routes/_marketing/web-companion'
 import { Route as MarketingSupportRouteImport } from './routes/_marketing/support'
 import { Route as MarketingRaycastRouteImport } from './routes/_marketing/raycast'
@@ -48,6 +50,16 @@ const MarketingIndexRoute = MarketingIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => MarketingRoute,
+} as any)
+const OauthLoginRoute = OauthLoginRouteImport.update({
+  id: '/oauth/login',
+  path: '/oauth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OauthConsentRoute = OauthConsentRouteImport.update({
+  id: '/oauth/consent',
+  path: '/oauth/consent',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MarketingWebCompanionRoute = MarketingWebCompanionRouteImport.update({
   id: '/web-companion',
@@ -157,6 +169,8 @@ export interface FileRoutesByFullPath {
   '/raycast': typeof MarketingRaycastRoute
   '/support': typeof MarketingSupportRoute
   '/web-companion': typeof MarketingWebCompanionRoute
+  '/oauth/consent': typeof OauthConsentRoute
+  '/oauth/login': typeof OauthLoginRoute
   '/articles/bookmark-manager-for-developers': typeof MarketingArticlesBookmarkManagerForDevelopersRoute
   '/articles/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/articles/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
@@ -178,6 +192,8 @@ export interface FileRoutesByTo {
   '/raycast': typeof MarketingRaycastRoute
   '/support': typeof MarketingSupportRoute
   '/web-companion': typeof MarketingWebCompanionRoute
+  '/oauth/consent': typeof OauthConsentRoute
+  '/oauth/login': typeof OauthLoginRoute
   '/articles/bookmark-manager-for-developers': typeof MarketingArticlesBookmarkManagerForDevelopersRoute
   '/articles/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/articles/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
@@ -201,6 +217,8 @@ export interface FileRoutesById {
   '/_marketing/raycast': typeof MarketingRaycastRoute
   '/_marketing/support': typeof MarketingSupportRoute
   '/_marketing/web-companion': typeof MarketingWebCompanionRoute
+  '/oauth/consent': typeof OauthConsentRoute
+  '/oauth/login': typeof OauthLoginRoute
   '/_marketing/': typeof MarketingIndexRoute
   '/_marketing/articles_/bookmark-manager-for-developers': typeof MarketingArticlesBookmarkManagerForDevelopersRoute
   '/_marketing/articles_/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
@@ -225,6 +243,8 @@ export interface FileRouteTypes {
     | '/raycast'
     | '/support'
     | '/web-companion'
+    | '/oauth/consent'
+    | '/oauth/login'
     | '/articles/bookmark-manager-for-developers'
     | '/articles/read-later-app-chrome-iphone'
     | '/articles/save-links-with-raycast'
@@ -246,6 +266,8 @@ export interface FileRouteTypes {
     | '/raycast'
     | '/support'
     | '/web-companion'
+    | '/oauth/consent'
+    | '/oauth/login'
     | '/articles/bookmark-manager-for-developers'
     | '/articles/read-later-app-chrome-iphone'
     | '/articles/save-links-with-raycast'
@@ -268,6 +290,8 @@ export interface FileRouteTypes {
     | '/_marketing/raycast'
     | '/_marketing/support'
     | '/_marketing/web-companion'
+    | '/oauth/consent'
+    | '/oauth/login'
     | '/_marketing/'
     | '/_marketing/articles_/bookmark-manager-for-developers'
     | '/_marketing/articles_/read-later-app-chrome-iphone'
@@ -279,6 +303,8 @@ export interface RootRouteChildren {
   SplatRoute: typeof SplatRoute
   AppRoute: typeof AppRouteWithChildren
   MarketingRoute: typeof MarketingRouteWithChildren
+  OauthConsentRoute: typeof OauthConsentRoute
+  OauthLoginRoute: typeof OauthLoginRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -310,6 +336,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof MarketingIndexRouteImport
       parentRoute: typeof MarketingRoute
+    }
+    '/oauth/login': {
+      id: '/oauth/login'
+      path: '/oauth/login'
+      fullPath: '/oauth/login'
+      preLoaderRoute: typeof OauthLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth/consent': {
+      id: '/oauth/consent'
+      path: '/oauth/consent'
+      fullPath: '/oauth/consent'
+      preLoaderRoute: typeof OauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_marketing/web-companion': {
       id: '/_marketing/web-companion'
@@ -494,6 +534,8 @@ const rootRouteChildren: RootRouteChildren = {
   SplatRoute: SplatRoute,
   AppRoute: AppRouteWithChildren,
   MarketingRoute: MarketingRouteWithChildren,
+  OauthConsentRoute: OauthConsentRoute,
+  OauthLoginRoute: OauthLoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -166,11 +166,11 @@ export class SavedItemRepository extends Context.Service<SavedItemRepository>()(
           return rows.map(toAggregate)
         }),
 
-        setReadState: Effect.fn("SavedItemRepository.setReadState")(function* (id: SavedItem["id"], isRead: boolean) {
+        setReadState: Effect.fn("SavedItemRepository.setReadState")(function* (userId: UserId, id: SavedItem["id"], isRead: boolean) {
           const [row] = yield* db
             .update(savedItemsTable)
             .set({ isRead, updatedAt: new Date() })
-            .where(eq(savedItemsTable.id, id))
+            .where(and(eq(savedItemsTable.userId, userId), eq(savedItemsTable.id, id)))
             .returning()
 
           if (!row) {

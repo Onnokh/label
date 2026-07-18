@@ -1,9 +1,21 @@
 // CLI-only Better Auth config used to regenerate the Drizzle auth schema.
 // Keep plugins/providers in sync with BetterAuth.ts; this file is not used at runtime.
 import { apiKey } from "@better-auth/api-key";
+import { oauthProvider } from "@better-auth/oauth-provider";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { bearer, lastLoginMethod } from "better-auth/plugins";
+import { bearer, jwt, lastLoginMethod } from "better-auth/plugins";
+
+const sleevyScopes = [
+  "saved-items:capture",
+  "saved-items:read",
+  "saved-items:write",
+  "saved-items:delete",
+  "folders:read",
+  "folders:write",
+  "folders:delete",
+  "account:read",
+] as const;
 
 export const auth = betterAuth({
   database: drizzleAdapter({} as never, {
@@ -32,6 +44,14 @@ export const auth = betterAuth({
   plugins: [
     bearer(),
     lastLoginMethod(),
+    jwt(),
+    oauthProvider({
+      loginPage: "http://localhost:4000/oauth/login",
+      consentPage: "http://localhost:4000/oauth/consent",
+      scopes: [...sleevyScopes],
+      validAudiences: ["http://localhost:4001", "http://localhost:4001/mcp"],
+      allowDynamicClientRegistration: true,
+    }),
     apiKey({
       apiKeyHeaders: ["authorization"],
     }),

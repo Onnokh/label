@@ -14,6 +14,7 @@ import { Analytics } from "../../src/modules/analytics/Analytics.js"
 import { CaptureService } from "../../src/modules/capture/CaptureService.js"
 import { EnrichmentWorkflow } from "../../src/modules/enrichment/EnrichmentWorkflow.js"
 import { FolderRepository } from "../../src/modules/folders/FolderRepository.js"
+import { McpTools } from "../../src/modules/mcp/McpTools.js"
 import { ApiKeyRateLimiter } from "../../src/modules/rate-limit/ApiKeyRateLimiter.js"
 import { SavedItemRepository } from "../../src/modules/saved-items/SavedItemRepository.js"
 import { savedItemsTable } from "../../src/modules/persistence/schema.js"
@@ -55,6 +56,7 @@ const configLayer = Layer.succeed(AppConfig, AppConfig.of({
     appleAppBundleIdentifier: "",
     secret: "test",
     baseUrl: "http://localhost",
+    webUrl: "https://web.sleevy.test",
     trustedOrigins: ["https://web.sleevy.test"],
   },
   rybbit: {
@@ -69,13 +71,14 @@ const routeLayer = (input: {
   readonly sessionUserId?: UserId | undefined
   readonly apiKeyValid?: boolean | undefined
   readonly apiKeyAllowed?: boolean | undefined
+  readonly apiKeyPermissions?: Record<string, string[]> | undefined
   readonly onCapture?: ((input: {
     readonly userId: UserId
     readonly url: string
     readonly captureChannel?: CaptureChannel | undefined
   }) => void) | undefined
-} = {}) =>
-  Layer.mergeAll(
+} = {}) => {
+  const baseLayer = Layer.mergeAll(
     configLayer,
     Layer.succeed(Analytics, Analytics.of({ track: () => Effect.void })),
     Layer.succeed(AuthHandler, AuthHandler.of({
@@ -83,6 +86,8 @@ const routeLayer = (input: {
     })),
     Layer.succeed(BetterAuth, BetterAuth.of({
       auth: {
+        options: { baseURL: "http://localhost", basePath: "/api/auth" },
+        $context: Promise.resolve({}),
         api: {
           getSession: async () =>
             input.sessionUserId
@@ -96,7 +101,11 @@ const routeLayer = (input: {
           verifyApiKey: async () => ({
             valid: input.apiKeyValid ?? true,
             error: input.apiKeyValid === false ? new Error("invalid") : null,
-            key: { id: "api-key-1" },
+            key: {
+              id: "api-key-1",
+              referenceId: userId,
+              permissions: input.apiKeyPermissions ?? { "saved-items": ["read"] },
+            },
           }),
         },
       },
@@ -123,7 +132,22 @@ const routeLayer = (input: {
     Layer.succeed(EnrichmentWorkflow, EnrichmentWorkflow.of({
       enrich: () => Effect.void as never,
     } as never)),
-    Layer.succeed(FolderRepository, FolderRepository.of({} as never)),
+    Layer.succeed(FolderRepository, FolderRepository.of({
+      listByUser: () => Effect.succeed([]),
+      findByUserAndId: () => Effect.succeed(Option.none()),
+      findByNormalizedName: () => Effect.succeed(Option.none()),
+      create: (_userId: UserId, name: string, emoji: string | null, color: string | null) =>
+        Effect.succeed(Option.some({
+          id: "route-folder-1",
+          userId,
+          name,
+          emoji,
+          color,
+          createdAt: now,
+          updatedAt: now,
+        })),
+      deleteByUserAndId: () => Effect.succeed(true),
+    } as never)),
     Layer.succeed(SavedItemRepository, SavedItemRepository.of({
       findByUserAndId: () => Effect.succeed(Option.none()),
       listByUser: (requestedUserId: UserId) =>
@@ -157,6 +181,8 @@ const routeLayer = (input: {
         }),
     })),
   )
+  return Layer.mergeAll(baseLayer, McpTools.layer.pipe(Layer.provide(baseLayer)))
+}
 
 const makeSavedItem = (
   savedByUserId: UserId,
@@ -212,6 +238,25 @@ const json = <T>(response: Response) =>
 const text = (response: Response) =>
   Effect.promise(() => response.text())
 
+const mcpRequest = (
+  message: unknown,
+  options: {
+    readonly credentials?: boolean | undefined
+    readonly protocolVersion?: string | undefined
+  } = {},
+) =>
+  request("/mcp", {
+    method: "POST",
+    headers: {
+      ...(options.credentials ? { authorization: `Bearer ${apiKey}` } : {}),
+      "content-type": "application/json",
+      accept: "application/json, text/event-stream",
+      host: "localhost",
+      ...(options.protocolVersion ? { "mcp-protocol-version": options.protocolVersion } : {}),
+    },
+    body: JSON.stringify(message),
+  })
+
 describe("HttpApp", () => {
   it.effect("serves health through the in-memory web handler", () =>
     Effect.gen(function* () {
@@ -247,6 +292,237 @@ describe("HttpApp", () => {
       expect(body.paths?.["/v1/folders/{id}"]).toBeDefined()
       expect(body.paths?.["/connect/authorize"]).toBeDefined()
       expect(body.paths?.["/connect/exchange"]).toBeDefined()
+    }),
+  )
+
+  it.effect("publishes OAuth protected-resource metadata for MCP", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/.well-known/oauth-protected-resource/mcp").pipe(
+        Effect.provide(routeLayer()),
+      )
+
+      expect(response.status).toBe(200)
+      expect(JSON.parse(yield* text(response))).toEqual({
+        resource: "http://localhost/mcp",
+        authorization_servers: ["http://localhost/api/auth"],
+        scopes_supported: [
+          "saved-items:capture",
+          "saved-items:read",
+          "saved-items:write",
+          "saved-items:delete",
+          "folders:read",
+          "folders:write",
+          "folders:delete",
+        ],
+      })
+    }),
+  )
+
+  it.effect("requires credentials before MCP initialization", () =>
+    Effect.gen(function* () {
+      const response = yield* mcpRequest({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2025-06-18",
+            capabilities: {},
+            clientInfo: { name: "test", version: "1.0.0" },
+          },
+        }).pipe(Effect.provide(routeLayer()))
+
+      expect(response.status).toBe(401)
+      expect(response.headers.get("www-authenticate")).toBe(
+        'Bearer resource_metadata="http://localhost/.well-known/oauth-protected-resource/mcp"',
+      )
+    }),
+  )
+
+  it.effect("initializes MCP with a scoped API key", () =>
+    Effect.gen(function* () {
+      const response = yield* mcpRequest(
+        {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2025-06-18",
+            capabilities: {},
+            clientInfo: { name: "test", version: "1.0.0" },
+          },
+        },
+        { credentials: true },
+      ).pipe(Effect.provide(routeLayer()))
+
+      expect(response.status).toBe(200)
+      expect(JSON.parse(yield* text(response))).toMatchObject({
+        jsonrpc: "2.0",
+        id: 1,
+        result: { serverInfo: { name: "Sleevy", version: "1.0.0" } },
+      })
+    }),
+  )
+
+  it.effect("rate limits MCP requests authenticated with an API key", () =>
+    Effect.gen(function* () {
+      const response = yield* mcpRequest(
+        {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2025-06-18",
+            capabilities: {},
+            clientInfo: { name: "test", version: "1.0.0" },
+          },
+        },
+        { credentials: true },
+      ).pipe(Effect.provide(routeLayer({ apiKeyAllowed: false })))
+
+      expect(response.status).toBe(429)
+      expect(response.headers.get("retry-after")).toBe("42")
+    }),
+  )
+
+  it.effect("lists only the read-only saved-items MCP tool", () =>
+    Effect.gen(function* () {
+      const response = yield* mcpRequest(
+        {
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/list",
+          params: {},
+        },
+        { credentials: true, protocolVersion: "2025-06-18" },
+      ).pipe(Effect.provide(routeLayer()))
+
+      expect(response.status).toBe(200)
+      expect(JSON.parse(yield* text(response))).toMatchObject({
+        jsonrpc: "2.0",
+        id: 2,
+        result: {
+          tools: [{ name: "list_saved_items", annotations: { readOnlyHint: true } }],
+        },
+      })
+    }),
+  )
+
+  it.effect("returns the authenticated user's saved items through MCP", () =>
+    Effect.gen(function* () {
+      const response = yield* mcpRequest(
+        {
+          jsonrpc: "2.0",
+          id: 3,
+          method: "tools/call",
+          params: { name: "list_saved_items", arguments: {} },
+        },
+        { credentials: true, protocolVersion: "2025-06-18" },
+      ).pipe(Effect.provide(routeLayer()))
+
+      expect(response.status).toBe(200)
+      expect(JSON.parse(yield* text(response))).toMatchObject({
+        jsonrpc: "2.0",
+        id: 3,
+        result: { content: [{ type: "text", text: "[]" }] },
+      })
+    }),
+  )
+
+  it.effect("offers and runs save_link with only the capture scope", () => {
+    let capturedUrl: string | undefined
+    let capturedChannel: CaptureChannel | undefined
+
+    return Effect.gen(function* () {
+      const layer = routeLayer({
+        apiKeyPermissions: { "saved-items": ["capture"] },
+        onCapture: ({ url, captureChannel }) => {
+          capturedUrl = url
+          capturedChannel = captureChannel
+        },
+      })
+      const tools = yield* mcpRequest(
+        { jsonrpc: "2.0", id: 4, method: "tools/list", params: {} },
+        { credentials: true, protocolVersion: "2025-06-18" },
+      ).pipe(Effect.provide(layer))
+
+      expect(JSON.parse(yield* text(tools))).toMatchObject({
+        result: { tools: [{ name: "save_link" }] },
+      })
+
+      const saved = yield* mcpRequest(
+        {
+          jsonrpc: "2.0",
+          id: 5,
+          method: "tools/call",
+          params: { name: "save_link", arguments: { url: "https://example.com/mcp" } },
+        },
+        { credentials: true, protocolVersion: "2025-06-18" },
+      ).pipe(Effect.provide(layer))
+
+      expect(saved.status).toBe(200)
+      expect(capturedUrl).toBe("https://example.com/mcp")
+      expect(capturedChannel).toBe("api")
+    })
+  })
+
+  it.effect("advertises only tools allowed by the granted scopes", () =>
+    Effect.gen(function* () {
+      const response = yield* mcpRequest(
+        { jsonrpc: "2.0", id: 6, method: "tools/list", params: {} },
+        { credentials: true, protocolVersion: "2025-06-18" },
+      ).pipe(Effect.provide(routeLayer({
+        apiKeyPermissions: {
+          "saved-items": ["capture", "read", "write", "delete"],
+          folders: ["read", "write", "delete"],
+        },
+      })))
+
+      const body = JSON.parse(yield* text(response)) as {
+        readonly result: { readonly tools: ReadonlyArray<{ readonly name: string }> }
+      }
+      expect(body.result.tools.map((tool) => tool.name)).toEqual([
+        "list_saved_items",
+        "save_link",
+        "set_saved_item_read_state",
+        "set_saved_item_folder",
+        "delete_saved_item",
+        "list_folders",
+        "add_folder",
+        "remove_folder",
+      ])
+    }),
+  )
+
+  it.effect("adds and removes folders with their respective scopes", () =>
+    Effect.gen(function* () {
+      const layer = routeLayer({ apiKeyPermissions: { folders: ["write", "delete"] } })
+      const added = yield* mcpRequest(
+        {
+          jsonrpc: "2.0",
+          id: 7,
+          method: "tools/call",
+          params: { name: "add_folder", arguments: { name: "Research", emoji: "🔬" } },
+        },
+        { credentials: true, protocolVersion: "2025-06-18" },
+      ).pipe(Effect.provide(layer))
+
+      expect(JSON.parse(yield* text(added))).toMatchObject({
+        result: { content: [{ text: expect.stringContaining('"name": "Research"') }] },
+      })
+
+      const removed = yield* mcpRequest(
+        {
+          jsonrpc: "2.0",
+          id: 8,
+          method: "tools/call",
+          params: { name: "remove_folder", arguments: { folderId: "route-folder-1" } },
+        },
+        { credentials: true, protocolVersion: "2025-06-18" },
+      ).pipe(Effect.provide(layer))
+
+      expect(JSON.parse(yield* text(removed))).toMatchObject({
+        result: { content: [{ text: expect.stringContaining('"deleted": true') }] },
+      })
     }),
   )
 

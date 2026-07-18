@@ -1,8 +1,9 @@
 import { apiKey } from "@better-auth/api-key"
+import { oauthProvider } from "@better-auth/oauth-provider"
 import { eq } from "drizzle-orm"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { betterAuth } from "better-auth"
-import { bearer, lastLoginMethod } from "better-auth/plugins"
+import { bearer, jwt, lastLoginMethod } from "better-auth/plugins"
 import { Context, Effect, Layer } from "effect"
 import { importPKCS8, SignJWT } from "jose"
 
@@ -80,6 +81,16 @@ export class BetterAuth extends Context.Service<BetterAuth>()(
         : undefined
 
       const cookieDomain = crossSubDomainCookieDomain(config.auth.baseUrl)
+      const oauthProviderPlugins = [
+        jwt(),
+        oauthProvider({
+          loginPage: `${config.auth.webUrl}/oauth/login`,
+          consentPage: `${config.auth.webUrl}/oauth/consent`,
+          scopes: [...V1_SCOPES],
+          validAudiences: [config.auth.baseUrl, `${config.auth.baseUrl}/mcp`],
+          allowDynamicClientRegistration: true,
+        }),
+      ]
 
       const loginMethod = async (userId: string): Promise<string | undefined> => {
         const [a] = await authDb
@@ -192,6 +203,7 @@ export class BetterAuth extends Context.Service<BetterAuth>()(
         plugins: [
           bearer(),
           lastLoginMethod(),
+          ...oauthProviderPlugins,
           apiKey({
             customAPIKeyGetter: (ctx) => {
               const credential = bearerCredential(ctx.headers?.get("authorization"))

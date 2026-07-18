@@ -15,7 +15,7 @@ export type Scope = (typeof V1_SCOPES)[number]
 
 export type AuthContextValue =
   | { readonly kind: "session" }
-  | { readonly kind: "apiKey"; readonly scopes: ReadonlySet<Scope> }
+  | { readonly kind: "apiKey" | "oauth"; readonly scopes: ReadonlySet<Scope> }
 
 export class AuthContext extends Context.Service<AuthContext, AuthContextValue>()(
   "@app/api/AuthContext",

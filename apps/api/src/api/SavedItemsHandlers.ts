@@ -26,7 +26,7 @@ const setSavedItemReadState = (id: SavedItemId, isRead: boolean) =>
         savedItemId: id,
       })
     }
-    const updated = yield* repo.setReadState(id, isRead).pipe(Effect.orDie)
+    const updated = yield* repo.setReadState(userId, id, isRead).pipe(Effect.orDie)
     if (updated._tag === "None") {
       return yield* new SavedItemNotFoundError({
         message: "Saved Item was not found.",
@@ -72,7 +72,7 @@ export const savedItemsGroupLive = HttpApiBuilder.group(sleevyApi, "saved-items"
             savedItemId: params.id,
           })
         }
-        const updated = yield* repo.setReadState(params.id, true).pipe(Effect.orDie)
+        const updated = yield* repo.setReadState(userId, params.id, true).pipe(Effect.orDie)
         if (updated._tag === "None") {
           return yield* new SavedItemNotFoundError({
             message: "Saved Item was not found.",
