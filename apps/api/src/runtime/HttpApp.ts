@@ -107,7 +107,9 @@ export const makeApiWebHandler = Effect.gen(function* () {
       })
     }
 
-    if (pathname === "/mcp") return mcpFetch(request)
+    if (pathname === "/mcp") {
+      return withApiKeyRateLimit(request, auth, rateLimiter, mcpFetch)
+    }
 
     return withCors(
       request,

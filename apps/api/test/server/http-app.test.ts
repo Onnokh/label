@@ -360,6 +360,27 @@ describe("HttpApp", () => {
     }),
   )
 
+  it.effect("rate limits MCP requests authenticated with an API key", () =>
+    Effect.gen(function* () {
+      const response = yield* mcpRequest(
+        {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2025-06-18",
+            capabilities: {},
+            clientInfo: { name: "test", version: "1.0.0" },
+          },
+        },
+        { credentials: true },
+      ).pipe(Effect.provide(routeLayer({ apiKeyAllowed: false })))
+
+      expect(response.status).toBe(429)
+      expect(response.headers.get("retry-after")).toBe("42")
+    }),
+  )
+
   it.effect("lists only the read-only saved-items MCP tool", () =>
     Effect.gen(function* () {
       const response = yield* mcpRequest(

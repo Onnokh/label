@@ -28,6 +28,8 @@ export const MCP_SCOPES = [
 const bearerCredential = (authorization: string | null) =>
   authorization?.match(/^Bearer\s+(.+)$/i)?.[1] ?? null
 
+const isSignedSessionToken = (credential: string) => credential.includes(".")
+
 const oauthScopes = (scope: unknown): ReadonlySet<Scope> =>
   typeof scope === "string"
     ? new Set(scope.split(" ").filter((value): value is Scope => V1_SCOPES.includes(value as Scope)))
@@ -74,12 +76,15 @@ export const makeMcpWebHandler = Effect.gen(function* () {
 
     let userId: UserId | undefined
     let scopes: ReadonlySet<Scope> | undefined
-    const apiKey = await auth.api.verifyApiKey({ body: { key: credential } })
-    if (apiKey.valid && apiKey.key) {
-      userId = apiKey.key.referenceId as UserId
-      scopes = permissionsToScopes(apiKey.key.permissions ?? null)
-    } else {
-      try {
+    try {
+      if (!isSignedSessionToken(credential)) {
+        const apiKey = await auth.api.verifyApiKey({ body: { key: credential } })
+        if (apiKey.valid && apiKey.key) {
+          userId = apiKey.key.referenceId as UserId
+          scopes = permissionsToScopes(apiKey.key.permissions ?? null)
+        }
+      }
+      if (userId === undefined) {
         const token = await oauthClient.verifyAccessToken(credential, {
           verifyOptions: { audience: `${config.auth.baseUrl}/mcp` },
         })
@@ -87,9 +92,9 @@ export const makeMcpWebHandler = Effect.gen(function* () {
           userId = token.sub as UserId
           scopes = oauthScopes(token.scope)
         }
-      } catch {
-        // Return the same neutral 401 response for invalid API keys and tokens.
       }
+    } catch {
+      // Return the same neutral 401 response for invalid API keys and tokens.
     }
 
     if (!userId || !scopes || !MCP_SCOPES.some((scope) => scopes.has(scope))) {
