@@ -37,8 +37,6 @@ const oauthScopes = (scope: unknown): ReadonlySet<Scope> =>
 
 const asText = (value: unknown) => JSON.stringify(value, null, 2)
 
-const runPromise = Effect.runPromise
-
 const textContent = (value: unknown) => ({ content: [{ type: "text" as const, text: asText(value) }] })
 
 const errorContent = (message: string) => ({
@@ -69,6 +67,10 @@ export const makeMcpWebHandler = Effect.gen(function* () {
   const folders = yield* FolderRepository
   const savedItems = yield* SavedItemRepository
   const oauthClient = createAuthClient({ plugins: [oauthProviderResourceClient(auth)] })
+  // The MCP SDK forces Promise-based tool callbacks; carry the app context across
+  // that boundary so spans and log annotations keep working inside tools.
+  const context = yield* Effect.context<never>()
+  const runPromise = Effect.runPromiseWith(context)
 
   return async (request: Request): Promise<Response> => {
     const credential = bearerCredential(request.headers.get("authorization"))
