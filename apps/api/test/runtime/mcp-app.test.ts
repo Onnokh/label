@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { Option } from "effect"
 
 import { mcpOAuthVerificationOptions } from "../../src/runtime/McpApp.js"
 import {
@@ -33,7 +34,7 @@ describe("saved item pagination cursors", () => {
       id: "saved-item-2" as SavedItemId,
     }
 
-    expect(decodeSavedItemsCursor(encodeSavedItemsCursor(cursor))).toEqual(cursor)
-    expect(decodeSavedItemsCursor("not-a-cursor")).toBeNull()
+    expect(decodeSavedItemsCursor(encodeSavedItemsCursor(cursor))).toEqual(Option.some(cursor))
+    expect(Option.isNone(decodeSavedItemsCursor("not-a-cursor"))).toBe(true)
   })
 })

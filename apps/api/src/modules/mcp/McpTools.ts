@@ -1,10 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js"
-import { Context, Effect, Layer, Option } from "effect"
-import { Buffer } from "node:buffer"
+import { Context, Effect, Layer, Option, Schema } from "effect"
 import { z } from "zod"
 
-import type { FolderId, SavedItemId, SavedItemWithLink, UserId } from "../../domain/SavedItem.js"
+import type { FolderId, SavedItemWithLink, UserId } from "../../domain/SavedItem.js"
+import { SavedItemId } from "../../domain/SavedItem.js"
 import { savedItemToDto } from "../../api/ApiContract.js"
 import type { Scope } from "../auth/Scopes.js"
 import { CaptureService } from "../capture/CaptureService.js"
@@ -66,28 +66,19 @@ const savedItemToSummary = ({
 const DEFAULT_PAGE_SIZE = 50
 const MAX_PAGE_SIZE = 100
 
-export const encodeSavedItemsCursor = (cursor: SavedItemsPageCursor) =>
-  Buffer.from(JSON.stringify({
-    lastSavedAt: cursor.lastSavedAt.toISOString(),
-    id: cursor.id,
-  })).toString("base64url")
+const SavedItemsCursor = Schema.StringFromBase64Url.pipe(
+  Schema.decodeTo(
+    Schema.fromJsonString(
+      Schema.Struct({
+        lastSavedAt: Schema.DateFromString.check(Schema.isDateValid()),
+        id: SavedItemId,
+      }),
+    ),
+  ),
+)
 
-export const decodeSavedItemsCursor = (value: string): SavedItemsPageCursor | null => {
-  try {
-    const parsed: unknown = JSON.parse(Buffer.from(value, "base64url").toString("utf8"))
-    if (!parsed || typeof parsed !== "object") return null
-    const candidate = parsed as { readonly lastSavedAt?: unknown; readonly id?: unknown }
-    if (typeof candidate.lastSavedAt !== "string" || typeof candidate.id !== "string" || candidate.id.length === 0) {
-      return null
-    }
-    const lastSavedAt = new Date(candidate.lastSavedAt)
-    return Number.isNaN(lastSavedAt.getTime())
-      ? null
-      : { lastSavedAt, id: candidate.id as SavedItemsPageCursor["id"] }
-  } catch {
-    return null
-  }
-}
+export const encodeSavedItemsCursor = Schema.encodeSync(SavedItemsCursor)
+export const decodeSavedItemsCursor = Schema.decodeUnknownOption(SavedItemsCursor)
 
 const savedItemSummarySchema = z.object({
   id: z.string(),
@@ -123,13 +114,15 @@ export class McpTools extends Context.Service<McpTools>()(
         limit: number = DEFAULT_PAGE_SIZE,
         cursor?: string,
       ) {
-        const decodedCursor = cursor ? decodeSavedItemsCursor(cursor) : undefined
-        if (cursor && !decodedCursor) return errorContent("Invalid pagination cursor.")
+        const decodedCursor = cursor
+          ? decodeSavedItemsCursor(cursor)
+          : Option.none<SavedItemsPageCursor>()
+        if (cursor && Option.isNone(decodedCursor)) return errorContent("Invalid pagination cursor.")
 
         const page = yield* savedItems.listPageByUser(
           userId,
           Math.min(limit, MAX_PAGE_SIZE),
-          decodedCursor ?? undefined,
+          Option.getOrUndefined(decodedCursor),
         )
         const result = {
           items: page.items.map(savedItemToSummary),
