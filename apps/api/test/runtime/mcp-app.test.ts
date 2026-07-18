@@ -1,6 +1,16 @@
 import { describe, expect, test } from "bun:test"
 
 import { mcpOAuthVerificationOptions } from "../../src/runtime/McpApp.js"
+import { AUTH_BASE_PATH, authServerUrl } from "../../src/modules/auth/BetterAuth.js"
+
+describe("Better Auth OAuth server URLs", () => {
+  test("uses the explicit Better Auth base path for issuer and JWKS discovery", () => {
+    expect(AUTH_BASE_PATH).toBe("/api/auth")
+    expect(authServerUrl("https://api.sleevy.app")).toBe(
+      "https://api.sleevy.app/api/auth",
+    )
+  })
+})
 
 describe("mcpOAuthVerificationOptions", () => {
   test("uses BetterAuth's authorization-server URL as the JWT issuer", () => {
