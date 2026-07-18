@@ -156,6 +156,7 @@ const routeLayer = (input: {
             ? []
             : [],
         ),
+      listPageByUser: () => Effect.succeed({ items: [], nextCursor: null }),
       setReadState: () => Effect.succeed(Option.none()),
       deleteByUserAndId: () => ({
         execute: () => Promise.resolve({}),
@@ -466,7 +467,10 @@ describe("HttpApp", () => {
       expect(JSON.parse(yield* text(response))).toMatchObject({
         jsonrpc: "2.0",
         id: 3,
-        result: { content: [{ type: "text", text: "[]" }] },
+        result: {
+          content: [{ type: "text", text: "Returned 0 saved item summaries." }],
+          structuredContent: { items: [], nextCursor: null },
+        },
       })
     }),
   )

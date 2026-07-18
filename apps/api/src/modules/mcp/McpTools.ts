@@ -1,15 +1,17 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js"
 import { Context, Effect, Layer, Option } from "effect"
+import { Buffer } from "node:buffer"
 import { z } from "zod"
 
-import type { FolderId, SavedItemId, UserId } from "../../domain/SavedItem.js"
+import type { FolderId, SavedItemId, SavedItemWithLink, UserId } from "../../domain/SavedItem.js"
 import { savedItemToDto } from "../../api/ApiContract.js"
 import type { Scope } from "../auth/Scopes.js"
 import { CaptureService } from "../capture/CaptureService.js"
 import { EnrichmentWorkflow } from "../enrichment/EnrichmentWorkflow.js"
 import { FolderRepository } from "../folders/FolderRepository.js"
 import { SavedItemRepository } from "../saved-items/SavedItemRepository.js"
+import type { SavedItemsPageCursor } from "../saved-items/SavedItemRepository.js"
 import { AppConfig } from "../../runtime/Config.js"
 
 export const MCP_SCOPES = [
@@ -26,6 +28,11 @@ const asText = (value: unknown) => JSON.stringify(value, null, 2)
 
 const textContent = (value: unknown) => ({ content: [{ type: "text" as const, text: asText(value) }] })
 
+const structuredTextContent = (value: Record<string, unknown>, message: string) => ({
+  content: [{ type: "text" as const, text: message }],
+  structuredContent: value,
+})
+
 const errorContent = (message: string) => ({
   content: [{ type: "text" as const, text: message }],
   isError: true,
@@ -37,6 +44,53 @@ const folderToDto = (folder: { readonly id: string; readonly name: string; reado
   emoji: folder.emoji,
   color: folder.color,
 })
+
+const savedItemToSummary = ({
+  savedItem,
+  link,
+  metadata,
+  enrichment,
+  folder,
+}: SavedItemWithLink) => ({
+  id: savedItem.id,
+  title: metadata.title ?? link.host,
+  url: link.originalUrl,
+  folder: folder ? { id: folder.id, name: folder.name } : null,
+  isRead: savedItem.isRead,
+  tags: savedItem.tags.length > 0 ? savedItem.tags : enrichment.tags,
+  savedAt: savedItem.lastSavedAt,
+})
+
+const DEFAULT_PAGE_SIZE = 100
+const MAX_PAGE_SIZE = 100
+
+export const encodeSavedItemsCursor = (cursor: SavedItemsPageCursor) =>
+  Buffer.from(JSON.stringify({
+    lastSavedAt: cursor.lastSavedAt.toISOString(),
+    id: cursor.id,
+  })).toString("base64url")
+
+export const decodeSavedItemsCursor = (value: string): SavedItemsPageCursor | null => {
+  try {
+    const parsed: unknown = JSON.parse(Buffer.from(value, "base64url").toString("utf8"))
+    if (!parsed || typeof parsed !== "object") return null
+    const candidate = parsed as { readonly lastSavedAt?: unknown; readonly id?: unknown }
+    if (typeof candidate.lastSavedAt !== "string" || typeof candidate.id !== "string" || candidate.id.length === 0) {
+      return null
+    }
+    const lastSavedAt = new Date(candidate.lastSavedAt)
+    return Number.isNaN(lastSavedAt.getTime())
+      ? null
+      : { lastSavedAt, id: candidate.id as SavedItemsPageCursor["id"] }
+  } catch {
+    return null
+  }
+}
+
+const savedItemsPageOutputSchema = {
+  items: z.array(z.record(z.string(), z.unknown())),
+  nextCursor: z.string().nullable(),
+}
 
 export class McpTools extends Context.Service<McpTools>()(
   "@app/modules/mcp/McpTools",
@@ -52,9 +106,27 @@ export class McpTools extends Context.Service<McpTools>()(
       const context = yield* Effect.context<never>()
       const runPromise = Effect.runPromiseWith(context)
 
-      const listSavedItems = Effect.fn("McpTools.listSavedItems")(function* (userId: UserId) {
-        const items = yield* savedItems.listByUser(userId, "newest")
-        return textContent(items.map(savedItemToDto))
+      const listSavedItems = Effect.fn("McpTools.listSavedItems")(function* (
+        userId: UserId,
+        limit: number = DEFAULT_PAGE_SIZE,
+        cursor?: string,
+      ) {
+        const decodedCursor = cursor ? decodeSavedItemsCursor(cursor) : undefined
+        if (cursor && !decodedCursor) return errorContent("Invalid pagination cursor.")
+
+        const page = yield* savedItems.listPageByUser(
+          userId,
+          Math.min(limit, MAX_PAGE_SIZE),
+          decodedCursor ?? undefined,
+        )
+        const result = {
+          items: page.items.map(savedItemToSummary),
+          nextCursor: page.nextCursor ? encodeSavedItemsCursor(page.nextCursor) : null,
+        }
+        return structuredTextContent(
+          result,
+          `Returned ${result.items.length} saved item summaries${result.nextCursor ? "; more items are available." : "."}`,
+        )
       })
 
       const saveLink = Effect.fn("McpTools.saveLink")(function* (userId: UserId, url: string) {
@@ -123,9 +195,14 @@ export class McpTools extends Context.Service<McpTools>()(
         if (scopes.has("saved-items:read")) {
           server.registerTool("list_saved_items", {
             title: "List saved items",
-            description: "List the authenticated user's saved items, newest first.",
+            description: "List the authenticated user's saved items, newest first. Results are paginated; call again with nextCursor until it is null.",
+            inputSchema: {
+              limit: z.number().int().min(1).max(MAX_PAGE_SIZE).optional(),
+              cursor: z.string().min(1).optional(),
+            },
+            outputSchema: savedItemsPageOutputSchema,
             annotations: { readOnlyHint: true },
-          }, async () => runPromise(listSavedItems(userId)))
+          }, async ({ limit, cursor }) => runPromise(listSavedItems(userId, limit, cursor)))
         }
 
         if (scopes.has("saved-items:capture")) {
