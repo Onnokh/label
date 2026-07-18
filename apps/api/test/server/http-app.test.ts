@@ -318,6 +318,49 @@ describe("HttpApp", () => {
     }),
   )
 
+  it.effect("publishes OAuth protected-resource metadata for the API", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/.well-known/oauth-protected-resource").pipe(
+        Effect.provide(routeLayer()),
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get("content-type")).toContain("application/json")
+      expect(JSON.parse(yield* text(response))).toMatchObject({
+        resource: "http://localhost",
+        authorization_servers: ["http://localhost/api/auth"],
+        scopes_supported: [
+          "saved-items:capture",
+          "saved-items:read",
+          "saved-items:write",
+          "saved-items:delete",
+          "folders:read",
+          "folders:write",
+          "folders:delete",
+          "account:read",
+        ],
+      })
+    }),
+  )
+
+  it.effect("publishes an MCP server card", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/.well-known/mcp/server-card.json").pipe(
+        Effect.provide(routeLayer()),
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get("content-type")).toContain("application/json")
+      expect(JSON.parse(yield* text(response))).toEqual({
+        url: "http://localhost/mcp",
+        authentication: {
+          type: "oauth2",
+          authorization_server: "http://localhost/api/auth",
+        },
+      })
+    }),
+  )
+
   it.effect("requires credentials before MCP initialization", () =>
     Effect.gen(function* () {
       const response = yield* mcpRequest({

@@ -18,6 +18,14 @@ const oauthScopes = (scope: unknown): ReadonlySet<Scope> =>
     ? new Set(scope.split(" ").filter((value): value is Scope => V1_SCOPES.includes(value as Scope)))
     : new Set()
 
+export const mcpOAuthVerificationOptions = (apiBaseUrl: string) => ({
+  audience: `${apiBaseUrl}/mcp`,
+  // BetterAuth serves its OAuth provider below its base path. Its access JWTs
+  // therefore use this authorization-server URL as their issuer, rather than
+  // the API origin.
+  issuer: `${apiBaseUrl}/api/auth`,
+})
+
 const unauthorized = (baseUrl: string) =>
   new Response("Missing valid credentials or an MCP scope.", {
     status: 401,
@@ -48,7 +56,7 @@ export const makeMcpWebHandler = Effect.gen(function* () {
       }
       if (userId === undefined) {
         const token = await oauthClient.verifyAccessToken(credential, {
-          verifyOptions: { audience: `${config.auth.baseUrl}/mcp` },
+          verifyOptions: mcpOAuthVerificationOptions(config.auth.baseUrl),
         })
         if (typeof token.sub === "string") {
           userId = token.sub as UserId
