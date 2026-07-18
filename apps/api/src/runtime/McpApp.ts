@@ -3,7 +3,7 @@ import { createAuthClient } from "better-auth/client"
 import { Effect } from "effect"
 
 import type { UserId } from "../domain/SavedItem.js"
-import { BetterAuth } from "../modules/auth/BetterAuth.js"
+import { authServerUrl, BetterAuth } from "../modules/auth/BetterAuth.js"
 import { type Scope, V1_SCOPES, permissionsToScopes } from "../modules/auth/Scopes.js"
 import { MCP_SCOPES, McpTools } from "../modules/mcp/McpTools.js"
 import { AppConfig } from "./Config.js"
@@ -20,10 +20,7 @@ const oauthScopes = (scope: unknown): ReadonlySet<Scope> =>
 
 export const mcpOAuthVerificationOptions = (apiBaseUrl: string) => ({
   audience: `${apiBaseUrl}/mcp`,
-  // BetterAuth serves its OAuth provider below its base path. Its access JWTs
-  // therefore use this authorization-server URL as their issuer, rather than
-  // the API origin.
-  issuer: `${apiBaseUrl}/api/auth`,
+  issuer: authServerUrl(apiBaseUrl),
 })
 
 const unauthorized = (baseUrl: string) =>
