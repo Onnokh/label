@@ -55,6 +55,8 @@ const configLayer = Layer.succeed(AppConfig, AppConfig.of({
     appleAppBundleIdentifier: "",
     secret: "test",
     baseUrl: "http://localhost",
+    webUrl: "https://web.sleevy.test",
+    oauthProviderEnabled: false,
     trustedOrigins: ["https://web.sleevy.test"],
   },
   rybbit: {
