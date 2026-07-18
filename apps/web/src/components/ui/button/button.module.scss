@@ -9,7 +9,11 @@
   line-height: 1.25rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 150ms, border-color 150ms, color 150ms, opacity 150ms;
+  transition: background-color 150ms, border-color 150ms, color 150ms, opacity 150ms, scale 150ms;
+
+  &:active:not(:disabled) {
+    scale: 0.96;
+  }
 
   &:disabled {
     opacity: 0.5;

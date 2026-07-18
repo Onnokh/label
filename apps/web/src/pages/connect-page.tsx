@@ -3,6 +3,7 @@ import { useSearch } from "@tanstack/react-router"
 
 import { authClient } from "../auth"
 import { apiFetch } from "../sleevy/api"
+import { ICON_BOOKMARK, SCOPE_META } from "./scope-meta"
 import styles from "./connect-page.module.scss"
 
 type ClientId = "chrome-extension" | "raycast"
@@ -15,42 +16,6 @@ const CLIENT_DISPLAY: Record<ClientId, string> = {
 const CLIENT_LOGO: Record<ClientId, string> = {
   "chrome-extension": "/chrome-76.webp",
   raycast: "/raycast-82.webp",
-}
-
-type ScopeMeta = { title: string; description: string; icon: string }
-
-const ICON_BOOKMARK = "M5 4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v18l-7-4-7 4z"
-const ICON_EYE = "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"
-const ICON_PENCIL = "M14.06 3.94a2 2 0 0 1 2.83 0l3.17 3.17a2 2 0 0 1 0 2.83L7.5 22.5 2 22.5l0-5.5z"
-const ICON_TRASH = "M4 7h16 M9 7V4h6v3 M6 7l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"
-const ICON_USER = "M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10z M3 22a9 9 0 0 1 18 0"
-
-const SCOPE_META: Record<string, ScopeMeta> = {
-  "saved-items:capture": {
-    title: "Save new items",
-    description: "Capture web pages into your Sleevy queue.",
-    icon: ICON_BOOKMARK,
-  },
-  "saved-items:read": {
-    title: "Read your saved items",
-    description: "See your queue, library, and item details.",
-    icon: ICON_EYE,
-  },
-  "saved-items:write": {
-    title: "Update your saved items",
-    description: "Mark items read, unread, or opened.",
-    icon: ICON_PENCIL,
-  },
-  "saved-items:delete": {
-    title: "Delete saved items",
-    description: "Permanently remove items from your library.",
-    icon: ICON_TRASH,
-  },
-  "account:read": {
-    title: "See your account",
-    description: "Read your name and email to display a Connected as… label.",
-    icon: ICON_USER,
-  },
 }
 
 type ParsedRequest =
