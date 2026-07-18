@@ -88,13 +88,20 @@ export const makeApiWebHandler = Effect.gen(function* () {
     Effect.provideContext(HttpMiddleware.tracer(httpEffect), context),
   )
 
-  return ((request) =>
-    withCors(
+  return ((request) => {
+    const pathname = new URL(request.url).pathname
+    const isAuthRequest =
+      pathname.startsWith("/api/auth/") ||
+      pathname === "/.well-known/oauth-authorization-server/api/auth" ||
+      pathname === "/api/auth/.well-known/oauth-authorization-server"
+
+    return withCors(
       request,
       config.auth.trustedOrigins,
-      new URL(request.url).pathname.startsWith("/api/auth/")
+      isAuthRequest
         ? authHandler.handle
         : (request) =>
             withApiKeyRateLimit(request, auth, rateLimiter, apiFetch),
-    )) satisfies ApiWebHandler
+    )
+  }) satisfies ApiWebHandler
 })

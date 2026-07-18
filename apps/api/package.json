@@ -21,6 +21,7 @@
   "dependencies": {
     "@better-auth/api-key": "^1.6.23",
     "@better-auth/oauth-provider": "^1.6.23",
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "@sleevy/contract": "workspace:*",
     "@effect/platform-bun": "4.0.0-beta.74",
     "@effect/sql-pg": "4.0.0-beta.74",
