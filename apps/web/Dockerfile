@@ -28,6 +28,7 @@ COPY --from=build /app/apps/web/node_modules ./node_modules
 COPY --from=build /app/packages/contract /app/packages/contract
 COPY --from=build /app/apps/web/dist ./dist
 COPY --from=build /app/apps/web/favicon.ico ./
+COPY --from=build /app/apps/web/public/openapi.json ./public/openapi.json
 COPY --from=build /app/apps/web/server.ts ./
 COPY --from=build /app/apps/web/indexnow-notify.ts ./
 ENV PORT=3000
