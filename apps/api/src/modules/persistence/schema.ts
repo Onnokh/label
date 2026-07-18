@@ -35,12 +35,28 @@ import type {
 import {
   account,
   apikey,
+  jwks,
+  oauthAccessToken,
+  oauthClient,
+  oauthConsent,
+  oauthRefreshToken,
   session,
   user,
   verification,
 } from "./better-auth.generated.js"
 
-export { account, apikey, session, user, verification }
+export {
+  account,
+  apikey,
+  jwks,
+  oauthAccessToken,
+  oauthClient,
+  oauthConsent,
+  oauthRefreshToken,
+  session,
+  user,
+  verification,
+}
 
 export const enrichmentStatusEnum = pgEnum("enrichment_status", enrichmentStatuses)
 
@@ -247,6 +263,11 @@ export const relationalSchema = {
   account,
   verification,
   apikey,
+  jwks,
+  oauthClient,
+  oauthRefreshToken,
+  oauthAccessToken,
+  oauthConsent,
   links: linksTable,
   linkMetadata: linkMetadataTable,
   linkEnrichment: linkEnrichmentTable,
