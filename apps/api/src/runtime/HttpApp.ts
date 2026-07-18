@@ -17,8 +17,9 @@ import {
   exposedApiResponseHeaders,
   withApiKeyRateLimit,
 } from "./ApiRequestMiddleware.js"
+import { MCP_SCOPES } from "../modules/mcp/McpTools.js"
 import { AppConfig } from "./Config.js"
-import { makeMcpWebHandler, MCP_SCOPES } from "./McpApp.js"
+import { makeMcpWebHandler } from "./McpApp.js"
 
 export type ApiWebHandler = (request: Request) => Promise<Response>
 

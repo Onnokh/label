@@ -14,6 +14,7 @@ import { Analytics } from "../../src/modules/analytics/Analytics.js"
 import { CaptureService } from "../../src/modules/capture/CaptureService.js"
 import { EnrichmentWorkflow } from "../../src/modules/enrichment/EnrichmentWorkflow.js"
 import { FolderRepository } from "../../src/modules/folders/FolderRepository.js"
+import { McpTools } from "../../src/modules/mcp/McpTools.js"
 import { ApiKeyRateLimiter } from "../../src/modules/rate-limit/ApiKeyRateLimiter.js"
 import { SavedItemRepository } from "../../src/modules/saved-items/SavedItemRepository.js"
 import { savedItemsTable } from "../../src/modules/persistence/schema.js"
@@ -76,8 +77,8 @@ const routeLayer = (input: {
     readonly url: string
     readonly captureChannel?: CaptureChannel | undefined
   }) => void) | undefined
-} = {}) =>
-  Layer.mergeAll(
+} = {}) => {
+  const baseLayer = Layer.mergeAll(
     configLayer,
     Layer.succeed(Analytics, Analytics.of({ track: () => Effect.void })),
     Layer.succeed(AuthHandler, AuthHandler.of({
@@ -180,6 +181,8 @@ const routeLayer = (input: {
         }),
     })),
   )
+  return Layer.mergeAll(baseLayer, McpTools.layer.pipe(Layer.provide(baseLayer)))
+}
 
 const makeSavedItem = (
   savedByUserId: UserId,
