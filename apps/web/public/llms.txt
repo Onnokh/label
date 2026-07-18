@@ -7,7 +7,14 @@ Authenticate to the REST API with a personal API Key (`Authorization: Bearer <ap
 ## API
 
 - [OpenAPI specification](https://sleevy.app/openapi.json): Full machine-readable REST API schema (v1).
-- [API documentation](https://sleevy.app/docs): Endpoints, authentication, and example requests.
+- [API documentation](https://sleevy.app/docs): Overview of the API and its developer workflows.
+- [Getting started](https://sleevy.app/docs/getting-started): Create a key, capture a URL, and read your queue.
+- [Core concepts](https://sleevy.app/docs/concepts): Understand captures, saved items, read state, folders, and stable IDs.
+- [API guides](https://sleevy.app/docs/guides): Save, read, update, and organize links from scripts.
+- [Authentication](https://sleevy.app/docs/authentication): Authenticate requests with a personal API key.
+- [Errors](https://sleevy.app/docs/errors): Understand structured API errors and status codes.
+- [Rate limits](https://sleevy.app/docs/rate-limits): Handle API-key limits and response headers.
+- [OpenAPI reference](https://sleevy.app/docs/api-reference): Browse generated endpoint documentation from the OpenAPI schema.
 - [Integration declaration](https://sleevy.app/.well-known/integrations.json): Machine-readable surface and credential declaration.
 
 ## Core endpoints

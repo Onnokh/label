@@ -15,7 +15,7 @@ The marketing site notifies IndexNow after a successful Coolify deployment.
    Command** with
    `docker compose up -d --wait && docker compose exec -T web bun indexnow-notify.ts`.
 
-The notifier submits `/`, `/docs`, `/privacy`, and `/support` to IndexNow's
+The notifier submits `/`, `/docs`, `/docs/getting-started`, `/docs/concepts`, `/docs/guides`, `/docs/authentication`, `/docs/errors`, `/docs/rate-limits`, `/docs/api-reference`, `/privacy`, and `/support` to IndexNow's
 global endpoint. To submit a different set for a deployment, set
 `INDEXNOW_URLS` to a comma-separated list of same-origin paths or URLs. The
 key is publicly visible by design: IndexNow uses the file to verify ownership.

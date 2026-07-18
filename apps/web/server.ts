@@ -32,7 +32,7 @@ const contentTypeByPathname: Record<string, string> = {
 // routes the module scripts are swapped for a tiny loader that starts them on
 // the first sign of life (scroll/pointer/key/focus) instead. Any interaction —
 // including the tap that would need hydrated JS — triggers loading first.
-const deferredHydrationPaths = new Set(["/", "/docs", "/support", "/privacy"])
+const deferredHydrationPaths = new Set(["/", "/docs", "/docs/getting-started", "/docs/concepts", "/docs/guides", "/docs/authentication", "/docs/errors", "/docs/rate-limits", "/docs/api-reference", "/support", "/privacy"])
 
 const hydrationLoader = (sources: string[]) =>
   `<script>(function(){var e=["pointerdown","pointermove","keydown","touchstart","scroll","focusin"],l=function(){e.forEach(function(n){removeEventListener(n,l,!0)});${JSON.stringify(sources)}.forEach(function(s){var t=document.createElement("script");t.type="module";t.async=!0;t.src=s;document.head.appendChild(t)})};e.forEach(function(n){addEventListener(n,l,{passive:!0,capture:!0})})})()</script>`

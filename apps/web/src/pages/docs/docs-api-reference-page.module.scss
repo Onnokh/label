@@ -1,0 +1,25 @@
+.apiReference {
+  :global(.flex.flex-col.gap-24.text-sm) {
+    gap: 5rem;
+  }
+
+  :global(.flex.flex-col.gap-24.text-sm > .flex) {
+    padding-bottom: 4rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  :global(.flex.flex-col.gap-24.text-sm > .flex:last-child) {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  :global(.prose h2) {
+    margin-top: 2.75rem;
+    margin-bottom: 1rem;
+  }
+
+  :global(.prose h3) {
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+  }
+}

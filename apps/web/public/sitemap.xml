@@ -13,6 +13,26 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://sleevy.app/docs/getting-started</loc>
+    <lastmod>2026-07-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://sleevy.app/docs/concepts</loc>
+    <lastmod>2026-07-18</lastmod>
+  </url>
+  <url><loc>https://sleevy.app/docs/authentication</loc><lastmod>2026-07-18</lastmod></url>
+  <url><loc>https://sleevy.app/docs/errors</loc><lastmod>2026-07-18</lastmod></url>
+  <url><loc>https://sleevy.app/docs/rate-limits</loc><lastmod>2026-07-18</lastmod></url>
+  <url><loc>https://sleevy.app/docs/api-reference</loc><lastmod>2026-07-18</lastmod></url>
+  <url>
+    <loc>https://sleevy.app/docs/guides</loc>
+    <lastmod>2026-07-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://sleevy.app/privacy</loc>
     <lastmod>2026-07-16</lastmod>
     <changefreq>yearly</changefreq>

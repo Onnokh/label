@@ -302,6 +302,10 @@ export const sleevyApi = HttpApi.make("SleevyApi")
   .annotate(OpenApi.Title, "Sleevy API")
   .annotate(OpenApi.Description, "REST API for saving, listing, and managing your read-later queue.")
   .annotate(OpenApi.Version, "1.0.0")
+  .annotate(OpenApi.Servers, [{
+    url: "https://api.sleevy.app",
+    description: "Sleevy production API",
+  }])
   .add(healthGroup)
   .add(capturesGroup)
   .add(savedItemsGroup)
