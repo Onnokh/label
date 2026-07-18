@@ -43,6 +43,9 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     const sync = () => {
       const next = resolveTheme(theme)
       document.documentElement.dataset.theme = next
+      // Fumadocs' stylesheet switches on a `.dark` ancestor class; it must live on
+      // <html> so portaled UI (search dialog, popovers) is themed too.
+      document.documentElement.classList.toggle("dark", next === "dark")
       setResolvedTheme(next)
     }
 

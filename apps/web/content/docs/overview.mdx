@@ -1,0 +1,46 @@
+---
+title: Overview
+description: Save links from scripts, shortcuts, and personal tools, then keep one reading queue in sync.
+icon: BookOpen
+---
+
+Sleevy is a small, personal REST API for the links you intend to read later.
+
+Use it when a URL starts in a shell script, a Raycast command, a Shortcut, or a tool you are building. Sleevy gives that link a home alongside everything you saved from your other devices.
+
+## What you can build
+
+- Save a URL from any tool that can make an HTTP request.
+- Build a digest from the links in your queue.
+- Mark items read, unread, or opened as your workflow changes.
+- Organize saved links into folders.
+
+## The core flow
+
+Most integrations only need three operations:
+
+1. Create an API key in Sleevy settings.
+2. Capture a URL with `POST /v1/captures`.
+3. Read it back with `GET /v1/saved-items`.
+
+```bash
+curl https://api.sleevy.app/v1/captures \
+  -X POST \
+  -H "Authorization: Bearer $SLEEVY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/article","captureChannel":"api"}'
+```
+
+## Authentication
+
+Send your key as a bearer token on every endpoint except the health check:
+
+```bash
+Authorization: Bearer $SLEEVY_API_KEY
+```
+
+<Callout title="Keep your key private">
+  Store it in an environment variable or your platform's secret store. Never commit it to a repository or ship it in a browser bundle.
+</Callout>
+
+Ready to make the first request? [Follow the getting started guide →](/docs/getting-started)

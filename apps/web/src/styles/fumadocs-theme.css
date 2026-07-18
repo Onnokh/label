@@ -1,0 +1,25 @@
+/*
+ * Map Fumadocs theme variables onto Sleevy's design tokens.
+ *
+ * Defined at :root (not on the docs shell) because Fumadocs portals UI like the
+ * search dialog into <body>, outside any docs wrapper element. The referenced
+ * Sleevy tokens flip with [data-theme] on <html>, so these follow automatically.
+ */
+:root {
+  --color-fd-background: var(--page);
+  --color-fd-foreground: var(--text);
+  --color-fd-muted: var(--panel-muted);
+  --color-fd-muted-foreground: var(--muted);
+  --color-fd-popover: var(--panel);
+  --color-fd-popover-foreground: var(--text);
+  --color-fd-card: var(--panel);
+  --color-fd-card-foreground: var(--text);
+  --color-fd-border: var(--border);
+  --color-fd-primary: var(--accent);
+  --color-fd-primary-foreground: var(--panel);
+  --color-fd-secondary: var(--panel-muted);
+  --color-fd-secondary-foreground: var(--text);
+  --color-fd-accent: var(--selected);
+  --color-fd-accent-foreground: var(--text);
+  --color-fd-ring: var(--accent);
+}

@@ -27,7 +27,7 @@ export function ExtendSection() {
         </ul>
       </div>
       <div className={styles.footer}>
-        <Link to="/docs">
+        <Link to="/docs/$" params={{ _splat: "" }}>
           Take me to the docs
           <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path

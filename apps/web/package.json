@@ -28,16 +28,22 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
+    "fumadocs-core": "^16.11.5",
+    "fumadocs-mdx": "^15.2.0",
+    "fumadocs-openapi": "^11.2.2",
+    "fumadocs-ui": "^16.11.5",
     "lucide-react": "^1.14.0",
     "motion": "^12.42.2",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "sass": "^1.99.0",
+    "shiki": "^4.3.1",
     "simple-liquid-glass": "^4.1.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.10"
   },
   "devDependencies": {
+    "@types/mdx": "^2.0.14",
     "portless": "^0.12.0"
   }
 }

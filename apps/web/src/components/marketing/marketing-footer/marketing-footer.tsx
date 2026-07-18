@@ -30,7 +30,7 @@ export function MarketingFooter() {
         <nav className={styles.col} aria-label="Extras">
           <span className={styles.colTitle}>Extras</span>
           <Link to="/articles">Articles</Link>
-          <Link to="/docs">Documentation</Link>
+          <Link to="/docs/$" params={{ _splat: "" }}>Documentation</Link>
           <a href="https://github.com/Onnokh/sleevy" target="_blank" rel="noopener noreferrer">GitHub</a>
           <Link to="/support">Support</Link>
           <Link to="/privacy">Privacy</Link>

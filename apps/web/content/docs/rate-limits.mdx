@@ -1,0 +1,22 @@
+---
+title: Rate limits
+description: Handle API-key limits and use response headers to pace requests.
+icon: Gauge
+---
+
+API keys are limited to 20 requests per 60-second window. The limit is applied per API key.
+
+## API-key limits
+
+When the limit is exceeded, the API returns `429 Too Many Requests` and a `Retry-After` value in seconds.
+
+## Response headers
+
+```http
+RateLimit-Limit: 20
+RateLimit-Remaining: 19
+RateLimit-Reset: 42
+Retry-After: 42
+```
+
+Use `RateLimit-Remaining` to pace a queue and wait for `RateLimit-Reset` or `Retry-After` before retrying.

@@ -5,7 +5,7 @@ if (!/^[A-Za-z0-9-]{8,128}$/.test(key ?? "")) {
 }
 
 const origin = new URL(process.env.INDEXNOW_ORIGIN ?? "https://sleevy.app")
-const urlList = (process.env.INDEXNOW_URLS?.split(",") ?? ["/", "/docs", "/privacy", "/support"])
+const urlList = (process.env.INDEXNOW_URLS?.split(",") ?? ["/", "/docs", "/docs/getting-started", "/docs/concepts", "/docs/guides", "/docs/authentication", "/docs/errors", "/docs/rate-limits", "/docs/api-reference", "/privacy", "/support"])
   .map((url) => new URL(url.trim(), origin).toString())
 
 if (urlList.some((url) => new URL(url).host !== origin.host)) {

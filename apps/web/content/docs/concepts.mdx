@@ -1,0 +1,33 @@
+---
+title: Captures and saved items
+description: The small set of objects and state transitions behind every Sleevy integration.
+icon: Layers
+---
+
+Sleevy keeps the API model intentionally close to the way a reading queue works: a capture arrives, becomes a saved item, and moves through a small number of useful states.
+
+## Captures become saved items
+
+`POST /v1/captures` is the write boundary. Send a URL with the channel that produced it, and Sleevy creates or updates the corresponding saved item.
+
+```json
+{
+  "url": "https://example.com/article",
+  "captureChannel": "api",
+  "sourceName": "morning-digest"
+}
+```
+
+Read the resulting collection with `GET /v1/saved-items`. It returns the metadata you need to render a queue: URL, title, preview data, tags, folder, and read state.
+
+## Read state and folders
+
+Read state answers "what should I read next?" Folders answer "where does this belong?" Keep those concerns separate in your integration so a focused unread view can still span multiple folders.
+
+The API exposes explicit operations for marking items read, unread, or opened, plus folder endpoints for creating and assigning folders.
+
+## Build around stable IDs
+
+Capture responses and saved-item responses include stable IDs. Store those IDs when you build a local cache, then use them for state changes instead of matching on titles or URLs.
+
+Start with the [workflow guides →](/docs/guides) for concrete requests, or open the [OpenAPI schema ↗](/openapi.json) when you need every field and response.
