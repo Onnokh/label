@@ -19,18 +19,21 @@
   "author": "",
   "license": "UNLICENSED",
   "dependencies": {
-    "@better-auth/api-key": "^1.6.9",
+    "@better-auth/api-key": "^1.6.23",
+    "@better-auth/oauth-provider": "^1.6.23",
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "@sleevy/contract": "workspace:*",
     "@effect/platform-bun": "4.0.0-beta.74",
     "@effect/sql-pg": "4.0.0-beta.74",
     "@types/pg": "^8.20.0",
-    "better-auth": "^1.6.9",
+    "better-auth": "^1.6.23",
     "drizzle-orm": "1.0.0-rc.2",
     "effect": "4.0.0-beta.74",
     "jose": "^6.2.3",
     "linkedom": "^0.18.12",
     "pg": "^8.20.0",
-    "redis": "^5.12.1"
+    "redis": "^5.12.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@effect/language-service": "^0.85.1",

@@ -173,7 +173,7 @@ describe("saved item integration flow", () => {
         )
         expect(served[0]?.enrichment.tags).toEqual(["backend", "typescript"])
 
-        const read = yield* repo.setReadState(served[0]!.savedItem.id, true)
+        const read = yield* repo.setReadState(userId, served[0]!.savedItem.id, true)
         expect(Option.isSome(read)).toBe(true)
         if (Option.isSome(read)) {
           expect(read.value.savedItem.isRead).toBe(true)

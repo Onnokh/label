@@ -7,6 +7,7 @@ import { CaptureService } from "../modules/capture/CaptureService.js";
 import { ConnectCodeRepository } from "../modules/connect/ConnectCodeRepository.js";
 import { EnrichmentWorkflow } from "../modules/enrichment/EnrichmentWorkflow.js";
 import { FolderRepository } from "../modules/folders/FolderRepository.js";
+import { McpTools } from "../modules/mcp/McpTools.js";
 import { ApiKeyRateLimiter } from "../modules/rate-limit/ApiKeyRateLimiter.js";
 import { ConnectAuthorizeRateLimiter } from "../modules/rate-limit/ConnectAuthorizeRateLimiter.js";
 import { ConnectExchangeRateLimiter } from "../modules/rate-limit/ConnectExchangeRateLimiter.js";
@@ -35,5 +36,6 @@ export const appLayer = Layer.mergeAll(
   ConnectExchangeRateLimiter.defaultLayer,
   EnrichmentWorkflow.defaultLayer,
   FolderRepository.defaultLayer,
+  McpTools.defaultLayer,
   SavedItemRepository.defaultLayer,
 );
