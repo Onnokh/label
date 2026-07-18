@@ -1,0 +1,24 @@
+---
+title: Errors
+description: Understand the structured errors returned by the API.
+icon: TriangleAlert
+---
+
+Errors are JSON objects with a stable `_tag` and a human-readable `message`. Some errors include the relevant URL, saved-item ID, or folder ID.
+
+## Error shape
+
+```json
+{
+  "_tag": "Unauthorized",
+  "message": "Missing or invalid credentials."
+}
+```
+
+## Status codes
+
+- `400` — invalid URL, folder name, or request input
+- `401` — missing or invalid credentials
+- `404` — saved item or folder not found
+- `409` — folder name conflict
+- `429` — API-key rate limit exceeded

@@ -15,7 +15,10 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "paths": {
+      "collections/*": ["./.source/*"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "source.config.ts", ".source"]
 }

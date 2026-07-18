@@ -1,0 +1,17 @@
+{
+  "title": "Sleevy API",
+  "pages": [
+    "index",
+    "---Get started---",
+    "overview",
+    "getting-started",
+    "---Build with the API---",
+    "concepts",
+    "guides",
+    "---API reference---",
+    "authentication",
+    "errors",
+    "rate-limits",
+    "api-reference"
+  ]
+}

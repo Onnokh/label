@@ -35,7 +35,7 @@ export function WebCompanionPage() {
         </section>
 
         <p className={styles.captureLinks}>
-          Ways to save: <Link to="/ios-app">iPhone</Link>, <Link to="/chrome-extension">Chrome</Link>, <Link to="/raycast">Raycast</Link>, or the <Link to="/docs">Sleevy API</Link>.
+          Ways to save: <Link to="/ios-app">iPhone</Link>, <Link to="/chrome-extension">Chrome</Link>, <Link to="/raycast">Raycast</Link>, or the <Link to="/docs/$" params={{ _splat: "" }}>Sleevy API</Link>.
         </p>
 
         <section className={styles.closing}>

@@ -28,6 +28,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
     "fumadocs-core": "^16.11.5",
+    "fumadocs-mdx": "^15.2.0",
     "fumadocs-openapi": "^11.2.2",
     "fumadocs-ui": "^16.11.5",
     "lucide-react": "^1.14.0",
@@ -41,6 +42,7 @@
     "vite": "^8.0.10"
   },
   "devDependencies": {
+    "@types/mdx": "^2.0.14",
     "portless": "^0.12.0"
   }
 }

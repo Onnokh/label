@@ -1,36 +1,16 @@
-import { Outlet } from "@tanstack/react-router"
+import { useEffect, useState, type ReactNode } from "react"
 import { DocsLayout } from "fumadocs-ui/layouts/docs"
 import type { Root } from "fumadocs-core/page-tree"
-import { BookOpen, Code2, FileText, House, KeyRound, Layers3, Moon, Sun, TriangleAlert, WandSparkles } from "lucide-react"
+import { Moon, Sun } from "lucide-react"
 
 import { useTheme } from "../../contexts/theme-context"
 import styles from "./docs-layout.module.scss"
 
-export const docsTree: Root = {
-  name: "Sleevy API",
-  children: [
-    { type: "page", name: "Home", url: "/docs", icon: <House /> },
-    { type: "separator", name: "Get started" },
-    { type: "page", name: "Overview", url: "/docs/overview", icon: <BookOpen /> },
-    { type: "page", name: "Getting started", url: "/docs/getting-started", icon: <FileText /> },
-    { type: "separator", name: "Build with the API" },
-    { type: "page", name: "Captures and saved items", url: "/docs/concepts", icon: <Layers3 /> },
-    { type: "page", name: "Save and organize links", url: "/docs/guides", icon: <WandSparkles /> },
-    { type: "separator", name: "API reference" },
-    { type: "page", name: "Authentication", url: "/docs/authentication", icon: <KeyRound /> },
-    { type: "page", name: "Errors", url: "/docs/errors", icon: <TriangleAlert /> },
-    { type: "page", name: "Rate limits", url: "/docs/rate-limits", icon: <Code2 /> },
-    { type: "page", name: "OpenAPI reference", url: "/docs/api-reference", icon: <Code2 /> },
-  ],
-}
-
-export function DocsLayoutShell() {
-  const { resolvedTheme } = useTheme()
-
+export function DocsShell({ tree, children }: { tree: Root; children: ReactNode }) {
   return (
-    <div className={`${styles.shell} ${resolvedTheme === "dark" ? "dark" : ""}`} data-docs-shell>
+    <div className={styles.shell} data-docs-shell>
       <DocsLayout
-        tree={docsTree}
+        tree={tree}
         nav={{
           title: <span className={styles.brand}><img className={styles.brandLogo} src="/logo-mark.svg" alt="" />Sleevy</span>,
           url: "/",
@@ -39,7 +19,7 @@ export function DocsLayoutShell() {
         searchToggle={{ enabled: true }}
         slots={{ themeSwitch: DocsThemeSwitch }}
       >
-        <Outlet />
+        {children}
       </DocsLayout>
     </div>
   )
@@ -47,7 +27,11 @@ export function DocsLayoutShell() {
 
 function DocsThemeSwitch({ className }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme()
-  const label = resolvedTheme === "dark" ? "Use light theme" : "Use dark theme"
+  // The server doesn't know the stored theme, so render theme-dependent
+  // attributes only after mount to avoid a hydration mismatch.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  const label = !mounted ? "Toggle theme" : resolvedTheme === "dark" ? "Use light theme" : "Use dark theme"
 
   const toggleTheme = () => {
     const shell = document.querySelector<HTMLElement>("[data-docs-shell]")
@@ -62,7 +46,7 @@ function DocsThemeSwitch({ className }: { className?: string }) {
     <button
       type="button"
       className={[styles.themeSwitch, className].filter(Boolean).join(" ")}
-      data-theme={resolvedTheme}
+      data-theme={mounted ? resolvedTheme : undefined}
       aria-label={label}
       title={label}
       onClick={toggleTheme}
