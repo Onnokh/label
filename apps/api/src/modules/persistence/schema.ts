@@ -350,12 +350,20 @@ export const relations = defineRelations(relationalSchema, (r) => ({
   },
 }))
 
+// Keys double as Better Auth model names — the drizzle adapter resolves
+// tables via schema[model], so every table a Better Auth plugin touches
+// must be listed here under its model name.
 export const schema = {
   user,
   session,
   account,
   verification,
   apikey,
+  jwks,
+  oauthClient,
+  oauthAccessToken,
+  oauthRefreshToken,
+  oauthConsent,
   linksTable,
   linkMetadataTable,
   linkEnrichmentTable,
