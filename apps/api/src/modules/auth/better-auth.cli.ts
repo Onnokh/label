@@ -51,6 +51,7 @@ export const auth = betterAuth({
       scopes: [...sleevyScopes],
       validAudiences: ["http://localhost:4001", "http://localhost:4001/mcp"],
       allowDynamicClientRegistration: true,
+      allowUnauthenticatedClientRegistration: true,
     }),
     apiKey({
       apiKeyHeaders: ["authorization"],
