@@ -63,7 +63,7 @@ const savedItemToSummary = ({
   savedAt: savedItem.lastSavedAt.toISOString(),
 })
 
-const DEFAULT_PAGE_SIZE = 100
+const DEFAULT_PAGE_SIZE = 50
 const MAX_PAGE_SIZE = 100
 
 export const encodeSavedItemsCursor = (cursor: SavedItemsPageCursor) =>
