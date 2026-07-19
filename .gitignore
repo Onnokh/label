@@ -51,3 +51,6 @@ apps/web/.tanstack/
 
 # Fumadocs MDX generated collections
 .source/
+
+# Local research notes
+docs/research/
