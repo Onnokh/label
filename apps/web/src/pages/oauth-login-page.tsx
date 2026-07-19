@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 
 import { authClient } from "../auth"
 import { SignIn } from "../components/sign-in/sign-in"
+import styles from "./connect-page.module.scss"
 
 export function OAuthLoginPage() {
   const { data: session, isPending } = authClient.useSession()
@@ -20,5 +21,15 @@ export function OAuthLoginPage() {
 
   if (isPending) return null
   if (!session) return <SignIn />
-  return <p>{error ?? "Continuing authorization…"}</p>
+  return (
+    <div className={styles.page}>
+      <div className={styles.card}>
+        {error ? (
+          <pre className={styles.error}>{error}</pre>
+        ) : (
+          <p className={styles.subtitle}>Continuing authorization…</p>
+        )}
+      </div>
+    </div>
+  )
 }

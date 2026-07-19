@@ -48,3 +48,9 @@ xcuserdata/
 apps/ios/Sleevy/BuildConfig/Local.xcconfig
 apps/api/bun.lock
 apps/web/.tanstack/
+
+# Fumadocs MDX generated collections
+.source/
+
+# Local research notes
+docs/research/

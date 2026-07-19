@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull, type InferSelectModel, type SQL } from "drizzle-orm"
+import { and, asc, desc, eq, isNull, lt, or, type InferSelectModel, type SQL } from "drizzle-orm"
 import { Context, Effect, Layer, Option, Schema } from "effect"
 
 import {
@@ -9,6 +9,7 @@ import {
   LinkEnrichment,
   LinkMetadata,
   type SavedItemWithLink,
+  type SavedItemId,
   type UserId,
   type LinkId,
   type FolderId,
@@ -31,6 +32,16 @@ export type SourceRecord = InferSelectModel<typeof sourcesTable>
 export type FolderRecord = InferSelectModel<typeof foldersTable>
 
 export type SavedItemSort = "newest" | "oldest" | "title" | "unread"
+
+export type SavedItemsPageCursor = {
+  readonly lastSavedAt: Date
+  readonly id: SavedItemId
+}
+
+export type SavedItemsPage = {
+  readonly items: ReadonlyArray<SavedItemWithLink>
+  readonly nextCursor: SavedItemsPageCursor | null
+}
 
 const decodeSavedItem = Schema.decodeUnknownSync(SavedItem)
 const decodeLink = Schema.decodeUnknownSync(Link)
@@ -164,6 +175,40 @@ export class SavedItemRepository extends Context.Service<SavedItemRepository>()(
           ).orderBy(...orderByForSort(sort))
 
           return rows.map(toAggregate)
+        }),
+
+        listPageByUser: Effect.fn("SavedItemRepository.listPageByUser")(function* (
+          userId: UserId,
+          limit: number,
+          cursor?: SavedItemsPageCursor,
+        ) {
+          const userFilter = eq(savedItemsTable.userId, userId)
+          const cursorFilter = cursor
+            ? or(
+                lt(savedItemsTable.lastSavedAt, cursor.lastSavedAt),
+                and(
+                  eq(savedItemsTable.lastSavedAt, cursor.lastSavedAt),
+                  lt(savedItemsTable.id, cursor.id),
+                ),
+              )
+            : undefined
+          const rows = yield* selectSavedItemWithLink(
+            cursorFilter ? and(userFilter, cursorFilter) : userFilter,
+          )
+            .orderBy(desc(savedItemsTable.lastSavedAt), desc(savedItemsTable.id))
+            .limit(limit + 1)
+
+          const pageRows = rows.slice(0, limit)
+          const lastRow = pageRows.at(-1)
+          return {
+            items: pageRows.map(toAggregate),
+            nextCursor: rows.length > limit && lastRow
+              ? {
+                  lastSavedAt: lastRow.savedItem.lastSavedAt,
+                  id: lastRow.savedItem.id,
+                }
+              : null,
+          }
         }),
 
         setReadState: Effect.fn("SavedItemRepository.setReadState")(function* (userId: UserId, id: SavedItem["id"], isRead: boolean) {

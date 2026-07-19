@@ -72,6 +72,7 @@ const routeLayer = (input: {
   readonly apiKeyValid?: boolean | undefined
   readonly apiKeyAllowed?: boolean | undefined
   readonly apiKeyPermissions?: Record<string, string[]> | undefined
+  readonly savedItemsPage?: boolean | undefined
   readonly onCapture?: ((input: {
     readonly userId: UserId
     readonly url: string
@@ -155,6 +156,15 @@ const routeLayer = (input: {
           requestedUserId === userId
             ? []
             : [],
+        ),
+      listPageByUser: (_userId: UserId, _limit: number, cursor?: { readonly id: string }) =>
+        Effect.succeed(
+          input.savedItemsPage && !cursor
+            ? {
+                items: [makeSavedItem(userId)],
+                nextCursor: { lastSavedAt: now, id: savedItemId },
+              }
+            : { items: [], nextCursor: null },
         ),
       setReadState: () => Effect.succeed(Option.none()),
       deleteByUserAndId: () => ({
@@ -318,6 +328,49 @@ describe("HttpApp", () => {
     }),
   )
 
+  it.effect("publishes OAuth protected-resource metadata for the API", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/.well-known/oauth-protected-resource").pipe(
+        Effect.provide(routeLayer()),
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get("content-type")).toContain("application/json")
+      expect(JSON.parse(yield* text(response))).toMatchObject({
+        resource: "http://localhost",
+        authorization_servers: ["http://localhost/api/auth"],
+        scopes_supported: [
+          "saved-items:capture",
+          "saved-items:read",
+          "saved-items:write",
+          "saved-items:delete",
+          "folders:read",
+          "folders:write",
+          "folders:delete",
+          "account:read",
+        ],
+      })
+    }),
+  )
+
+  it.effect("publishes an MCP server card", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/.well-known/mcp/server-card.json").pipe(
+        Effect.provide(routeLayer()),
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get("content-type")).toContain("application/json")
+      expect(JSON.parse(yield* text(response))).toEqual({
+        url: "http://localhost/mcp",
+        authentication: {
+          type: "oauth2",
+          authorization_server: "http://localhost/api/auth",
+        },
+      })
+    }),
+  )
+
   it.effect("requires credentials before MCP initialization", () =>
     Effect.gen(function* () {
       const response = yield* mcpRequest({
@@ -420,10 +473,93 @@ describe("HttpApp", () => {
       ).pipe(Effect.provide(routeLayer()))
 
       expect(response.status).toBe(200)
-      expect(JSON.parse(yield* text(response))).toMatchObject({
+      const body = JSON.parse(yield* text(response)) as {
+        readonly result: {
+          readonly content: ReadonlyArray<{ readonly text: string }>
+          readonly structuredContent: unknown
+        }
+      }
+      expect(body).toMatchObject({
         jsonrpc: "2.0",
         id: 3,
-        result: { content: [{ type: "text", text: "[]" }] },
+        result: {
+          structuredContent: { items: [], nextCursor: null },
+        },
+      })
+      expect(JSON.parse(body.result.content[0]!.text)).toEqual(body.result.structuredContent)
+    }),
+  )
+
+  it.effect("pages saved items through MCP with an opaque cursor", () =>
+    Effect.gen(function* () {
+      const layer = routeLayer({ savedItemsPage: true })
+      const first = yield* mcpRequest(
+        {
+          jsonrpc: "2.0",
+          id: 3,
+          method: "tools/call",
+          params: { name: "list_saved_items", arguments: { limit: 1 } },
+        },
+        { credentials: true, protocolVersion: "2025-06-18" },
+      ).pipe(Effect.provide(layer))
+
+      const firstBody = JSON.parse(yield* text(first)) as {
+        readonly result: {
+          readonly content: ReadonlyArray<{ readonly text: string }>
+          readonly structuredContent: {
+            readonly items: ReadonlyArray<unknown>
+            readonly nextCursor: string | null
+          }
+        }
+      }
+      const page = firstBody.result.structuredContent
+      expect(page.items).toEqual([
+        {
+          id: savedItemId,
+          title: "Route Test",
+          url: "https://example.com/articles/route-test",
+          folder: null,
+          isRead: false,
+          tags: ["backend"],
+          savedAt: now.toISOString(),
+        },
+      ])
+      expect(typeof page.nextCursor).toBe("string")
+      expect(JSON.parse(firstBody.result.content[0]!.text)).toEqual(page)
+
+      const second = yield* mcpRequest(
+        {
+          jsonrpc: "2.0",
+          id: 4,
+          method: "tools/call",
+          params: { name: "list_saved_items", arguments: { cursor: page.nextCursor } },
+        },
+        { credentials: true, protocolVersion: "2025-06-18" },
+      ).pipe(Effect.provide(layer))
+
+      expect(JSON.parse(yield* text(second))).toMatchObject({
+        result: { structuredContent: { items: [], nextCursor: null } },
+      })
+    }),
+  )
+
+  it.effect("rejects an invalid saved items pagination cursor", () =>
+    Effect.gen(function* () {
+      const response = yield* mcpRequest(
+        {
+          jsonrpc: "2.0",
+          id: 3,
+          method: "tools/call",
+          params: { name: "list_saved_items", arguments: { cursor: "not-a-cursor" } },
+        },
+        { credentials: true, protocolVersion: "2025-06-18" },
+      ).pipe(Effect.provide(routeLayer()))
+
+      expect(JSON.parse(yield* text(response))).toMatchObject({
+        result: {
+          content: [{ type: "text", text: "Invalid pagination cursor." }],
+          isError: true,
+        },
       })
     }),
   )

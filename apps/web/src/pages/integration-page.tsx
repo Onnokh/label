@@ -65,7 +65,7 @@ export function IntegrationPage({ eyebrow, title, description, intro = "Sleevy k
               {visibleSecondaryAction.label}
               {visibleSecondaryAction.trailingIcon ? (
                 <span className={styles.actionAdornment}>
-                  <img className={styles.actionIcon} src={visibleSecondaryAction.trailingIcon.src} alt={visibleSecondaryAction.trailingIcon.alt} width={visibleSecondaryAction.trailingIcon.width} height={visibleSecondaryAction.trailingIcon.height} />
+                  <img className={styles.actionIcon} src={visibleSecondaryAction.trailingIcon.src} alt={visibleSecondaryAction.trailingIcon.alt || `${eyebrow} icon`} width={visibleSecondaryAction.trailingIcon.width} height={visibleSecondaryAction.trailingIcon.height} />
                 </span>
               ) : (
                 <span className={styles.actionAdornment} aria-hidden="true">↗</span>

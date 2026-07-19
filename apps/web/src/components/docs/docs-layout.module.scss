@@ -1,0 +1,148 @@
+.shell {
+  min-height: 100vh;
+  background: var(--page);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+
+  :global(#nd-docs-layout) {
+    background: var(--page);
+  }
+
+  @media (min-width: 768px) {
+    :global(#nd-docs-layout) {
+      --fd-sidebar-width: 268px;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    :global(#nd-docs-layout) {
+      --fd-toc-width: 268px;
+    }
+  }
+
+  :global(#nd-sidebar) {
+    background: var(--panel);
+    border-color: var(--border);
+  }
+
+  :global(#nd-sidebar a) {
+    color: color-mix(in srgb, var(--text) 82%, var(--muted));
+  }
+
+  :global(#nd-sidebar a[data-active="true"]) {
+    background: var(--selected);
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  :global(#nd-sidebar p) {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  &[data-theme-transition="instant"] {
+    :global(#nd-sidebar a) {
+      transition-duration: 0ms !important;
+    }
+  }
+
+  :global(.prose) {
+    --tw-prose-body: var(--text);
+    --tw-prose-headings: var(--text);
+    --tw-prose-links: var(--accent);
+    --tw-prose-bold: var(--text);
+    --tw-prose-code: var(--text);
+    --tw-prose-hr: var(--border);
+  }
+
+  :global(#nd-docs-layout),
+  :global(#nd-docs-layout h1),
+  :global(#nd-docs-layout h2),
+  :global(#nd-docs-layout h3),
+  :global(#nd-docs-layout button),
+  :global(#nd-docs-layout input) {
+    font-family: inherit;
+  }
+
+  :global(#nd-docs-layout h1),
+  :global(#nd-docs-layout h2),
+  :global(#nd-docs-layout h3) {
+    letter-spacing: -0.025em;
+  }
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.brandLogo {
+  display: block;
+  align-items: center;
+  justify-content: center;
+  width: 0.875rem;
+  height: 1.3125rem;
+  object-fit: contain;
+  // The mark is a white SVG; flatten it to black on the light theme.
+  filter: brightness(0);
+}
+
+:global(html[data-theme="dark"]) .brandLogo {
+  filter: none;
+}
+
+.themeSwitch {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 2.5rem;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  min-width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+  transition-property: background, color, scale;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+
+  &:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
+
+  &:active {
+    scale: 0.96;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+}
+
+.themeIcon {
+  position: absolute;
+  width: 1.125rem;
+  height: 1.125rem;
+  opacity: 0;
+  scale: 0.25;
+  filter: blur(4px);
+  transition-property: opacity, scale, filter;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.themeSwitch[data-theme="light"] .themeIcon:first-child,
+.themeSwitch[data-theme="dark"] .themeIcon:last-child {
+  opacity: 1;
+  scale: 1;
+  filter: blur(0);
+}

@@ -1,0 +1,47 @@
+---
+title: Getting started
+description: Create a key, save one URL, and read it back from your queue.
+icon: FileText
+---
+
+This guide takes one URL from your terminal into Sleevy. The same requests work from any script or automation that can send JSON over HTTPS.
+
+## Create an API key
+
+Open [Sleevy settings](/settings), create a personal API key, and export it in the shell where you will make the request:
+
+```bash
+export SLEEVY_API_KEY="your-key-here"
+```
+
+<Callout title="Use a secret store in production">
+  Environment variables are convenient for local scripts. For deployed automations, use the secret storage provided by your host.
+</Callout>
+
+## Save your first URL
+
+Send the URL to the capture endpoint. Sleevy returns the saved item and tells you whether it created a new record or updated an existing one.
+
+```bash
+curl https://api.sleevy.app/v1/captures \
+  -X POST \
+  -H "Authorization: Bearer $SLEEVY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/article",
+    "captureChannel": "api"
+  }'
+```
+
+## Read your queue
+
+Fetch saved items with the same key. Sort by newest, oldest, title, or unread items when you are building a focused view.
+
+```bash
+curl "https://api.sleevy.app/v1/saved-items?sort=newest" \
+  -H "Authorization: Bearer $SLEEVY_API_KEY"
+```
+
+The response contains `savedItems`. Each item includes its URL, title and preview metadata, tags, folder, and read state.
+
+Continue with the [workflow guides →](/docs/guides) or use the [OpenAPI schema ↗](/openapi.json) for the complete contract.

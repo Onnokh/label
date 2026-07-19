@@ -46,10 +46,10 @@ export function HighlightSection() {
             />
             <BlurFade />
           </div>
-          <img className={styles.icon} src="/ios26-82.webp" alt="" width={82} height={82} loading="lazy" />
+          <img className={styles.icon} src="/ios26-82.webp" alt="Sleevy iPhone app icon" width={82} height={82} loading="lazy" />
           <GlassPill radius={28} style={ctaGlassPosition}>
             <a className={styles.cta} href={appStoreUrl}>
-              <img src="/appstore-glyph-96.webp" alt="" width={96} height={96} loading="lazy" />
+              <img src="/appstore-glyph-96.webp" alt="App Store icon" width={96} height={96} loading="lazy" />
               Install on your iPhone
             </a>
           </GlassPill>
@@ -72,14 +72,14 @@ export function HighlightSection() {
           <img
             className={clsx(styles.icon, styles.iconRaycast)}
             src="/raycast-82.webp"
-            alt=""
+            alt="Raycast extension icon"
             width={82}
             height={82}
             loading="lazy"
           />
           <GlassPill radius={28} style={ctaGlassPosition}>
             <a className={clsx(styles.cta, styles.ctaRaycast)} href={raycastDeeplink}>
-              <img src="/raycast-82.webp" alt="" width={82} height={82} loading="lazy" />
+              <img src="/raycast-82.webp" alt="Raycast icon" width={82} height={82} loading="lazy" />
               Add to your Raycast
             </a>
           </GlassPill>

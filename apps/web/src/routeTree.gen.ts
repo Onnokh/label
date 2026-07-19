@@ -15,13 +15,15 @@ import { Route as SplatRouteImport } from './routes/$'
 import { Route as MarketingIndexRouteImport } from './routes/_marketing/index'
 import { Route as OauthLoginRouteImport } from './routes/oauth/login'
 import { Route as OauthConsentRouteImport } from './routes/oauth/consent'
+import { Route as DocsChar123Char125DotmdRouteImport } from './routes/docs/{$}[.]md'
+import { Route as DocsSplatRouteImport } from './routes/docs/$'
+import { Route as ApiSearchRouteImport } from './routes/api.search'
 import { Route as MarketingWebCompanionRouteImport } from './routes/_marketing/web-companion'
 import { Route as MarketingSupportRouteImport } from './routes/_marketing/support'
 import { Route as MarketingRaycastRouteImport } from './routes/_marketing/raycast'
 import { Route as MarketingPrivacyRouteImport } from './routes/_marketing/privacy'
 import { Route as MarketingPocketAlternativeRouteImport } from './routes/_marketing/pocket-alternative'
 import { Route as MarketingIosAppRouteImport } from './routes/_marketing/ios-app'
-import { Route as MarketingDocsRouteImport } from './routes/_marketing/docs'
 import { Route as MarketingChromeExtensionRouteImport } from './routes/_marketing/chrome-extension'
 import { Route as MarketingArticlesRouteImport } from './routes/_marketing/articles'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
@@ -61,6 +63,21 @@ const OauthConsentRoute = OauthConsentRouteImport.update({
   path: '/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DocsChar123Char125DotmdRoute = DocsChar123Char125DotmdRouteImport.update({
+  id: '/docs/{$}.md',
+  path: '/docs/{$}.md',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsSplatRoute = DocsSplatRouteImport.update({
+  id: '/docs/$',
+  path: '/docs/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSearchRoute = ApiSearchRouteImport.update({
+  id: '/api/search',
+  path: '/api/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MarketingWebCompanionRoute = MarketingWebCompanionRouteImport.update({
   id: '/web-companion',
   path: '/web-companion',
@@ -90,11 +107,6 @@ const MarketingPocketAlternativeRoute =
 const MarketingIosAppRoute = MarketingIosAppRouteImport.update({
   id: '/ios-app',
   path: '/ios-app',
-  getParentRoute: () => MarketingRoute,
-} as any)
-const MarketingDocsRoute = MarketingDocsRouteImport.update({
-  id: '/docs',
-  path: '/docs',
   getParentRoute: () => MarketingRoute,
 } as any)
 const MarketingChromeExtensionRoute =
@@ -162,13 +174,15 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/articles': typeof MarketingArticlesRoute
   '/chrome-extension': typeof MarketingChromeExtensionRoute
-  '/docs': typeof MarketingDocsRoute
   '/ios-app': typeof MarketingIosAppRoute
   '/pocket-alternative': typeof MarketingPocketAlternativeRoute
   '/privacy': typeof MarketingPrivacyRoute
   '/raycast': typeof MarketingRaycastRoute
   '/support': typeof MarketingSupportRoute
   '/web-companion': typeof MarketingWebCompanionRoute
+  '/api/search': typeof ApiSearchRoute
+  '/docs/$': typeof DocsSplatRoute
+  '/docs/{$}.md': typeof DocsChar123Char125DotmdRoute
   '/oauth/consent': typeof OauthConsentRoute
   '/oauth/login': typeof OauthLoginRoute
   '/articles/bookmark-manager-for-developers': typeof MarketingArticlesBookmarkManagerForDevelopersRoute
@@ -185,13 +199,15 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsRoute
   '/articles': typeof MarketingArticlesRoute
   '/chrome-extension': typeof MarketingChromeExtensionRoute
-  '/docs': typeof MarketingDocsRoute
   '/ios-app': typeof MarketingIosAppRoute
   '/pocket-alternative': typeof MarketingPocketAlternativeRoute
   '/privacy': typeof MarketingPrivacyRoute
   '/raycast': typeof MarketingRaycastRoute
   '/support': typeof MarketingSupportRoute
   '/web-companion': typeof MarketingWebCompanionRoute
+  '/api/search': typeof ApiSearchRoute
+  '/docs/$': typeof DocsSplatRoute
+  '/docs/{$}.md': typeof DocsChar123Char125DotmdRoute
   '/oauth/consent': typeof OauthConsentRoute
   '/oauth/login': typeof OauthLoginRoute
   '/articles/bookmark-manager-for-developers': typeof MarketingArticlesBookmarkManagerForDevelopersRoute
@@ -210,13 +226,15 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/_marketing/articles': typeof MarketingArticlesRoute
   '/_marketing/chrome-extension': typeof MarketingChromeExtensionRoute
-  '/_marketing/docs': typeof MarketingDocsRoute
   '/_marketing/ios-app': typeof MarketingIosAppRoute
   '/_marketing/pocket-alternative': typeof MarketingPocketAlternativeRoute
   '/_marketing/privacy': typeof MarketingPrivacyRoute
   '/_marketing/raycast': typeof MarketingRaycastRoute
   '/_marketing/support': typeof MarketingSupportRoute
   '/_marketing/web-companion': typeof MarketingWebCompanionRoute
+  '/api/search': typeof ApiSearchRoute
+  '/docs/$': typeof DocsSplatRoute
+  '/docs/{$}.md': typeof DocsChar123Char125DotmdRoute
   '/oauth/consent': typeof OauthConsentRoute
   '/oauth/login': typeof OauthLoginRoute
   '/_marketing/': typeof MarketingIndexRoute
@@ -236,13 +254,15 @@ export interface FileRouteTypes {
     | '/settings'
     | '/articles'
     | '/chrome-extension'
-    | '/docs'
     | '/ios-app'
     | '/pocket-alternative'
     | '/privacy'
     | '/raycast'
     | '/support'
     | '/web-companion'
+    | '/api/search'
+    | '/docs/$'
+    | '/docs/{$}.md'
     | '/oauth/consent'
     | '/oauth/login'
     | '/articles/bookmark-manager-for-developers'
@@ -259,13 +279,15 @@ export interface FileRouteTypes {
     | '/settings'
     | '/articles'
     | '/chrome-extension'
-    | '/docs'
     | '/ios-app'
     | '/pocket-alternative'
     | '/privacy'
     | '/raycast'
     | '/support'
     | '/web-companion'
+    | '/api/search'
+    | '/docs/$'
+    | '/docs/{$}.md'
     | '/oauth/consent'
     | '/oauth/login'
     | '/articles/bookmark-manager-for-developers'
@@ -283,13 +305,15 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_marketing/articles'
     | '/_marketing/chrome-extension'
-    | '/_marketing/docs'
     | '/_marketing/ios-app'
     | '/_marketing/pocket-alternative'
     | '/_marketing/privacy'
     | '/_marketing/raycast'
     | '/_marketing/support'
     | '/_marketing/web-companion'
+    | '/api/search'
+    | '/docs/$'
+    | '/docs/{$}.md'
     | '/oauth/consent'
     | '/oauth/login'
     | '/_marketing/'
@@ -303,6 +327,9 @@ export interface RootRouteChildren {
   SplatRoute: typeof SplatRoute
   AppRoute: typeof AppRouteWithChildren
   MarketingRoute: typeof MarketingRouteWithChildren
+  ApiSearchRoute: typeof ApiSearchRoute
+  DocsSplatRoute: typeof DocsSplatRoute
+  DocsChar123Char125DotmdRoute: typeof DocsChar123Char125DotmdRoute
   OauthConsentRoute: typeof OauthConsentRoute
   OauthLoginRoute: typeof OauthLoginRoute
 }
@@ -351,6 +378,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/docs/{$}.md': {
+      id: '/docs/{$}.md'
+      path: '/docs/{$}.md'
+      fullPath: '/docs/{$}.md'
+      preLoaderRoute: typeof DocsChar123Char125DotmdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs/$': {
+      id: '/docs/$'
+      path: '/docs/$'
+      fullPath: '/docs/$'
+      preLoaderRoute: typeof DocsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/search': {
+      id: '/api/search'
+      path: '/api/search'
+      fullPath: '/api/search'
+      preLoaderRoute: typeof ApiSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_marketing/web-companion': {
       id: '/_marketing/web-companion'
       path: '/web-companion'
@@ -391,13 +439,6 @@ declare module '@tanstack/react-router' {
       path: '/ios-app'
       fullPath: '/ios-app'
       preLoaderRoute: typeof MarketingIosAppRouteImport
-      parentRoute: typeof MarketingRoute
-    }
-    '/_marketing/docs': {
-      id: '/_marketing/docs'
-      path: '/docs'
-      fullPath: '/docs'
-      preLoaderRoute: typeof MarketingDocsRouteImport
       parentRoute: typeof MarketingRoute
     }
     '/_marketing/chrome-extension': {
@@ -494,7 +535,6 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 interface MarketingRouteChildren {
   MarketingArticlesRoute: typeof MarketingArticlesRoute
   MarketingChromeExtensionRoute: typeof MarketingChromeExtensionRoute
-  MarketingDocsRoute: typeof MarketingDocsRoute
   MarketingIosAppRoute: typeof MarketingIosAppRoute
   MarketingPocketAlternativeRoute: typeof MarketingPocketAlternativeRoute
   MarketingPrivacyRoute: typeof MarketingPrivacyRoute
@@ -510,7 +550,6 @@ interface MarketingRouteChildren {
 const MarketingRouteChildren: MarketingRouteChildren = {
   MarketingArticlesRoute: MarketingArticlesRoute,
   MarketingChromeExtensionRoute: MarketingChromeExtensionRoute,
-  MarketingDocsRoute: MarketingDocsRoute,
   MarketingIosAppRoute: MarketingIosAppRoute,
   MarketingPocketAlternativeRoute: MarketingPocketAlternativeRoute,
   MarketingPrivacyRoute: MarketingPrivacyRoute,
@@ -534,6 +573,9 @@ const rootRouteChildren: RootRouteChildren = {
   SplatRoute: SplatRoute,
   AppRoute: AppRouteWithChildren,
   MarketingRoute: MarketingRouteWithChildren,
+  ApiSearchRoute: ApiSearchRoute,
+  DocsSplatRoute: DocsSplatRoute,
+  DocsChar123Char125DotmdRoute: DocsChar123Char125DotmdRoute,
   OauthConsentRoute: OauthConsentRoute,
   OauthLoginRoute: OauthLoginRoute,
 }

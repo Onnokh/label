@@ -7,6 +7,12 @@
       "label": "Sleevy API Key",
       "generateUrl": "https://sleevy.app/settings",
       "setup": "Sign in at https://sleevy.app, open **Settings**, and create a personal API Key under **API Keys**. Send it as `Authorization: Bearer <api-key>` on every request. Keys are scoped and rate-limited per key, and can be revoked from the same screen."
+    },
+    "sleevy_oauth": {
+      "type": "oauth2",
+      "label": "Sleevy OAuth",
+      "generateUrl": "https://api.sleevy.app/api/auth",
+      "setup": "Connect an MCP client to https://api.sleevy.app/mcp. The client discovers Sleevy's OAuth authorization server and opens a browser for sign-in and consent."
     }
   },
   "surfaces": [
@@ -33,6 +39,37 @@
                   "in": "header",
                   "headerName": "Authorization",
                   "scheme": "Bearer"
+                }
+              }
+            ],
+            "basis": {
+              "via": "declared",
+              "source": "https://sleevy.app/.well-known/integrations.json"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "slug": "mcp-server",
+      "name": "Sleevy MCP server",
+      "type": "mcp",
+      "docs": "https://sleevy.app/docs",
+      "url": "https://api.sleevy.app/mcp",
+      "transports": ["streamable-http"],
+      "basis": {
+        "via": "declared",
+        "source": "https://sleevy.app/.well-known/integrations.json"
+      },
+      "auth": {
+        "status": "required",
+        "entries": [
+          {
+            "use": [
+              {
+                "id": "sleevy_oauth",
+                "mechanics": {
+                  "source": "well-known"
                 }
               }
             ],

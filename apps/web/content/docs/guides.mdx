@@ -1,0 +1,67 @@
+---
+title: Save and organize links
+description: Small workflows for turning Sleevy into a useful part of your tools.
+icon: WandSparkles
+---
+
+The API is deliberately small. Compose a few focused calls instead of building a second reading-list system around it.
+
+## Save from any tool
+
+Capture from a shell, Raycast, a Shortcut, or an internal tool by sending the URL and an optional source label.
+
+```js
+await fetch("https://api.sleevy.app/v1/captures", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${process.env.SLEEVY_API_KEY}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    url,
+    sourceName: "morning-digest",
+    captureChannel: "api",
+  }),
+})
+```
+
+## Build a reading view
+
+Use the queue endpoint as the data source for a digest, dashboard, or focused list. Ask for unread items when you only want the next thing to read:
+
+```js
+const response = await fetch(
+  "https://api.sleevy.app/v1/saved-items?sort=unread",
+  { headers: { Authorization: `Bearer ${apiKey}` } },
+)
+
+const { savedItems } = await response.json()
+```
+
+## Update reading state
+
+Mark an item read or unread when your own interface records that change.
+
+```bash
+curl https://api.sleevy.app/v1/saved-items/$ITEM_ID/read \
+  -X POST \
+  -H "Authorization: Bearer $SLEEVY_API_KEY"
+```
+
+Use the corresponding `/open`, `/unread`, or `/read-state` operation when your workflow needs a different state transition.
+
+## Organize with folders
+
+Create a folder once, then assign saved items to it as you capture them.
+
+```bash
+curl https://api.sleevy.app/v1/saved-items/$ITEM_ID/folder \
+  -X PUT \
+  -H "Authorization: Bearer $SLEEVY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"folderId":"$FOLDER_ID"}'
+```
+
+<Callout title="No webhooks yet">
+  Sleevy currently supports request-driven automations. There is no webhook delivery endpoint in the current API contract, so schedule a small poll when you need to sync changes.
+</Callout>

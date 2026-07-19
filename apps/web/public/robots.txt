@@ -1,4 +1,9 @@
 User-agent: *
 Allow: /
+Disallow: /inbox
+Disallow: /library
+Disallow: /settings
+Disallow: /connect
+Disallow: /oauth/
 
 Sitemap: https://sleevy.app/sitemap.xml

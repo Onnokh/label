@@ -17,7 +17,7 @@ export function MarketingNav() {
       <nav className={styles.navbar} aria-label="Primary">
         <div className={styles.logoRow}>
           <Link className={styles.brand} to="/" aria-label="Sleevy home" onClick={closeMenu}>
-            <img className={styles.logoMark} src="/logo-mark.svg" alt="" width={19} height={28} />
+            <img className={styles.logoMark} src="/logo-mark.svg" alt="Sleevy logo" width={19} height={28} />
             <span className={styles.logoText}>Sleevy</span>
           </Link>
           <button
@@ -38,7 +38,7 @@ export function MarketingNav() {
               <Link className={styles.link} to="/ios-app" onClick={closeMenu}>iOS</Link>
               <Link className={styles.link} to="/raycast" onClick={closeMenu}>Raycast</Link>
               <Link className={styles.link} to="/chrome-extension" onClick={closeMenu}>Google Chrome</Link>
-              <Link className={styles.link} to="/docs" onClick={closeMenu}>Docs</Link>
+              <Link className={styles.link} to="/docs/$" params={{ _splat: "" }} onClick={closeMenu}>Docs</Link>
               <a
                 className={clsx(styles.link, styles.iconLink)}
                 href="https://github.com/Onnokh/sleevy"

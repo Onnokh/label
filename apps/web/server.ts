@@ -32,7 +32,12 @@ const contentTypeByPathname: Record<string, string> = {
 // routes the module scripts are swapped for a tiny loader that starts them on
 // the first sign of life (scroll/pointer/key/focus) instead. Any interaction —
 // including the tap that would need hydrated JS — triggers loading first.
-const deferredHydrationPaths = new Set(["/", "/docs", "/support", "/privacy"])
+const deferredHydrationPaths = new Set(["/", "/support", "/privacy"])
+
+// Docs pages are content-first too; their slugs come from content/docs and the
+// OpenAPI schema, so match by prefix instead of enumerating them.
+const isDeferredHydrationPath = (pathname: string) =>
+  deferredHydrationPaths.has(pathname) || pathname === "/docs" || (pathname.startsWith("/docs/") && !pathname.endsWith(".md"))
 
 const hydrationLoader = (sources: string[]) =>
   `<script>(function(){var e=["pointerdown","pointermove","keydown","touchstart","scroll","focusin"],l=function(){e.forEach(function(n){removeEventListener(n,l,!0)});${JSON.stringify(sources)}.forEach(function(s){var t=document.createElement("script");t.type="module";t.async=!0;t.src=s;document.head.appendChild(t)})};e.forEach(function(n){addEventListener(n,l,{passive:!0,capture:!0})})})()</script>`
@@ -40,7 +45,7 @@ const hydrationLoader = (sources: string[]) =>
 async function withDeferredHydration(req: Request, response: Response): Promise<Response> {
   const url = new URL(req.url)
 
-  if (req.method !== "GET" || !deferredHydrationPaths.has(url.pathname)) return response
+  if (req.method !== "GET" || !isDeferredHydrationPath(url.pathname)) return response
   if (response.status !== 200 || !(response.headers.get("content-type") ?? "").includes("text/html")) return response
 
   const html = await response.text()

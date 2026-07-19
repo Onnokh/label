@@ -4,7 +4,7 @@ import { HttpEffect, HttpMiddleware, HttpRouter, HttpServer } from "effect/unsta
 import { sleevyApiLive } from "../api/ApiHandlers.js"
 import { Analytics } from "../modules/analytics/Analytics.js"
 import { AuthHandler } from "../modules/auth/AuthHandler.js"
-import { BetterAuth } from "../modules/auth/BetterAuth.js"
+import { AUTH_BASE_PATH, authServerUrl, BetterAuth } from "../modules/auth/BetterAuth.js"
 import { CaptureService } from "../modules/capture/CaptureService.js"
 import { ConnectCodeRepository } from "../modules/connect/ConnectCodeRepository.js"
 import { EnrichmentWorkflow } from "../modules/enrichment/EnrichmentWorkflow.js"
@@ -17,6 +17,7 @@ import {
   exposedApiResponseHeaders,
   withApiKeyRateLimit,
 } from "./ApiRequestMiddleware.js"
+import { V1_SCOPES } from "../modules/auth/Scopes.js"
 import { MCP_SCOPES } from "../modules/mcp/McpTools.js"
 import { AppConfig } from "./Config.js"
 import { makeMcpWebHandler } from "./McpApp.js"
@@ -94,15 +95,34 @@ export const makeApiWebHandler = Effect.gen(function* () {
   return (async (request) => {
     const pathname = new URL(request.url).pathname
     const isAuthRequest =
-      pathname.startsWith("/api/auth/") ||
+      pathname.startsWith(`${AUTH_BASE_PATH}/`) ||
       pathname === "/.well-known/oauth-authorization-server/api/auth" ||
       pathname === "/api/auth/.well-known/oauth-authorization-server"
 
-    if (pathname === "/.well-known/oauth-protected-resource/mcp") {
+    if (
+      pathname === "/.well-known/oauth-protected-resource" ||
+      pathname === "/.well-known/oauth-protected-resource/mcp"
+    ) {
+      const resource = pathname.endsWith("/mcp")
+        ? `${config.auth.baseUrl}/mcp`
+        : config.auth.baseUrl
+
       return new Response(JSON.stringify({
-        resource: `${config.auth.baseUrl}/mcp`,
-        authorization_servers: [`${config.auth.baseUrl}/api/auth`],
-        scopes_supported: MCP_SCOPES,
+        resource,
+        authorization_servers: [authServerUrl(config.auth.baseUrl)],
+        scopes_supported: pathname.endsWith("/mcp") ? MCP_SCOPES : V1_SCOPES,
+      }), {
+        headers: { "content-type": "application/json", "cache-control": "public, max-age=300" },
+      })
+    }
+
+    if (pathname === "/.well-known/mcp/server-card.json") {
+      return new Response(JSON.stringify({
+        url: `${config.auth.baseUrl}/mcp`,
+        authentication: {
+          type: "oauth2",
+          authorization_server: authServerUrl(config.auth.baseUrl),
+        },
       }), {
         headers: { "content-type": "application/json", "cache-control": "public, max-age=300" },
       })

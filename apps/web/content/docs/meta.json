@@ -1,0 +1,19 @@
+{
+  "title": "Sleevy Docs",
+  "pages": [
+    "index",
+    "---Get started---",
+    "overview",
+    "getting-started",
+    "---Connect an AI agent---",
+    "mcp",
+    "---Build with the API---",
+    "concepts",
+    "guides",
+    "---API reference---",
+    "authentication",
+    "errors",
+    "rate-limits",
+    "api-reference"
+  ]
+}
