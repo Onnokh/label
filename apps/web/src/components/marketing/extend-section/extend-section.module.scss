@@ -133,7 +133,7 @@
   @include container;
 
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 2.8125rem;
   margin-top: 3.3125rem;
 
@@ -153,7 +153,7 @@
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
-    row-gap: 2rem;
+    row-gap: 3rem;
     margin-top: 2.5rem;
 
     p,
@@ -163,11 +163,34 @@
   }
 }
 
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.375rem;
+}
+
+/* White heading over the grey body text so each column reads as its own topic
+   (the API vs. the MCP server) instead of one merged feature list. */
+.columnTitle {
+  margin: 0;
+  color: #fff;
+  font-size: 1.75rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+
+  @media (max-width: 768px) {
+    font-size: 1.375rem;
+  }
+}
+
 .footer {
   @include container;
 
   display: flex;
-  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 1.25rem 2rem;
+  justify-content: space-between;
   margin-top: 5.625rem;
   border-top: 1px solid rgba(255, 255, 255, 0.35);
   padding-top: 1.125rem;

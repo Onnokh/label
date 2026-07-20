@@ -43,8 +43,11 @@
 }
 
 .icon {
+  /* The global reset makes images display:block, so the section's text-align
+     can't center it — auto side margins do. */
   width: auto;
   height: 2.4375rem;
+  margin-inline: auto;
 }
 
 .link {
