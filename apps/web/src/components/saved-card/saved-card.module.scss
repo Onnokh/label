@@ -82,9 +82,11 @@
 
 .date {
   flex-shrink: 0;
+  width: 5.5rem;
   font-size: 0.75rem;
   color: var(--faint);
   white-space: nowrap;
+  text-align: right;
 }
 
 .unreadDate::before {

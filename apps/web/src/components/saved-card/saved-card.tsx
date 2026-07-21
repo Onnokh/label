@@ -119,7 +119,7 @@ export function SavedCard({ item, isSelected, pendingDelete, onDelete, onOpen, o
           <span className={styles.host}>{item.host}</span>
         </div>
 
-        {date && <span className={clsx(styles.date, !item.isRead && styles.unreadDate)}>{date}</span>}
+        <span className={clsx(styles.date, !item.isRead && styles.unreadDate)}>{date}</span>
       </a>
 
       <div className={styles["menu-wrapper"]}>
