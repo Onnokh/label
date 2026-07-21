@@ -1,3 +1,4 @@
+import { SUPPORTED_PROTOCOL_VERSIONS } from "@modelcontextprotocol/sdk/types.js"
 import { describe, expect } from "bun:test"
 import { Effect, Layer, Option } from "effect"
 
@@ -353,21 +354,32 @@ describe("HttpApp", () => {
     }),
   )
 
-  it.effect("publishes an MCP server card", () =>
+  it.effect("publishes an MCP server card (SEP-2127)", () =>
     Effect.gen(function* () {
-      const response = yield* request("/.well-known/mcp/server-card.json").pipe(
-        Effect.provide(routeLayer()),
-      )
+      for (const path of ["/.well-known/mcp-server-card", "/.well-known/mcp/server-card.json"]) {
+        const response = yield* request(path).pipe(Effect.provide(routeLayer()))
 
-      expect(response.status).toBe(200)
-      expect(response.headers.get("content-type")).toContain("application/json")
-      expect(JSON.parse(yield* text(response))).toEqual({
-        url: "http://localhost/mcp",
-        authentication: {
-          type: "oauth2",
-          authorization_server: "http://localhost/api/auth",
-        },
-      })
+        expect(response.status).toBe(200)
+        expect(response.headers.get("content-type")).toContain("application/json")
+        expect(response.headers.get("access-control-allow-origin")).toBe("*")
+
+        const card = JSON.parse(yield* text(response))
+        expect(card.$schema).toBe(
+          "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json",
+        )
+        expect(card.name).toBe("app.sleevy/mcp")
+        expect(card.version).toBe("1.0.0")
+        expect(typeof card.description).toBe("string")
+        expect(card.remotes).toEqual([
+          {
+            type: "streamable-http",
+            url: "http://localhost/mcp",
+            supportedProtocolVersions: SUPPORTED_PROTOCOL_VERSIONS,
+          },
+        ])
+        // Auth is discovered via oauth-protected-resource, not the card.
+        expect(card.authentication).toBeUndefined()
+      }
     }),
   )
 

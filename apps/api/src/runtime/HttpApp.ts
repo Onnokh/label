@@ -1,3 +1,4 @@
+import { SUPPORTED_PROTOCOL_VERSIONS } from "@modelcontextprotocol/sdk/types.js"
 import { Effect, Layer } from "effect"
 import { HttpEffect, HttpMiddleware, HttpRouter, HttpServer } from "effect/unstable/http"
 
@@ -116,15 +117,37 @@ export const makeApiWebHandler = Effect.gen(function* () {
       })
     }
 
-    if (pathname === "/.well-known/mcp/server-card.json") {
+    // MCP Server Card (SEP-2127). The ratified discovery path is
+    // /.well-known/mcp-server-card; the /mcp/server-card.json path is kept as a
+    // legacy alias. OAuth is intentionally not described here — it is discovered
+    // through the /.well-known/oauth-protected-resource flow above.
+    if (
+      pathname === "/.well-known/mcp-server-card" ||
+      pathname === "/.well-known/mcp/server-card.json"
+    ) {
       return new Response(JSON.stringify({
-        url: `${config.auth.baseUrl}/mcp`,
-        authentication: {
-          type: "oauth2",
-          authorization_server: authServerUrl(config.auth.baseUrl),
-        },
+        $schema: "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json",
+        name: "app.sleevy/mcp",
+        version: "1.0.0",
+        title: "Sleevy",
+        description:
+          "Save links to your Sleevy library and manage your saved items and folders.",
+        websiteUrl: config.auth.webUrl,
+        remotes: [
+          {
+            type: "streamable-http",
+            url: `${config.auth.baseUrl}/mcp`,
+            supportedProtocolVersions: SUPPORTED_PROTOCOL_VERSIONS,
+          },
+        ],
       }), {
-        headers: { "content-type": "application/json", "cache-control": "public, max-age=300" },
+        headers: {
+          "content-type": "application/json",
+          "cache-control": "public, max-age=3600",
+          "access-control-allow-origin": "*",
+          "access-control-allow-methods": "GET",
+          "access-control-allow-headers": "Content-Type",
+        },
       })
     }
 
