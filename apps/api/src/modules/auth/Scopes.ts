@@ -13,6 +13,12 @@ export const V1_SCOPES = [
 
 export type Scope = (typeof V1_SCOPES)[number]
 
+// Standard OAuth2/OIDC protocol scopes the provider must advertise, kept
+// separate from the domain scopes above. `offline_access` is the spec-defined
+// scope that makes the token endpoint issue a refresh token — without it in the
+// provider's allowlist, clients only ever get short-lived access tokens.
+export const OAUTH_PROTOCOL_SCOPES = ["offline_access"] as const
+
 export type AuthContextValue =
   | { readonly kind: "session" }
   | { readonly kind: "apiKey" | "oauth"; readonly scopes: ReadonlySet<Scope> }

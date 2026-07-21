@@ -11,7 +11,7 @@ import { AppConfig } from "../../runtime/Config.js"
 import { trackEvent } from "../analytics/RybbitClient.js"
 import { PostgresClient } from "../persistence/PostgresClient.js"
 import { schema, user as userTable, account as accountTable } from "../persistence/schema.js"
-import { scopesToPermissions, V1_SCOPES } from "./Scopes.js"
+import { OAUTH_PROTOCOL_SCOPES, scopesToPermissions, V1_SCOPES } from "./Scopes.js"
 
 export const AUTH_BASE_PATH = "/api/auth"
 
@@ -91,7 +91,7 @@ export class BetterAuth extends Context.Service<BetterAuth>()(
         oauthProvider({
           loginPage: `${config.auth.webUrl}/oauth/login`,
           consentPage: `${config.auth.webUrl}/oauth/consent`,
-          scopes: [...V1_SCOPES],
+          scopes: [...V1_SCOPES, ...OAUTH_PROTOCOL_SCOPES],
           validAudiences: [config.auth.baseUrl, `${config.auth.baseUrl}/mcp`],
           allowDynamicClientRegistration: true,
           // MCP clients register anonymously; the plugin then forces them to be
