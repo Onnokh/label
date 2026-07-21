@@ -2,8 +2,12 @@
   display: flex;
   height: 100vh;
   overflow: hidden;
-  max-width: 1440px;
-  margin: 0 auto;
+  /* Fill the container instead of shrink-wrapping to content. Because body is
+     a flex container, the default flex: 0 1 auto sized the dashboard to its
+     content — so its width changed with the loaded items/URLs (CLS). Spanning
+     the full width keeps every route and content state a constant width. */
+  width: 100%;
+  flex: 1;
 }
 
 .sidebar {
@@ -144,6 +148,10 @@ button.sidebar-capture-button:hover:not(:disabled) {
   padding: 2rem;
   min-width: 0;
   overflow-y: auto;
+  /* Always reserve the scrollbar gutter so the content width stays constant
+     whether or not a page scrolls — no horizontal shift between pages,
+     folders, or loading/loaded states. */
+  scrollbar-gutter: stable;
   background-color: var(--panel);
 }
 

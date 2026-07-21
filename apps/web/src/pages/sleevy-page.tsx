@@ -2,6 +2,7 @@ import { useCallback, useEffect } from "react"
 
 import { type SavedItem, useDeleteItem, useMarkAsRead, useSavedItems, useSetReadState } from "../sleevy/saved-items"
 import { SavedCard } from "../components/saved-card/saved-card"
+import { SavedListSkeleton } from "../components/saved-card/saved-card-skeleton"
 import { useKeyboardNav } from "../contexts/keyboard-nav-context"
 import { useSelectedItemActions } from "../hooks/use-selected-item-actions"
 
@@ -36,7 +37,7 @@ export function SleevyPage() {
         <h1 className="page-title">Inbox</h1>
       </div>
 
-      {savedItemsQuery.isLoading ? <p>Loading…</p> : null}
+      {savedItemsQuery.isLoading ? <SavedListSkeleton /> : null}
       {savedItemsQuery.isError ? <p>Could not load saved items.</p> : null}
 
       {!savedItemsQuery.isLoading && !savedItemsQuery.isError ? (

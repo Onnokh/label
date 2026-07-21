@@ -3,6 +3,7 @@ import { Library } from "lucide-react"
 
 import { type SavedItem, type SavedItemSort, useDeleteItem, useMarkAsRead, useSavedItems, useSetReadState } from "../sleevy/saved-items"
 import { SavedCard } from "../components/saved-card/saved-card"
+import { SavedListSkeleton } from "../components/saved-card/saved-card-skeleton"
 import { useSourceFilter } from "../components/source-filter/source-filter"
 import { getSourceGroup } from "../components/source-filter/source-filter-utils"
 import { useKeyboardNav } from "../contexts/keyboard-nav-context"
@@ -82,7 +83,7 @@ export function LibraryPage({ folderId }: { readonly folderId?: string }) {
         </label>
       </div>
 
-      {savedItemsQuery.isLoading ? <p>Loading…</p> : null}
+      {savedItemsQuery.isLoading ? <SavedListSkeleton /> : null}
       {savedItemsQuery.isError ? <p>Could not load saved items.</p> : null}
 
       {!savedItemsQuery.isLoading && !savedItemsQuery.isError ? (

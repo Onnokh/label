@@ -82,11 +82,9 @@
 
 .date {
   flex-shrink: 0;
-  width: 5.5rem;
   font-size: 0.75rem;
   color: var(--faint);
   white-space: nowrap;
-  text-align: right;
 }
 
 .unreadDate::before {
@@ -165,4 +163,68 @@
     background: var(--panel);
     color: var(--muted);
   }
+}
+
+/* --- Loading skeleton --- */
+/* Mirrors the row layout exactly (favicon + two text lines + date) so the real
+   list swaps in with no layout shift. */
+.skeletonRow {
+  cursor: default;
+
+  &:hover { background: transparent; }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--panel-muted);
+  border-radius: 0.25rem;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--hover) 65%, transparent) 50%,
+    transparent 100%
+  );
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% { transform: translateX(100%); }
+}
+
+.skeletonFavicon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 6px;
+}
+
+/* Bar heights + margins add up to the real line-heights so body height matches:
+   title 12px + 3px*2 = 18px (1.125rem); host 10px + 2.5px*2 = 15px (0.9375rem). */
+.skeletonTitle {
+  height: 0.75rem;
+  margin: 0.1875rem 0;
+}
+
+.skeletonHost {
+  width: 30%;
+  height: 0.625rem;
+  margin: 0.15625rem 0;
+}
+
+.skeletonDate {
+  width: 2.5rem;
+  height: 0.625rem;
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; }
 }
