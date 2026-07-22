@@ -1,6 +1,6 @@
-# SEO Opportunity Scan — 2026-07-21
+# SEO Opportunity Scan — 2026-07-22
 
-**Action**: Six P0/P1 pages published 2026-07-16 need indexing monitoring and visibility baselines; `/` homepage showing steep decline (−92% impressions); `/docs` gaining first impressions but needs nurturing; two P0/P1 pages not yet indexed (ios-app, raycast).
+**Action**: Same profile as 2026-07-21 — no new opportunity signals. `/` homepage continues declining (−92% impressions, now 22 vs 74). `/docs` holds first impressions (2). `/ios-app` and `/raycast` remain not-indexed. 7 recently-published pages still awaiting baseline data. No striking-distance, CTR, new-demand, or cannibalization signals.
 
 ## Data Window
 
@@ -22,7 +22,7 @@ No striking-distance, CTR, new-demand, or cannibalization signals detected in th
 |---|---|---|---|
 | `/` | **declining** | Impressions down 92% versus previous window | TrueTotals: 22 imp, 1 click, 4.5 pos → 74 imp, 2 clicks, 6.1 pos |
 | `/docs` | **new-visibility** | First impressions appeared (2) in current window | AllQueries: 2 imp, 0 clicks, pos 45 → 0 all zeros |
-| `http://sleevy.app/` (unmapped) | **declining** | Impressions down 100% | 0 imp → 2 imp — low base but fully lost |
+| `http://sleevy.app/` (unmapped) | **declining** | Impressions down 100% | 0 imp → 2 imp — fully lost |
 | `/ios-app` | **awaiting-launch** | Published 2026-07-16, **not indexed** | P0 priority — no data yet |
 | `/raycast` | **awaiting-launch** | Published 2026-07-16, **not indexed** | P1 priority — no data yet |
 
@@ -60,14 +60,14 @@ No striking-distance, CTR, new-demand, or cannibalization signals detected in th
 
 ### Key registry targets
 
-- **P0**: `/chrome-extension` (product-solution, Chrome capture cluster), `/ios-app` (product-how-to, iPhone capture cluster), `/pocket-alternative` (comparison, Pocket alternative cluster)
-- **P1**: `/docs` (developer-solution, API cluster — already showing first impressions), `/raycast` (navigational-product, Raycast cluster — **not indexed**), `/web-companion` (product-solution, Web companion cluster), `/articles/read-later-app-chrome-iphone` (product-comparison, Cross-device cluster)
+- **P0**: `/chrome-extension` (product-solution, Chrome capture cluster), `/ios-app` (product-how-to, iPhone capture cluster — **not indexed**), `/pocket-alternative` (comparison, Pocket alternative cluster)
+- **P1**: `/docs` (developer-solution, API cluster — showing first impressions), `/raycast` (navigational-product, Raycast cluster — **not indexed**), `/web-companion` (product-solution, Web companion cluster), `/articles/read-later-app-chrome-iphone` (product-comparison, Cross-device cluster)
 - **P2**: `/articles/bookmark-manager-for-developers` (exploratory, Developer workflow cluster)
 
 ## Recommended Actions
 
-1. **Investigate `/` decline** — homepage impressions crashed from 74 to 22. May be seasonal or a technical issue (e.g., Google re-evaluation).
-2. **Request indexing for `/ios-app` and `/raycast`** — both are P0/P1 and not indexed via Google Search Console URL inspection.
-3. **Monitor `/docs`** — first 2 impressions at position 45 indicate early traction. The 7 unmapped doc sub-pages should be added to the sitemap.
-4. **Track the 7 recently-published pages** — next window will have enough data for baselines on all pages published 2026-07-16/17.
-5. **Redirect or canonicalize `http://sleevy.app/`** — the http variant still gets impressions but is unmapped and declining.
+1. **Investigate `/` decline** — homepage impressions remain crashed (22 vs 74). Persistent across two windows.
+2. **Request indexing for `/ios-app` and `/raycast`** — still not indexed across both scans. P0/P1 pages with zero visibility.
+3. **Monitor `/docs`** — holding at 2 impressions, position 45. Needs nurturing.
+4. **Track the 7 recently-published pages** — next window should provide baseline data for pages published 2026-07-16/17.
+5. **Redirect or canonicalize `http://sleevy.app/`** — http variant fully lost now (0 impressions), but still potentially split legacy signals.
