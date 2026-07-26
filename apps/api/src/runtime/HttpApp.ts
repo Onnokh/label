@@ -18,7 +18,7 @@ import {
   exposedApiResponseHeaders,
   withApiKeyRateLimit,
 } from "./ApiRequestMiddleware.js"
-import { V1_SCOPES } from "../modules/auth/Scopes.js"
+import { OAUTH_PROTOCOL_SCOPES, V1_SCOPES } from "../modules/auth/Scopes.js"
 import { MCP_SCOPES } from "../modules/mcp/McpTools.js"
 import { AppConfig } from "./Config.js"
 import { makeMcpWebHandler } from "./McpApp.js"
@@ -111,7 +111,9 @@ export const makeApiWebHandler = Effect.gen(function* () {
       return new Response(JSON.stringify({
         resource,
         authorization_servers: [authServerUrl(config.auth.baseUrl)],
-        scopes_supported: pathname.endsWith("/mcp") ? MCP_SCOPES : V1_SCOPES,
+        scopes_supported: pathname.endsWith("/mcp")
+          ? [...MCP_SCOPES, ...OAUTH_PROTOCOL_SCOPES]
+          : V1_SCOPES,
       }), {
         headers: { "content-type": "application/json", "cache-control": "public, max-age=300" },
       })
