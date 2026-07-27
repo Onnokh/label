@@ -59,7 +59,10 @@ export const Route = createFileRoute("/_marketing/articles_/save-links-with-rayc
         { question: "Can Raycast search links saved from my iPhone?", answer: "Yes. As long as both surfaces use the same Sleevy account, links saved from iPhone, Chrome, the web, Raycast, or the API appear in the same queue." },
         { question: "Does the extension replace Raycast bookmarks?", answer: "It is intended for a personal read-later queue rather than launcher shortcuts. Use it for links you want to return to and search later." },
       ]}
-      relatedLinks={[{ href: "/docs", label: "Sleevy API documentation", openInNewTab: false }]}
+      relatedLinks={[
+        { href: "/docs", label: "Sleevy API documentation", openInNewTab: false },
+        { href: "/pocket-alternative", label: "Looking for a Pocket alternative?", openInNewTab: false },
+      ]}
       primaryAction={{ href: raycastStoreUrl, label: "View in Raycast Store" }}
       secondaryAction={{ href: "/raycast", label: "About Sleevy for Raycast", openInNewTab: false }}
       closing={{ title: "Add Sleevy to Raycast.", body: "Save the URL on your clipboard and search the same reading queue you use elsewhere." }}

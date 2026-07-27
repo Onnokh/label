@@ -62,6 +62,7 @@ export const Route = createFileRoute("/_marketing/articles_/bookmark-manager-for
       relatedLinks={[
         { href: "/docs", label: "Sleevy API documentation", openInNewTab: false },
         { href: "/raycast", label: "Sleevy for Raycast", openInNewTab: false },
+        { href: "/pocket-alternative", label: "Looking for a Pocket alternative?", openInNewTab: false },
       ]}
       primaryAction={{ href: "/docs", label: "Open API documentation", openInNewTab: false }}
       closing={{ title: "Send your first URL to Sleevy.", body: "Create an API key and use the quickstart request in the documentation." }}
