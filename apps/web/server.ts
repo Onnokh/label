@@ -39,6 +39,25 @@ const deferredHydrationPaths = new Set(["/", "/support", "/privacy"])
 const isDeferredHydrationPath = (pathname: string) =>
   deferredHydrationPaths.has(pathname) || pathname === "/docs" || (pathname.startsWith("/docs/") && !pathname.endsWith(".md"))
 
+// The /_app layout route declares `noindex, nofollow` via TanStack Router's
+// `head()`, but it also sets `ssr: false` — so that meta tag is only ever
+// injected client-side and never appears in the HTML a crawler receives.
+// Search Console shows /inbox picking up impressions as a result: robots.txt
+// disallows it too, but Disallow only blocks crawling, so Googlebot never got
+// far enough to see any noindex signal (client-rendered or otherwise) and an
+// already-indexed URL just lingers. Setting the header here works regardless
+// of how the page renders and doesn't depend on JS execution.
+const noindexPaths = new Set(["/inbox", "/library", "/settings", "/connect"])
+
+function withRobotsHeader(url: URL, response: Response): Response {
+  if (!noindexPaths.has(url.pathname)) return response
+
+  const headers = new Headers(response.headers)
+  headers.set("X-Robots-Tag", "noindex, nofollow")
+
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
+}
+
 const hydrationLoader = (sources: string[]) =>
   `<script>(function(){var e=["pointerdown","pointermove","keydown","touchstart","scroll","focusin"],l=function(){e.forEach(function(n){removeEventListener(n,l,!0)});${JSON.stringify(sources)}.forEach(function(s){var t=document.createElement("script");t.type="module";t.async=!0;t.src=s;document.head.appendChild(t)})};e.forEach(function(n){addEventListener(n,l,{passive:!0,capture:!0})})})()</script>`
 
@@ -159,7 +178,7 @@ Bun.serve({
       return withCompression(req, staticResponse)
     }
 
-    return withCompression(req, await withDeferredHydration(req, await handler.fetch(req)))
+    return withCompression(req, withRobotsHeader(url, await withDeferredHydration(req, await handler.fetch(req))))
   },
 })
 
