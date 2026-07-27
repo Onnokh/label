@@ -1,6 +1,9 @@
 User-agent: *
 Allow: /
-Disallow: /inbox
+# /inbox is intentionally crawlable: it's already indexed from a past crawl and
+# is kept out via the X-Robots-Tag: noindex header (server.ts) instead, so
+# Google can actually see the noindex signal and drop it. Disallowing it here
+# would just block the crawl that's needed to deindex it.
 Disallow: /library
 Disallow: /settings
 Disallow: /connect
