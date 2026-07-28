@@ -1,6 +1,7 @@
 import { Effect } from "effect"
 
 import type { ApiKeyRateLimiterShape, RateLimitResult } from "../modules/rate-limit/ApiKeyRateLimiter.js"
+import type { BearerRateLimiterShape } from "../modules/rate-limit/BearerRateLimiter.js"
 
 const API_KEY_LENGTH = 64
 
@@ -44,11 +45,11 @@ const rateLimitHeaders = (result: RateLimitResult) =>
     ...(result.allowed ? {} : { "retry-after": String(result.resetSeconds) }),
   })
 
-const rateLimitResponse = (result: RateLimitResult) =>
+const rateLimitResponse = (result: RateLimitResult, message: string) =>
   new Response(
     JSON.stringify({
       _tag: "RateLimitExceeded",
-      message: "API key rate limit exceeded.",
+      message,
     }),
     {
       status: 429,
@@ -60,34 +61,14 @@ const rateLimitResponse = (result: RateLimitResult) =>
     },
   )
 
-export const withApiKeyRateLimit = async (
+const applyRateLimit = async (
+  limit: RateLimitResult,
+  message: string,
   request: Request,
-  auth: RequestAuth,
-  rateLimiter: ApiKeyRateLimiterShape,
   handle: (request: Request) => Promise<Response>,
 ) => {
-  const bearer = extractBearer(request)
-  if (!bearer) {
-    return handle(request)
-  }
-
-  if (isSignedSessionToken(bearer)) {
-    return handle(request)
-  }
-
-  if (bearer.length < API_KEY_LENGTH) {
-    return handle(request)
-  }
-
-  const verified = await auth.api.verifyApiKey({ body: { key: bearer } })
-  const apiKeyId = verified.valid && verified.error === null ? verified.key?.id : undefined
-  if (!apiKeyId) {
-    return handle(request)
-  }
-
-  const limit = await Effect.runPromise(rateLimiter.check(apiKeyId))
   if (!limit.allowed) {
-    return rateLimitResponse(limit)
+    return rateLimitResponse(limit, message)
   }
 
   const response = await handle(request)
@@ -99,4 +80,37 @@ export const withApiKeyRateLimit = async (
     statusText: response.statusText,
     headers,
   })
+}
+
+// Every bearer-authenticated request is throttled: recognized API keys get
+// their own per-key budget (`ApiKeyRateLimiter`); everything else — a session
+// cookie-token, an OAuth access token, or any other bearer shape — falls back
+// to a generic per-credential budget (`BearerRateLimiter`) keyed by a hash of
+// the token, so no identity resolution is needed just to rate limit it. Only
+// fully unauthenticated requests (no bearer at all) pass through unthrottled;
+// they fail fast on auth downstream instead.
+export const withApiKeyRateLimit = async (
+  request: Request,
+  auth: RequestAuth,
+  rateLimiter: ApiKeyRateLimiterShape,
+  bearerRateLimiter: BearerRateLimiterShape,
+  handle: (request: Request) => Promise<Response>,
+) => {
+  const bearer = extractBearer(request)
+  if (!bearer) {
+    return handle(request)
+  }
+
+  const isApiKeyShaped = !isSignedSessionToken(bearer) && bearer.length >= API_KEY_LENGTH
+  if (isApiKeyShaped) {
+    const verified = await auth.api.verifyApiKey({ body: { key: bearer } })
+    const apiKeyId = verified.valid && verified.error === null ? verified.key?.id : undefined
+    if (apiKeyId) {
+      const limit = await Effect.runPromise(rateLimiter.check(apiKeyId))
+      return applyRateLimit(limit, "API key rate limit exceeded.", request, handle)
+    }
+  }
+
+  const limit = await Effect.runPromise(bearerRateLimiter.check(bearer))
+  return applyRateLimit(limit, "Rate limit exceeded.", request, handle)
 }

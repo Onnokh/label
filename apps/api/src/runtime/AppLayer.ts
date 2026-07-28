@@ -9,6 +9,7 @@ import { EnrichmentWorkflow } from "../modules/enrichment/EnrichmentWorkflow.js"
 import { FolderRepository } from "../modules/folders/FolderRepository.js";
 import { McpTools } from "../modules/mcp/McpTools.js";
 import { ApiKeyRateLimiter } from "../modules/rate-limit/ApiKeyRateLimiter.js";
+import { BearerRateLimiter } from "../modules/rate-limit/BearerRateLimiter.js";
 import { ConnectAuthorizeRateLimiter } from "../modules/rate-limit/ConnectAuthorizeRateLimiter.js";
 import { ConnectExchangeRateLimiter } from "../modules/rate-limit/ConnectExchangeRateLimiter.js";
 import { SavedItemRepository } from "../modules/saved-items/SavedItemRepository.js";
@@ -29,6 +30,7 @@ export const appLayer = Layer.mergeAll(
   Analytics.defaultLayer,
   ApiKeyRateLimiter.defaultLayer,
   AuthHandler.defaultLayer,
+  BearerRateLimiter.defaultLayer,
   BetterAuth.defaultLayer,
   CaptureService.defaultLayer,
   ConnectAuthorizeRateLimiter.defaultLayer,

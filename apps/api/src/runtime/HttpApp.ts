@@ -11,6 +11,7 @@ import { ConnectCodeRepository } from "../modules/connect/ConnectCodeRepository.
 import { EnrichmentWorkflow } from "../modules/enrichment/EnrichmentWorkflow.js"
 import { FolderRepository } from "../modules/folders/FolderRepository.js"
 import { ApiKeyRateLimiter } from "../modules/rate-limit/ApiKeyRateLimiter.js"
+import { BearerRateLimiter } from "../modules/rate-limit/BearerRateLimiter.js"
 import { ConnectAuthorizeRateLimiter } from "../modules/rate-limit/ConnectAuthorizeRateLimiter.js"
 import { ConnectExchangeRateLimiter } from "../modules/rate-limit/ConnectExchangeRateLimiter.js"
 import { SavedItemRepository } from "../modules/saved-items/SavedItemRepository.js"
@@ -82,11 +83,12 @@ export const withCors = async (
 export const makeApiWebHandler = Effect.gen(function* () {
   const config = yield* AppConfig
   const context = yield* Effect.context<
-    Analytics | AuthHandler | BetterAuth | CaptureService | EnrichmentWorkflow | SavedItemRepository | FolderRepository | ApiKeyRateLimiter | ConnectCodeRepository | ConnectAuthorizeRateLimiter | ConnectExchangeRateLimiter
+    Analytics | AuthHandler | BetterAuth | CaptureService | EnrichmentWorkflow | SavedItemRepository | FolderRepository | ApiKeyRateLimiter | BearerRateLimiter | ConnectCodeRepository | ConnectAuthorizeRateLimiter | ConnectExchangeRateLimiter
   >()
   const authHandler = yield* AuthHandler
   const { auth } = yield* BetterAuth
   const rateLimiter = yield* ApiKeyRateLimiter
+  const bearerRateLimiter = yield* BearerRateLimiter
   const mcpFetch = yield* makeMcpWebHandler
   const httpEffect = yield* HttpRouter.toHttpEffect(httpAppLayer)
   const apiFetch = HttpEffect.toWebHandler(
@@ -154,7 +156,7 @@ export const makeApiWebHandler = Effect.gen(function* () {
     }
 
     if (pathname === "/mcp") {
-      return withApiKeyRateLimit(request, auth, rateLimiter, mcpFetch)
+      return withApiKeyRateLimit(request, auth, rateLimiter, bearerRateLimiter, mcpFetch)
     }
 
     return withCors(
@@ -163,7 +165,7 @@ export const makeApiWebHandler = Effect.gen(function* () {
       isAuthRequest
         ? authHandler.handle
         : (request) =>
-            withApiKeyRateLimit(request, auth, rateLimiter, apiFetch),
+            withApiKeyRateLimit(request, auth, rateLimiter, bearerRateLimiter, apiFetch),
     )
   }) satisfies ApiWebHandler
 })

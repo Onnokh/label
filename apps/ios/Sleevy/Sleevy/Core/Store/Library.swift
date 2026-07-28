@@ -90,6 +90,14 @@ final class Library {
     /// transition can be told apart from the repeated same-value path updates
     /// `NWPathMonitor` delivers while already online. `nil` until the first report.
     private var lastObservedOnline: Bool?
+    /// When the last connectivity-triggered `sync()` fired, so a burst of rapid
+    /// offline→online flaps (a Wi-Fi/cellular handoff, a spotty signal) can't
+    /// each kick off their own sync. `NWPathMonitor` has no built-in debounce,
+    /// and firing an unthrottled `sync()` per flap turned into a retry storm
+    /// that took the API down. The first genuine transition still syncs
+    /// immediately; further transitions inside the cooldown are ignored.
+    private var lastConnectivityTriggeredSyncAt: Date?
+    private static let connectivitySyncCooldown: TimeInterval = 5
     private static var sourceName: String { SleevyUserPreferences.sourceName }
 
     /// Designated initializer: everything that crosses a boundary is injected, so
@@ -536,6 +544,15 @@ final class Library {
         let wasOnline = lastObservedOnline
         lastObservedOnline = isOnline
         guard isOnline, wasOnline != true else { return }
+
+        // Swallow further transitions that land inside the cooldown — a flap
+        // right after we've already just synced isn't a new signal worth acting
+        // on again.
+        if let last = lastConnectivityTriggeredSyncAt,
+           Date().timeIntervalSince(last) < Self.connectivitySyncCooldown {
+            return
+        }
+        lastConnectivityTriggeredSyncAt = Date()
 
         // Back online: always reconcile so the server-side inbox (items captured on
         // web, read elsewhere) is pulled, even with no local queued work. `sync()`
