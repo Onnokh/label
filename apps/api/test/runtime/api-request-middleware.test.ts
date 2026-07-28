@@ -6,6 +6,7 @@ import {
   withApiKeyRateLimit,
 } from "../../src/runtime/ApiRequestMiddleware.js"
 import type { ApiKeyRateLimiterShape } from "../../src/modules/rate-limit/ApiKeyRateLimiter.js"
+import type { BearerRateLimiterShape } from "../../src/modules/rate-limit/BearerRateLimiter.js"
 
 const apiKey = "sly_" + "a".repeat(61)
 
@@ -43,6 +44,22 @@ const makeRateLimiter = (input: {
     }),
 })
 
+const makeBearerRateLimiter = (input: {
+  readonly allowed: boolean
+  readonly onCheck?: ((bearer: string) => void) | undefined
+} = { allowed: true }): BearerRateLimiterShape => ({
+  check: (bearer) =>
+    Effect.sync(() => {
+      input.onCheck?.(bearer)
+      return {
+        allowed: input.allowed,
+        limit: 120,
+        remaining: input.allowed ? 119 : 0,
+        resetSeconds: 42,
+      }
+    }),
+})
+
 const okHandler = async () =>
   new Response(JSON.stringify({ ok: true }), {
     status: 200,
@@ -58,6 +75,7 @@ describe("withApiKeyRateLimit", () => {
       new Request("https://api.test/v1/saved-items"),
       makeAuth({ onVerify: () => { verified = true } }),
       makeRateLimiter({ allowed: true, onCheck: () => { checked = true } }),
+      makeBearerRateLimiter({ allowed: true, onCheck: () => { checked = true } }),
       okHandler,
     )
 
@@ -66,8 +84,9 @@ describe("withApiKeyRateLimit", () => {
     expect(checked).toBe(false)
   })
 
-  test("passes through signed session bearer tokens without API key verification", async () => {
+  test("rate limits signed session bearer tokens without API key verification", async () => {
     let verified = false
+    let bearerChecked: string | undefined
 
     const response = await withApiKeyRateLimit(
       new Request("https://api.test/v1/saved-items", {
@@ -75,11 +94,14 @@ describe("withApiKeyRateLimit", () => {
       }),
       makeAuth({ onVerify: () => { verified = true } }),
       makeRateLimiter({ allowed: true }),
+      makeBearerRateLimiter({ allowed: true, onCheck: (bearer) => { bearerChecked = bearer } }),
       okHandler,
     )
 
     expect(response.status).toBe(200)
     expect(verified).toBe(false)
+    expect(bearerChecked).toBe("header.payload.signature")
+    expect(response.headers.get("ratelimit-limit")).toBe("120")
   })
 
   test("adds rate-limit headers for valid API keys", async () => {
@@ -89,6 +111,7 @@ describe("withApiKeyRateLimit", () => {
       }),
       makeAuth({ apiKeyId: "api-key-42" }),
       makeRateLimiter({ allowed: true }),
+      makeBearerRateLimiter(),
       okHandler,
     )
 
@@ -99,21 +122,24 @@ describe("withApiKeyRateLimit", () => {
     expect(response.headers.get("retry-after")).toBeNull()
   })
 
-  test("passes through invalid API keys without rate-limit headers", async () => {
-    let checked = false
+  test("falls back to the bearer rate limit for invalid API keys", async () => {
+    let apiKeyChecked = false
+    let bearerChecked = false
 
     const response = await withApiKeyRateLimit(
       new Request("https://api.test/v1/saved-items", {
         headers: { authorization: `Bearer ${apiKey}` },
       }),
       makeAuth({ valid: false }),
-      makeRateLimiter({ allowed: true, onCheck: () => { checked = true } }),
+      makeRateLimiter({ allowed: true, onCheck: () => { apiKeyChecked = true } }),
+      makeBearerRateLimiter({ allowed: true, onCheck: () => { bearerChecked = true } }),
       okHandler,
     )
 
     expect(response.status).toBe(200)
-    expect(checked).toBe(false)
-    expect(response.headers.get("ratelimit-limit")).toBeNull()
+    expect(apiKeyChecked).toBe(false)
+    expect(bearerChecked).toBe(true)
+    expect(response.headers.get("ratelimit-limit")).toBe("120")
   })
 
   test("returns the public 429 error shape when the API key is over limit", async () => {
@@ -123,6 +149,7 @@ describe("withApiKeyRateLimit", () => {
       }),
       makeAuth({ apiKeyId: "api-key-42" }),
       makeRateLimiter({ allowed: false }),
+      makeBearerRateLimiter(),
       okHandler,
     )
 
@@ -131,6 +158,25 @@ describe("withApiKeyRateLimit", () => {
     expect(await response.json()).toEqual({
       _tag: "RateLimitExceeded",
       message: "API key rate limit exceeded.",
+    })
+  })
+
+  test("returns the public 429 error shape when a session/OAuth bearer is over limit", async () => {
+    const response = await withApiKeyRateLimit(
+      new Request("https://api.test/v1/saved-items", {
+        headers: { authorization: "Bearer header.payload.signature" },
+      }),
+      makeAuth(),
+      makeRateLimiter({ allowed: true }),
+      makeBearerRateLimiter({ allowed: false }),
+      okHandler,
+    )
+
+    expect(response.status).toBe(429)
+    expect(response.headers.get("retry-after")).toBe("42")
+    expect(await response.json()).toEqual({
+      _tag: "RateLimitExceeded",
+      message: "Rate limit exceeded.",
     })
   })
 })

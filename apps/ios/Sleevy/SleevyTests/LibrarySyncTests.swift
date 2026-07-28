@@ -168,6 +168,27 @@ struct LibrarySyncTests {
         _ = library
     }
 
+    /// Retry-storm regression: a burst of rapid offline→online *flaps* (a Wi-Fi/
+    /// cellular handoff, a spotty signal) must not each fire their own sync —
+    /// `NWPathMonitor` has no built-in debounce, and this is exactly what took the
+    /// API down. The first flap still reconciles immediately; the rest, arriving
+    /// within the cooldown, are ignored.
+    @Test func rapidConnectivityFlapsOnlyTriggerOneSync() async {
+        let env = Environment()
+        env.network.items["a"] = .fixture(id: "a", isRead: false)
+        let library = env.makeLibrary()
+
+        for _ in 0..<20 {
+            env.connectivity.emit(false)
+            env.connectivity.emit(true)
+        }
+        await env.settle()
+
+        let calls = env.network.calls.filter { $0 == "loadSavedItems" }.count
+        #expect(calls == 1)
+        _ = library
+    }
+
     // MARK: - Refresh during an in-flight sync
 
     /// Bug 5 regression: a user-initiated `refresh()` issued while a sync cycle is

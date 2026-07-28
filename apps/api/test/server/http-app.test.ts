@@ -17,6 +17,7 @@ import { EnrichmentWorkflow } from "../../src/modules/enrichment/EnrichmentWorkf
 import { FolderRepository } from "../../src/modules/folders/FolderRepository.js"
 import { McpTools } from "../../src/modules/mcp/McpTools.js"
 import { ApiKeyRateLimiter } from "../../src/modules/rate-limit/ApiKeyRateLimiter.js"
+import { BearerRateLimiter } from "../../src/modules/rate-limit/BearerRateLimiter.js"
 import { SavedItemRepository } from "../../src/modules/saved-items/SavedItemRepository.js"
 import { savedItemsTable } from "../../src/modules/persistence/schema.js"
 import { AppConfig } from "../../src/runtime/Config.js"
@@ -72,6 +73,7 @@ const routeLayer = (input: {
   readonly sessionUserId?: UserId | undefined
   readonly apiKeyValid?: boolean | undefined
   readonly apiKeyAllowed?: boolean | undefined
+  readonly bearerAllowed?: boolean | undefined
   readonly apiKeyPermissions?: Record<string, string[]> | undefined
   readonly savedItemsPage?: boolean | undefined
   readonly onCapture?: ((input: {
@@ -188,6 +190,15 @@ const routeLayer = (input: {
           allowed: input.apiKeyAllowed ?? true,
           limit: 20,
           remaining: input.apiKeyAllowed === false ? 0 : 19,
+          resetSeconds: 42,
+        }),
+    })),
+    Layer.succeed(BearerRateLimiter, BearerRateLimiter.of({
+      check: () =>
+        Effect.succeed({
+          allowed: input.bearerAllowed ?? true,
+          limit: 120,
+          remaining: input.bearerAllowed === false ? 0 : 119,
           resetSeconds: 42,
         }),
     })),
@@ -793,6 +804,28 @@ describe("HttpApp", () => {
       expect(yield* json(response)).toEqual({
         _tag: "RateLimitExceeded",
         message: "API key rate limit exceeded.",
+      })
+    }),
+  )
+
+  it.effect("rate limits a session/OAuth bearer token, not just recognized API keys", () =>
+    Effect.gen(function* () {
+      // A signed session token (contains ".") skips the API-key check entirely —
+      // this is the shape a runaway client retry-loop would hammer the API with.
+      const response = yield* request("/v1/saved-items", {
+        headers: { authorization: "Bearer session.token.value" },
+      }).pipe(
+        Effect.provide(routeLayer({
+          sessionUserId: userId,
+          bearerAllowed: false,
+        })),
+      )
+
+      expect(response.status).toBe(429)
+      expect(response.headers.get("retry-after")).toBe("42")
+      expect(yield* json(response)).toEqual({
+        _tag: "RateLimitExceeded",
+        message: "Rate limit exceeded.",
       })
     }),
   )
