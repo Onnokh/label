@@ -4,14 +4,14 @@ import { HomePage } from "../../pages/home-page"
 export const Route = createFileRoute("/_marketing/")({
   head: () => ({
     meta: [
-      { title: "Sleevy | Scriptable Read-Later App and Bookmark Manager" },
-      { name: "description", content: "Save links from iOS, Chrome, Raycast, and scripts. Sleevy keeps your read-later queue in sync and gives you a personal REST API to automate it." },
-      { property: "og:title", content: "Sleevy | Scriptable Read-Later App and Bookmark Manager" },
-      { property: "og:description", content: "Save links from iOS, Chrome, Raycast, and scripts. Keep your read-later queue in sync and automate it with a personal REST API." },
+      { title: "Sleevy | Bookmark Manager API & MCP Server for AI Agents" },
+      { name: "description", content: "Sleevy is a personal bookmark manager with a read-later API and MCP server — save links from scripts, AI agents, iOS, Chrome, and Raycast into one synced queue." },
+      { property: "og:title", content: "Sleevy | Bookmark Manager API & MCP Server for AI Agents" },
+      { property: "og:description", content: "A personal bookmark manager with a read-later API and MCP server. Save links from scripts, AI agents, iOS, Chrome, and Raycast into one synced queue." },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://sleevy.app/" },
-      { name: "twitter:title", content: "Sleevy | Scriptable Read-Later App and Bookmark Manager" },
-      { name: "twitter:description", content: "Save links from iOS, Chrome, Raycast, and scripts. Keep your read-later queue in sync and automate it with a personal REST API." },
+      { name: "twitter:title", content: "Sleevy | Bookmark Manager API & MCP Server for AI Agents" },
+      { name: "twitter:description", content: "A personal bookmark manager with a read-later API and MCP server. Save links from scripts, AI agents, iOS, Chrome, and Raycast into one synced queue." },
     ],
     links: [
       { rel: "canonical", href: "https://sleevy.app/" },
