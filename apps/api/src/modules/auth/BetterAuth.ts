@@ -118,16 +118,24 @@ export class BetterAuth extends Context.Service<BetterAuth>()(
         baseURL: config.auth.baseUrl,
         basePath: AUTH_BASE_PATH,
         trustedOrigins: [...config.auth.trustedOrigins],
-        ...(cookieDomain
-          ? {
-              advanced: {
+        advanced: {
+          ipAddress: {
+            // Behind Cloudflare the real visitor IP survives only in
+            // `cf-connecting-ip`; `x-forwarded-for` collapses to the Cloudflare
+            // edge IP at our proxy (Caddy has no `trusted_proxies`). Without
+            // this, `session.ipAddress` records the edge, not the visitor —
+            // which also feeds the login/logout analytics events below.
+            ipAddressHeaders: ["cf-connecting-ip", "x-forwarded-for"],
+          },
+          ...(cookieDomain
+            ? {
                 crossSubDomainCookies: {
                   enabled: true,
                   domain: cookieDomain,
                 },
-              },
-            }
-          : {}),
+              }
+            : {}),
+        },
         socialProviders: {
           google: {
             clientId: config.auth.googleClientId,
@@ -173,6 +181,8 @@ export class BetterAuth extends Context.Service<BetterAuth>()(
                     name: "login",
                     userId: session.userId,
                     properties: method ? { method } : {},
+                    ipAddress: session.ipAddress ?? undefined,
+                    userAgent: session.userAgent ?? undefined,
                   })
                 }
               },
@@ -191,6 +201,10 @@ export class BetterAuth extends Context.Service<BetterAuth>()(
                   void trackEvent(config.rybbit, {
                     name: "logout",
                     userId: session.userId,
+                    // Login-time IP/UA stored on the session row (there is no
+                    // request context on the delete hook).
+                    ipAddress: session.ipAddress ?? undefined,
+                    userAgent: session.userAgent ?? undefined,
                   })
                 }
               },
@@ -198,11 +212,15 @@ export class BetterAuth extends Context.Service<BetterAuth>()(
           },
           user: {
             create: {
-              after: async (createdUser) => {
+              after: async (createdUser, context) => {
                 if (config.rybbit.enabled) {
+                  // The User row has no IP; read it from the originating request
+                  // (null when created outside an endpoint, e.g. seeding).
                   void trackEvent(config.rybbit, {
                     name: "account_created",
                     userId: createdUser.id,
+                    ipAddress: context?.headers?.get("cf-connecting-ip") ?? undefined,
+                    userAgent: context?.headers?.get("user-agent") ?? undefined,
                   })
                 }
               },
