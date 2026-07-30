@@ -23,6 +23,11 @@
   gap: 0.0625rem;
 }
 
+.list li {
+  position: relative;
+  border-radius: 0.375rem;
+}
+
 .item {
   display: flex;
   align-items: center;
@@ -69,4 +74,40 @@
   flex-shrink: 0;
   font-size: 0.75rem;
   color: var(--faint);
+}
+
+.menu {
+  position: absolute;
+  top: 50%;
+  right: 0.375rem;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.list li:hover .menu,
+.list li:focus-within .menu {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+// Only rows that render a menu (Sources) swap their count for the trigger on
+// hover. Sleeve/Tags share this stylesheet but have no menu, so keep their count.
+.list li:hover:has(.menu) .count,
+.list li:focus-within:has(.menu) .count {
+  visibility: hidden;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.25rem;
+  background: var(--panel-muted);
+  color: var(--faint);
+  cursor: pointer;
 }

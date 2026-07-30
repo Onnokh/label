@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull, lt, or, type InferSelectModel, type SQL } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, isNull, lt, or, type InferSelectModel, type SQL } from "drizzle-orm"
 import { Context, Effect, Layer, Option, Schema } from "effect"
 
 import {
@@ -253,6 +253,29 @@ export class SavedItemRepository extends Context.Service<SavedItemRepository>()(
             and(eq(savedItemsTable.userId, userId), eq(savedItemsTable.id, id)),
           ).limit(1)
           return rows[0] ? Option.some(toAggregate(rows[0])) : Option.none<SavedItemWithLink>()
+        }),
+
+        moveItemsToSource: Effect.fn("SavedItemRepository.moveItemsToSource")(function* (
+          userId: UserId,
+          itemIds: ReadonlyArray<SavedItem["id"]>,
+          sourceName: string,
+        ) {
+          const name = sourceName.trim()
+          if (name.length === 0 || itemIds.length === 0) return
+
+          // Find-or-create the destination source, mirroring capture's upsert.
+          yield* db.insert(sourcesTable).values({ userId, name }).onConflictDoNothing()
+          const [source] = yield* db
+            .select()
+            .from(sourcesTable)
+            .where(and(eq(sourcesTable.userId, userId), eq(sourcesTable.name, name)))
+            .limit(1)
+          if (!source) return
+
+          yield* db
+            .update(savedItemsTable)
+            .set({ sourceId: source.id, updatedAt: new Date() })
+            .where(and(eq(savedItemsTable.userId, userId), inArray(savedItemsTable.id, [...itemIds])))
         }),
 
         deleteByUserAndId: Effect.fn("SavedItemRepository.deleteByUserAndId")(function* (userId: UserId, id: SavedItem["id"]) {
