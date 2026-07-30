@@ -1,9 +1,10 @@
 import { createContext, use, useMemo, useState, type DragEvent, type ReactNode } from "react"
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { Inbox, Library, Hash } from "lucide-react"
+import { Inbox, Library, Hash, MoreVertical } from "lucide-react"
 
-import { useSavedItems, type Topic } from "../../sleevy/saved-items"
+import { useMoveItemsToSource, useSavedItems, type Topic } from "../../sleevy/saved-items"
 import { SAVED_ITEM_DRAG_TYPE, useMoveSavedItemToFolder } from "../../sleevy/folders"
+import { ContextMenu, type ContextMenuItem } from "../ui/context-menu/context-menu"
 import { getSourceGroup } from "./source-filter-utils"
 import styles from "./source-filter.module.scss"
 
@@ -67,6 +68,7 @@ type SidebarItem = {
   readonly to?: string
   readonly exact?: boolean
   readonly onDrop?: (event: DragEvent<HTMLLIElement>) => void
+  readonly menu?: readonly ContextMenuItem[]
 }
 
 function SidebarSection({ heading, items, activeValue, onSelect }: {
@@ -119,6 +121,15 @@ function SidebarSection({ heading, items, activeValue, onSelect }: {
                   {content}
                 </button>
               )}
+              {item.menu && item.menu.length > 0 ? (
+                <div className={styles.menu}>
+                  <ContextMenu
+                    items={item.menu}
+                    triggerClassName={styles.trigger}
+                    triggerLabel={<MoreVertical size={14} />}
+                  />
+                </div>
+              ) : null}
             </li>
           )
         })}
@@ -193,19 +204,39 @@ export function SourceFilterList() {
   const { data } = useSavedItems()
   const { activeSource, setActiveSource } = useSourceFilter()
   const goToLibrary = useNavigateToLibrary()
+  const moveMutation = useMoveItemsToSource()
 
   const items = data?.savedItems ?? []
   const groupCounts = new Map<string, number>()
+  const groupItemIds = new Map<string, string[]>()
   for (const item of items) {
     const group = getSourceGroup(item)
     if (group) {
       groupCounts.set(group, (groupCounts.get(group) ?? 0) + 1)
+      const ids = groupItemIds.get(group) ?? []
+      ids.push(item.id)
+      groupItemIds.set(group, ids)
     }
   }
 
+  const groupNames = [...groupCounts.keys()]
   const entries: SidebarItem[] = [...groupCounts.entries()]
     .toSorted((a, b) => b[1] - a[1])
-    .map(([name, count]) => ({ key: name, label: name, count }))
+    .map(([name, count]) => {
+      const targets = groupNames.filter((other) => other !== name)
+      const menu: ContextMenuItem[] = targets.length > 0
+        ? [{
+            key: "move",
+            label: "Move items to",
+            items: targets.map((target) => ({
+              key: target,
+              label: target,
+              onClick: () => moveMutation.mutate({ itemIds: groupItemIds.get(name) ?? [], sourceName: target }),
+            })),
+          }]
+        : []
+      return { key: name, label: name, count, menu: menu.length > 0 ? menu : undefined }
+    })
 
   const handleSelect = (value: string | null) => {
     setActiveSource(value)
