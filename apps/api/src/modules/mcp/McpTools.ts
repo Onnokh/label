@@ -198,10 +198,10 @@ export class McpTools extends Context.Service<McpTools>()(
           server.registerTool("list_saved_items", {
             title: "List saved items",
             description: "List the authenticated user's saved items, newest first. Results are paginated; call again with nextCursor until it is null.",
-            inputSchema: {
+            inputSchema: z.strictObject({
               limit: z.number().int().min(1).max(MAX_PAGE_SIZE).optional(),
               cursor: z.string().min(1).optional(),
-            },
+            }),
             outputSchema: savedItemsPageOutputSchema,
             annotations: { readOnlyHint: true },
           }, async ({ limit, cursor }) => runPromise(listSavedItems(userId, limit, cursor)))
@@ -211,7 +211,7 @@ export class McpTools extends Context.Service<McpTools>()(
           server.registerTool("save_link", {
             title: "Save link",
             description: "Save an HTTP or HTTPS link to the authenticated user's Sleevy library.",
-            inputSchema: { url: z.string().url() },
+            inputSchema: z.strictObject({ url: z.string().url() }),
             annotations: { destructiveHint: false, openWorldHint: true },
           }, async ({ url }) => {
             try {
@@ -226,7 +226,7 @@ export class McpTools extends Context.Service<McpTools>()(
           server.registerTool("set_saved_item_read_state", {
             title: "Set saved item read state",
             description: "Mark one of the authenticated user's saved items as read or unread.",
-            inputSchema: { savedItemId: z.string().min(1), isRead: z.boolean() },
+            inputSchema: z.strictObject({ savedItemId: z.string().min(1), isRead: z.boolean() }),
             annotations: { destructiveHint: false },
           }, async ({ savedItemId, isRead }) =>
             runPromise(setSavedItemReadState(userId, savedItemId as SavedItemId, isRead)))
@@ -234,7 +234,7 @@ export class McpTools extends Context.Service<McpTools>()(
           server.registerTool("set_saved_item_folder", {
             title: "Set saved item folder",
             description: "Move a saved item to a folder, or remove it from its folder.",
-            inputSchema: { savedItemId: z.string().min(1), folderId: z.string().min(1).nullable() },
+            inputSchema: z.strictObject({ savedItemId: z.string().min(1), folderId: z.string().min(1).nullable() }),
             annotations: { destructiveHint: false },
           }, async ({ savedItemId, folderId }) =>
             runPromise(setSavedItemFolder(userId, savedItemId as SavedItemId, folderId as FolderId | null)))
@@ -244,7 +244,7 @@ export class McpTools extends Context.Service<McpTools>()(
           server.registerTool("delete_saved_item", {
             title: "Delete saved item",
             description: "Permanently delete one of the authenticated user's saved items.",
-            inputSchema: { savedItemId: z.string().min(1) },
+            inputSchema: z.strictObject({ savedItemId: z.string().min(1) }),
             annotations: { destructiveHint: true },
           }, async ({ savedItemId }) =>
             runPromise(deleteSavedItem(userId, savedItemId as SavedItemId)))
@@ -262,11 +262,11 @@ export class McpTools extends Context.Service<McpTools>()(
           server.registerTool("add_folder", {
             title: "Add folder",
             description: "Create a folder in the authenticated user's Sleevy library.",
-            inputSchema: {
+            inputSchema: z.strictObject({
               name: z.string().min(1).max(80),
               emoji: z.string().optional(),
               color: z.string().optional(),
-            },
+            }),
             annotations: { destructiveHint: false },
           }, async ({ name, emoji, color }) => runPromise(addFolder(userId, name, emoji, color)))
         }
@@ -275,7 +275,7 @@ export class McpTools extends Context.Service<McpTools>()(
           server.registerTool("remove_folder", {
             title: "Remove folder",
             description: "Permanently remove one of the authenticated user's folders.",
-            inputSchema: { folderId: z.string().min(1) },
+            inputSchema: z.strictObject({ folderId: z.string().min(1) }),
             annotations: { destructiveHint: true },
           }, async ({ folderId }) => runPromise(removeFolder(userId, folderId as FolderId)))
         }
