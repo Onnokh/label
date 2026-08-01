@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Sleevy",
-  "description": "Save the current tab to your Sleevy read-later list with one click.",
+  "description": "Save tabs with Sleevy's Chrome read-later extension and keep one synced reading queue across your devices.",
   "version": "1.0.0",
   "icons": {
     "16": "icons/icon-16.png",
