@@ -18,7 +18,7 @@ export function ExtendSection() {
         <div className={styles.column}>
           <h3 className={styles.columnTitle}>Build on the API</h3>
           <p>
-            Sleevy exposes a capture API with personal access tokens. Anything that can make an HTTP request
+            The <Link to="/docs/$" params={{ _splat: "" }}>Sleevy bookmark manager API</Link> uses personal access tokens. Anything that can make an HTTP request
             can save to your queue, from scripts and CLI tools to automations.
           </p>
           <ul>
@@ -31,7 +31,7 @@ export function ExtendSection() {
         <div className={styles.column}>
           <h3 className={styles.columnTitle}>MCP for agents</h3>
           <p>
-            Sleevy runs an MCP server, so agents can work your queue over the Model Context Protocol, right
+            Sleevy runs an <Link to="/docs/$" params={{ _splat: "mcp" }}>MCP server</Link>, so agents can work your queue over the Model Context Protocol, right
             in the flow of a conversation.
           </p>
           <ul>

@@ -61,6 +61,7 @@ export const Route = createFileRoute("/_marketing/articles_/bookmark-manager-for
       ]}
       relatedLinks={[
         { href: "/docs", label: "Sleevy API documentation", openInNewTab: false },
+        { href: "/chrome-extension", label: "Save tabs from Chrome", openInNewTab: false },
         { href: "/raycast", label: "Sleevy for Raycast", openInNewTab: false },
         { href: "/pocket-alternative", label: "Looking for a Pocket alternative?", openInNewTab: false },
       ]}

@@ -66,6 +66,7 @@ export const Route = createFileRoute("/_marketing/articles_/read-later-app-chrom
       ]}
       relatedLinks={[
         { href: "/web-companion", label: "View the Sleevy web companion", openInNewTab: false },
+        { href: "/raycast", label: "Save links with Raycast", openInNewTab: false },
         { href: "/docs", label: "Save links with the Sleevy API", openInNewTab: false },
         { href: "/pocket-alternative", label: "Looking for a Pocket alternative?", openInNewTab: false },
       ]}
