@@ -52,7 +52,7 @@
   </url>
   <url>
     <loc>https://sleevy.app/chrome-extension</loc>
-    <lastmod>2026-07-16</lastmod>
+    <lastmod>2026-08-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -76,7 +76,7 @@
   </url>
   <url>
     <loc>https://sleevy.app/articles</loc>
-    <lastmod>2026-07-17</lastmod>
+    <lastmod>2026-08-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -95,6 +95,12 @@
   <url>
     <loc>https://sleevy.app/articles/bookmark-manager-for-developers</loc>
     <lastmod>2026-07-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://sleevy.app/articles/how-to-organize-too-many-open-tabs</loc>
+    <lastmod>2026-08-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
