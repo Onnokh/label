@@ -33,6 +33,7 @@ import { Route as AppConnectRouteImport } from './routes/_app/connect'
 import { Route as MarketingArticlesSaveLinksWithRaycastRouteImport } from './routes/_marketing/articles_.save-links-with-raycast'
 import { Route as MarketingArticlesReadLaterAppChromeIphoneRouteImport } from './routes/_marketing/articles_.read-later-app-chrome-iphone'
 import { Route as MarketingArticlesBookmarkManagerForDevelopersRouteImport } from './routes/_marketing/articles_.bookmark-manager-for-developers'
+import { Route as MarketingArticlesHowToOrganizeTooManyOpenTabsRouteImport } from './routes/_marketing/articles_.how-to-organize-too-many-open-tabs'
 import { Route as AppLibraryFoldersFolderIdRouteImport } from './routes/_app/library_.folders.$folderId'
 
 const MarketingRoute = MarketingRouteImport.update({
@@ -158,6 +159,12 @@ const MarketingArticlesBookmarkManagerForDevelopersRoute =
     path: '/articles/bookmark-manager-for-developers',
     getParentRoute: () => MarketingRoute,
   } as any)
+const MarketingArticlesHowToOrganizeTooManyOpenTabsRoute =
+  MarketingArticlesHowToOrganizeTooManyOpenTabsRouteImport.update({
+    id: '/articles_/how-to-organize-too-many-open-tabs',
+    path: '/articles/how-to-organize-too-many-open-tabs',
+    getParentRoute: () => MarketingRoute,
+  } as any)
 const AppLibraryFoldersFolderIdRoute =
   AppLibraryFoldersFolderIdRouteImport.update({
     id: '/library_/folders/$folderId',
@@ -186,6 +193,7 @@ export interface FileRoutesByFullPath {
   '/oauth/consent': typeof OauthConsentRoute
   '/oauth/login': typeof OauthLoginRoute
   '/articles/bookmark-manager-for-developers': typeof MarketingArticlesBookmarkManagerForDevelopersRoute
+  '/articles/how-to-organize-too-many-open-tabs': typeof MarketingArticlesHowToOrganizeTooManyOpenTabsRoute
   '/articles/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/articles/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
   '/library/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
@@ -211,6 +219,7 @@ export interface FileRoutesByTo {
   '/oauth/consent': typeof OauthConsentRoute
   '/oauth/login': typeof OauthLoginRoute
   '/articles/bookmark-manager-for-developers': typeof MarketingArticlesBookmarkManagerForDevelopersRoute
+  '/articles/how-to-organize-too-many-open-tabs': typeof MarketingArticlesHowToOrganizeTooManyOpenTabsRoute
   '/articles/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/articles/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
   '/library/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
@@ -239,6 +248,7 @@ export interface FileRoutesById {
   '/oauth/login': typeof OauthLoginRoute
   '/_marketing/': typeof MarketingIndexRoute
   '/_marketing/articles_/bookmark-manager-for-developers': typeof MarketingArticlesBookmarkManagerForDevelopersRoute
+  '/_marketing/articles_/how-to-organize-too-many-open-tabs': typeof MarketingArticlesHowToOrganizeTooManyOpenTabsRoute
   '/_marketing/articles_/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/_marketing/articles_/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
   '/_app/library_/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
@@ -266,6 +276,7 @@ export interface FileRouteTypes {
     | '/oauth/consent'
     | '/oauth/login'
     | '/articles/bookmark-manager-for-developers'
+    | '/articles/how-to-organize-too-many-open-tabs'
     | '/articles/read-later-app-chrome-iphone'
     | '/articles/save-links-with-raycast'
     | '/library/folders/$folderId'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/oauth/consent'
     | '/oauth/login'
     | '/articles/bookmark-manager-for-developers'
+    | '/articles/how-to-organize-too-many-open-tabs'
     | '/articles/read-later-app-chrome-iphone'
     | '/articles/save-links-with-raycast'
     | '/library/folders/$folderId'
@@ -318,6 +330,7 @@ export interface FileRouteTypes {
     | '/oauth/login'
     | '/_marketing/'
     | '/_marketing/articles_/bookmark-manager-for-developers'
+    | '/_marketing/articles_/how-to-organize-too-many-open-tabs'
     | '/_marketing/articles_/read-later-app-chrome-iphone'
     | '/_marketing/articles_/save-links-with-raycast'
     | '/_app/library_/folders/$folderId'
@@ -504,6 +517,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketingArticlesBookmarkManagerForDevelopersRouteImport
       parentRoute: typeof MarketingRoute
     }
+    '/_marketing/articles_/how-to-organize-too-many-open-tabs': {
+      id: '/_marketing/articles_/how-to-organize-too-many-open-tabs'
+      path: '/articles/how-to-organize-too-many-open-tabs'
+      fullPath: '/articles/how-to-organize-too-many-open-tabs'
+      preLoaderRoute: typeof MarketingArticlesHowToOrganizeTooManyOpenTabsRouteImport
+      parentRoute: typeof MarketingRoute
+    }
     '/_app/library_/folders/$folderId': {
       id: '/_app/library_/folders/$folderId'
       path: '/library/folders/$folderId'
@@ -543,6 +563,7 @@ interface MarketingRouteChildren {
   MarketingWebCompanionRoute: typeof MarketingWebCompanionRoute
   MarketingIndexRoute: typeof MarketingIndexRoute
   MarketingArticlesBookmarkManagerForDevelopersRoute: typeof MarketingArticlesBookmarkManagerForDevelopersRoute
+  MarketingArticlesHowToOrganizeTooManyOpenTabsRoute: typeof MarketingArticlesHowToOrganizeTooManyOpenTabsRoute
   MarketingArticlesReadLaterAppChromeIphoneRoute: typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   MarketingArticlesSaveLinksWithRaycastRoute: typeof MarketingArticlesSaveLinksWithRaycastRoute
 }
@@ -559,6 +580,8 @@ const MarketingRouteChildren: MarketingRouteChildren = {
   MarketingIndexRoute: MarketingIndexRoute,
   MarketingArticlesBookmarkManagerForDevelopersRoute:
     MarketingArticlesBookmarkManagerForDevelopersRoute,
+  MarketingArticlesHowToOrganizeTooManyOpenTabsRoute:
+    MarketingArticlesHowToOrganizeTooManyOpenTabsRoute,
   MarketingArticlesReadLaterAppChromeIphoneRoute:
     MarketingArticlesReadLaterAppChromeIphoneRoute,
   MarketingArticlesSaveLinksWithRaycastRoute:

@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_marketing/chrome-extension")({
       intro="Use the Chrome read-later extension to save tabs for later and keep the useful pages you find in one synced queue."
       icon={{ src: "/chrome-76.webp", alt: "Google Chrome", width: 76, height: 82 }}
       primaryAction={{ href: chromeStoreUrl, label: "View in Chrome Web Store" }}
-      relatedLink={{ href: "/articles/read-later-app-chrome-iphone", label: "Read about syncing a queue between Chrome and iPhone" }}
+      relatedLink={{ href: "/articles/how-to-organize-too-many-open-tabs", label: "Learn how to organize too many open tabs" }}
       benefits={[
         { title: "Save the tab you are reading", body: "Install the Sleevy Chrome extension, connect it to your account, and click the toolbar icon on any normal web page. The extension captures the current URL, so you can close a tab without losing an article, product, documentation page, or reference." },
         { title: "Why use a Chrome read-later extension?", body: "Open tabs are a poor reading queue: they disappear across devices and make it hard to decide what still matters. Sleevy turns a browser tab into a saved item you can revisit later, rather than another thing to keep open." },

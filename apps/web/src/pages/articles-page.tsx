@@ -6,6 +6,14 @@ import styles from "./articles-page.module.scss"
 
 const articles = [
   {
+    href: "/articles/how-to-organize-too-many-open-tabs",
+    title: "How to organize too many open tabs.",
+    description: "Turn a crowded browser window into a short list of clear next steps without treating every tab as an urgent task.",
+    dateTime: "2026-08-11",
+    date: "August 11, 2026",
+    topic: "Open-tab workflow",
+  },
+  {
     href: "/articles/save-links-with-raycast",
     title: "How to save links with Raycast.",
     description: "Use Raycast to save a URL from your clipboard, search your read-later queue, and reopen saved links without leaving the launcher.",
