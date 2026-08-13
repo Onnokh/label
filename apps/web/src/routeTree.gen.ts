@@ -33,6 +33,7 @@ import { Route as OauthLoginRouteImport } from './routes/oauth/login'
 import { Route as MarketingArticlesBookmarkManagerForDevelopersRouteImport } from './routes/_marketing/articles_.bookmark-manager-for-developers'
 import { Route as MarketingArticlesReadLaterAppChromeIphoneRouteImport } from './routes/_marketing/articles_.read-later-app-chrome-iphone'
 import { Route as MarketingArticlesSaveLinksWithRaycastRouteImport } from './routes/_marketing/articles_.save-links-with-raycast'
+import { Route as MarketingUHandleRouteImport } from './routes/_marketing/u.$handle'
 import { Route as AppLibraryFoldersFolderIdRouteImport } from './routes/_app/library_.folders.$folderId'
 
 const SplatRoute = SplatRouteImport.update({
@@ -158,6 +159,11 @@ const MarketingArticlesSaveLinksWithRaycastRoute =
     path: '/articles/save-links-with-raycast',
     getParentRoute: () => MarketingRoute,
   } as any)
+const MarketingUHandleRoute = MarketingUHandleRouteImport.update({
+  id: '/u/$handle',
+  path: '/u/$handle',
+  getParentRoute: () => MarketingRoute,
+} as any)
 const AppLibraryFoldersFolderIdRoute =
   AppLibraryFoldersFolderIdRouteImport.update({
     id: '/library_/folders/$folderId',
@@ -188,6 +194,7 @@ export interface FileRoutesByFullPath {
   '/articles/bookmark-manager-for-developers': typeof MarketingArticlesBookmarkManagerForDevelopersRoute
   '/articles/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/articles/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
+  '/u/$handle': typeof MarketingUHandleRoute
   '/library/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
 }
 export interface FileRoutesByTo {
@@ -213,6 +220,7 @@ export interface FileRoutesByTo {
   '/articles/bookmark-manager-for-developers': typeof MarketingArticlesBookmarkManagerForDevelopersRoute
   '/articles/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/articles/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
+  '/u/$handle': typeof MarketingUHandleRoute
   '/library/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
 }
 export interface FileRoutesById {
@@ -241,6 +249,7 @@ export interface FileRoutesById {
   '/_marketing/articles_/bookmark-manager-for-developers': typeof MarketingArticlesBookmarkManagerForDevelopersRoute
   '/_marketing/articles_/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/_marketing/articles_/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
+  '/_marketing/u/$handle': typeof MarketingUHandleRoute
   '/_app/library_/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
 }
 export interface FileRouteTypes {
@@ -268,6 +277,7 @@ export interface FileRouteTypes {
     | '/articles/bookmark-manager-for-developers'
     | '/articles/read-later-app-chrome-iphone'
     | '/articles/save-links-with-raycast'
+    | '/u/$handle'
     | '/library/folders/$folderId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -293,6 +303,7 @@ export interface FileRouteTypes {
     | '/articles/bookmark-manager-for-developers'
     | '/articles/read-later-app-chrome-iphone'
     | '/articles/save-links-with-raycast'
+    | '/u/$handle'
     | '/library/folders/$folderId'
   id:
     | '__root__'
@@ -320,6 +331,7 @@ export interface FileRouteTypes {
     | '/_marketing/articles_/bookmark-manager-for-developers'
     | '/_marketing/articles_/read-later-app-chrome-iphone'
     | '/_marketing/articles_/save-links-with-raycast'
+    | '/_marketing/u/$handle'
     | '/_app/library_/folders/$folderId'
   fileRoutesById: FileRoutesById
 }
@@ -504,6 +516,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketingArticlesSaveLinksWithRaycastRouteImport
       parentRoute: typeof MarketingRoute
     }
+    '/_marketing/u/$handle': {
+      id: '/_marketing/u/$handle'
+      path: '/u/$handle'
+      fullPath: '/u/$handle'
+      preLoaderRoute: typeof MarketingUHandleRouteImport
+      parentRoute: typeof MarketingRoute
+    }
     '/_app/library_/folders/$folderId': {
       id: '/_app/library_/folders/$folderId'
       path: '/library/folders/$folderId'
@@ -545,6 +564,7 @@ interface MarketingRouteChildren {
   MarketingArticlesBookmarkManagerForDevelopersRoute: typeof MarketingArticlesBookmarkManagerForDevelopersRoute
   MarketingArticlesReadLaterAppChromeIphoneRoute: typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   MarketingArticlesSaveLinksWithRaycastRoute: typeof MarketingArticlesSaveLinksWithRaycastRoute
+  MarketingUHandleRoute: typeof MarketingUHandleRoute
 }
 
 const MarketingRouteChildren: MarketingRouteChildren = {
@@ -563,6 +583,7 @@ const MarketingRouteChildren: MarketingRouteChildren = {
     MarketingArticlesReadLaterAppChromeIphoneRoute,
   MarketingArticlesSaveLinksWithRaycastRoute:
     MarketingArticlesSaveLinksWithRaycastRoute,
+  MarketingUHandleRoute: MarketingUHandleRoute,
 }
 
 const MarketingRouteWithChildren = MarketingRoute._addFileChildren(

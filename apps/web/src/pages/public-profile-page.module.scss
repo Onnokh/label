@@ -1,0 +1,208 @@
+.page {
+  width: min(880px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 8rem 0 10rem;
+  color: #fff;
+
+  @media (max-width: 768px) {
+    width: min(100% - 1.5rem, 880px);
+    padding: 4rem 0 5rem;
+  }
+}
+
+.identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem 1.25rem;
+
+  h1 {
+    margin: 0;
+    font-size: clamp(2.25rem, 5vw, 3.25rem);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
+  // No display name, no biography, no avatar: a Public Profile shows a Handle
+  // only, so Sleevy never republishes a profile image from a sign-in provider.
+  .meta {
+    margin: 0;
+    color: rgb(255 255 255 / 60%);
+    font-size: 0.95rem;
+  }
+}
+
+.section {
+  margin-top: 4rem;
+
+  h2 {
+    margin: 0 0 1.25rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(255 255 255 / 55%);
+  }
+}
+
+/* Reading Activity ------------------------------------------------------- */
+
+.activity {
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.activityGrid {
+  display: grid;
+  // One column per week, seven rows for the days, filled column by column.
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 11px);
+  gap: 3px;
+  width: max-content;
+}
+
+.day {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 6%);
+}
+
+.level1 { background: rgb(129 140 248 / 35%); }
+.level2 { background: rgb(129 140 248 / 55%); }
+.level3 { background: rgb(129 140 248 / 75%); }
+.level4 { background: rgb(129 140 248 / 100%); }
+
+.activityLegend {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  color: rgb(255 255 255 / 45%);
+  font-size: 0.8rem;
+}
+
+/* Saved Items ------------------------------------------------------------ */
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  gap: 0.875rem;
+  padding: 0.875rem 0;
+  border-top: 1px solid rgb(255 255 255 / 8%);
+
+  &:last-child {
+    border-bottom: 1px solid rgb(255 255 255 / 8%);
+  }
+}
+
+.favicon {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin-top: 0.2rem;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 8%);
+  object-fit: contain;
+}
+
+.itemBody {
+  min-width: 0;
+}
+
+.itemTitle {
+  display: block;
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.itemSummary {
+  margin: 0.35rem 0 0;
+  color: rgb(255 255 255 / 65%);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.itemMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.45rem;
+  color: rgb(255 255 255 / 45%);
+  font-size: 0.8rem;
+}
+
+.tag {
+  padding: 0.1rem 0.45rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+}
+
+.empty {
+  margin: 0;
+  color: rgb(255 255 255 / 60%);
+}
+
+/* Pagination ------------------------------------------------------------- */
+
+// Real links, not a scroll listener: every page has to be an address a crawler
+// can follow and a visitor can share.
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 2.5rem;
+}
+
+.pageLink {
+  padding: 0.5rem 1rem;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.9rem;
+  text-decoration: none;
+
+  &:hover {
+    border-color: rgb(255 255 255 / 40%);
+  }
+}
+
+.pageCount {
+  color: rgb(255 255 255 / 50%);
+  font-size: 0.85rem;
+}
+
+/* Not found -------------------------------------------------------------- */
+
+.notFound {
+  padding: 8rem 0 10rem;
+  text-align: center;
+  color: #fff;
+
+  h1 {
+    margin: 0 0 1rem;
+    font-size: clamp(2rem, 5vw, 3rem);
+  }
+
+  p {
+    margin: 0;
+    color: rgb(255 255 255 / 65%);
+  }
+}
