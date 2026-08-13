@@ -58,6 +58,7 @@ export const cleanTestDatabase = async () => {
         "user",
         "links",
         "sources",
+        "profiles",
         "enrichment_jobs",
         "link_metadata",
         "link_enrichment",

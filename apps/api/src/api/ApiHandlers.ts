@@ -7,12 +7,14 @@ import { capturesGroupLive } from "./CapturesHandlers.js"
 import { foldersGroupLive } from "./FoldersHandlers.js"
 import { connectAuthorizeGroupLive, connectExchangeGroupLive } from "./ConnectHandlers.js"
 import { healthGroupLive } from "./HealthHandlers.js"
+import { profileGroupLive } from "./ProfileHandlers.js"
 import { savedItemsGroupLive } from "./SavedItemsHandlers.js"
 
 const groupLives = Layer.mergeAll(
   healthGroupLive,
   capturesGroupLive,
   foldersGroupLive,
+  profileGroupLive,
   savedItemsGroupLive,
   connectAuthorizeGroupLive,
   connectExchangeGroupLive,

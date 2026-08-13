@@ -54,6 +54,10 @@ export const enrichmentStatuses = ["pending", "enriched", "failed"] as const
 export const EnrichmentStatus = Schema.Literals(enrichmentStatuses)
 export type EnrichmentStatus = typeof EnrichmentStatus.Type
 
+export const profileVisibilities = ["private", "public"] as const
+export const ProfileVisibility = Schema.Literals(profileVisibilities)
+export type ProfileVisibility = typeof ProfileVisibility.Type
+
 export const savedItemSorts = ["newest", "oldest", "title", "unread"] as const
 export const SavedItemSort = Schema.Literals(savedItemSorts)
 export type SavedItemSort = typeof SavedItemSort.Type
@@ -111,6 +115,28 @@ export class FoldersResponse extends Schema.Class<FoldersResponse>("FoldersRespo
 }) {}
 export namespace FoldersResponse {
   export type Encoded = Schema.Codec.Encoded<typeof FoldersResponse>
+}
+
+// The private half of a Public Profile: the Handle an Account claimed and the
+// Profile Visibility that decides whether that Handle resolves publicly.
+export class ProfileDto extends Schema.Class<ProfileDto>("ProfileDto")({
+  handle: Schema.String,
+  visibility: ProfileVisibility,
+  createdAt: Schema.DateFromString,
+  updatedAt: Schema.DateFromString,
+}) {}
+export namespace ProfileDto {
+  export type Encoded = Schema.Codec.Encoded<typeof ProfileDto>
+}
+
+export class HandleAvailabilityResponse extends Schema.Class<HandleAvailabilityResponse>(
+  "HandleAvailabilityResponse",
+)({
+  handle: Schema.String,
+  available: Schema.Boolean,
+}) {}
+export namespace HandleAvailabilityResponse {
+  export type Encoded = Schema.Codec.Encoded<typeof HandleAvailabilityResponse>
 }
 
 export class CaptureCreated extends Schema.Class<CaptureCreated>("CaptureCreated")({
@@ -184,6 +210,31 @@ export namespace FolderAssignmentPayload {
   export type Encoded = Schema.Codec.Encoded<typeof FolderAssignmentPayload>
 }
 
+export class HandlePayload extends Schema.Class<HandlePayload>("HandlePayload")({
+  handle: Schema.String,
+}) {}
+export namespace HandlePayload {
+  export type Encoded = Schema.Codec.Encoded<typeof HandlePayload>
+}
+
+export class ProfileVisibilityPayload extends Schema.Class<ProfileVisibilityPayload>(
+  "ProfileVisibilityPayload",
+)({
+  visibility: ProfileVisibility,
+}) {}
+export namespace ProfileVisibilityPayload {
+  export type Encoded = Schema.Codec.Encoded<typeof ProfileVisibilityPayload>
+}
+
+export class HandleAvailabilityQuery extends Schema.Class<HandleAvailabilityQuery>(
+  "HandleAvailabilityQuery",
+)({
+  handle: Schema.String,
+}) {}
+export namespace HandleAvailabilityQuery {
+  export type Encoded = Schema.Codec.Encoded<typeof HandleAvailabilityQuery>
+}
+
 // ─── Error shapes ───────────────────────────────────────────────────────────
 
 export class Unauthorized extends Schema.ErrorClass<Unauthorized>("Unauthorized")({
@@ -247,6 +298,30 @@ export namespace FolderNameConflictError {
   export type Encoded = Schema.Codec.Encoded<typeof FolderNameConflictError>
 }
 
+export class InvalidHandleError extends Schema.ErrorClass<InvalidHandleError>("InvalidHandleError")({
+  _tag: Schema.tag("InvalidHandleError"),
+  message: Schema.String,
+}, { httpApiStatus: 400 }) {}
+export namespace InvalidHandleError {
+  export type Encoded = Schema.Codec.Encoded<typeof InvalidHandleError>
+}
+
+export class HandleConflictError extends Schema.ErrorClass<HandleConflictError>("HandleConflictError")({
+  _tag: Schema.tag("HandleConflictError"),
+  message: Schema.String,
+}, { httpApiStatus: 409 }) {}
+export namespace HandleConflictError {
+  export type Encoded = Schema.Codec.Encoded<typeof HandleConflictError>
+}
+
+export class ProfileNotFoundError extends Schema.ErrorClass<ProfileNotFoundError>("ProfileNotFoundError")({
+  _tag: Schema.tag("ProfileNotFoundError"),
+  message: Schema.String,
+}, { httpApiStatus: 404 }) {}
+export namespace ProfileNotFoundError {
+  export type Encoded = Schema.Codec.Encoded<typeof ProfileNotFoundError>
+}
+
 export type ApiErrorEncoded =
   | Unauthorized.Encoded
   | RateLimitExceeded.Encoded
@@ -255,3 +330,6 @@ export type ApiErrorEncoded =
   | InvalidFolderNameError.Encoded
   | FolderNotFoundError.Encoded
   | FolderNameConflictError.Encoded
+  | InvalidHandleError.Encoded
+  | HandleConflictError.Encoded
+  | ProfileNotFoundError.Encoded

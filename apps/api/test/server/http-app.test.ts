@@ -16,6 +16,8 @@ import { CaptureService } from "../../src/modules/capture/CaptureService.js"
 import { EnrichmentWorkflow } from "../../src/modules/enrichment/EnrichmentWorkflow.js"
 import { FolderRepository } from "../../src/modules/folders/FolderRepository.js"
 import { McpTools } from "../../src/modules/mcp/McpTools.js"
+import { RESERVED_HANDLES } from "../../src/modules/profiles/Handle.js"
+import { ProfileRepository } from "../../src/modules/profiles/ProfileRepository.js"
 import { ApiKeyRateLimiter } from "../../src/modules/rate-limit/ApiKeyRateLimiter.js"
 import { ConnectAuthorizeRateLimiter } from "../../src/modules/rate-limit/ConnectAuthorizeRateLimiter.js"
 import { ConnectExchangeRateLimiter } from "../../src/modules/rate-limit/ConnectExchangeRateLimiter.js"
@@ -26,6 +28,7 @@ import { makeApiWebHandler } from "../../src/runtime/HttpApp.js"
 import { it } from "../lib/effect.js"
 
 const userId = "route-user-1" as UserId
+const otherUserId = "route-user-2" as UserId
 const linkId = "route-link-1" as LinkId
 const savedItemId = "route-saved-item-1" as SavedItemId
 const apiKey = "sly_" + "a".repeat(61)
@@ -76,6 +79,10 @@ const routeLayer = (input: {
   readonly apiKeyAllowed?: boolean | undefined
   readonly apiKeyPermissions?: Record<string, string[]> | undefined
   readonly savedItemsPage?: boolean | undefined
+  readonly claimedHandle?: {
+    readonly userId: UserId
+    readonly handle: string
+  } | undefined
   readonly onCapture?: ((input: {
     readonly userId: UserId
     readonly url: string
@@ -94,6 +101,34 @@ const routeLayer = (input: {
     remaining: 0,
     resetSeconds: 42,
   } as const
+
+  // One in-memory profile record per Account, fresh for every layer build. It
+  // stands in for Postgres, so it also refuses two Handles that differ only by
+  // case; the database index itself is proven in the integration seam.
+  const profiles = new Map<UserId, {
+    readonly id: string
+    readonly userId: UserId
+    handle: string
+    visibility: "private" | "public"
+    readonly createdAt: Date
+    updatedAt: Date
+  }>()
+  const profileByHandle = (handle: string) =>
+    [...profiles.values()].find(
+      (profile) => profile.handle.toLowerCase() === handle.toLowerCase(),
+    )
+
+  if (input.claimedHandle) {
+    profiles.set(input.claimedHandle.userId, {
+      id: "route-profile-seeded",
+      userId: input.claimedHandle.userId,
+      handle: input.claimedHandle.handle,
+      visibility: "private",
+      createdAt: now,
+      updatedAt: now,
+    })
+  }
+
   const baseLayer = Layer.mergeAll(
     configLayer,
     Layer.succeed(Analytics, Analytics.of({ track: () => Effect.void })),
@@ -163,6 +198,42 @@ const routeLayer = (input: {
           updatedAt: now,
         })),
       deleteByUserAndId: () => Effect.succeed(true),
+    } as never)),
+    Layer.succeed(ProfileRepository, ProfileRepository.of({
+      findByUser: (profileUserId: UserId) =>
+        Effect.sync(() => Option.fromUndefinedOr(profiles.get(profileUserId))),
+      findByHandle: (handle: string) =>
+        Effect.sync(() => Option.fromUndefinedOr(profileByHandle(handle))),
+      claim: (profileUserId: UserId, handle: string) =>
+        Effect.sync(() => {
+          if (profiles.has(profileUserId) || profileByHandle(handle)) {
+            return Option.none()
+          }
+          const profile = {
+            id: "route-profile-1",
+            userId: profileUserId,
+            handle,
+            visibility: "private" as const,
+            createdAt: now,
+            updatedAt: now,
+          }
+          profiles.set(profileUserId, profile)
+          return Option.some(profile)
+        }),
+      renameHandle: (profileUserId: UserId, handle: string) =>
+        Effect.sync(() => {
+          const profile = profiles.get(profileUserId)
+          if (!profile) return Option.none()
+          profile.handle = handle
+          return Option.some(profile)
+        }),
+      setVisibility: (profileUserId: UserId, visibility: "private" | "public") =>
+        Effect.sync(() => {
+          const profile = profiles.get(profileUserId)
+          if (!profile) return Option.none()
+          profile.visibility = visibility
+          return Option.some(profile)
+        }),
     } as never)),
     Layer.succeed(SavedItemRepository, SavedItemRepository.of({
       findByUserAndId: () => Effect.succeed(Option.none()),
@@ -277,6 +348,13 @@ const json = <T>(response: Response) =>
 const text = (response: Response) =>
   Effect.promise(() => response.text())
 
+const profileRequest = (method: string, path: string, body: unknown) =>
+  request(path, {
+    method,
+    headers: { "content-type": "application/json" },
+    body: globalThis.JSON.stringify(body),
+  })
+
 const mcpRequest = (
   message: unknown,
   options: {
@@ -354,6 +432,10 @@ describe("HttpApp", () => {
       expect(body.paths?.["/v1/saved-items/{id}/folder"]).toBeDefined()
       expect(body.paths?.["/v1/folders"]).toBeDefined()
       expect(body.paths?.["/v1/folders/{id}"]).toBeDefined()
+      expect(body.paths?.["/v1/profile"]).toBeDefined()
+      expect(body.paths?.["/v1/profile/handle"]).toBeDefined()
+      expect(body.paths?.["/v1/profile/handle-availability"]).toBeDefined()
+      expect(body.paths?.["/v1/profile/visibility"]).toBeDefined()
       expect(body.paths?.["/connect/authorize"]).toBeDefined()
       expect(body.paths?.["/connect/exchange"]).toBeDefined()
     }),
@@ -926,4 +1008,172 @@ describe("HttpApp", () => {
       expect(seen).toEqual({ limiter: "authorize", key: userId })
     })
   })
+
+  it.effect("claims a Handle and reads it back with Profile Visibility private", () =>
+    Effect.gen(function* () {
+      const layer = routeLayer({ sessionUserId: userId })
+
+      const claimed = yield* profileRequest("POST", "/v1/profile/handle", {
+        handle: "Reader_One",
+      }).pipe(Effect.provide(layer))
+
+      expect(claimed.status).toBe(200)
+      expect(yield* json<{ handle: string; visibility: string }>(claimed)).toMatchObject({
+        handle: "reader_one",
+        visibility: "private",
+      })
+
+      const read = yield* request("/v1/profile").pipe(Effect.provide(layer))
+
+      expect(read.status).toBe(200)
+      expect(yield* json<{ handle: string; visibility: string }>(read)).toMatchObject({
+        handle: "reader_one",
+        visibility: "private",
+      })
+    }),
+  )
+
+  it.effect("returns not found before an Account claims a Handle", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/v1/profile").pipe(
+        Effect.provide(routeLayer({ sessionUserId: userId })),
+      )
+
+      expect(response.status).toBe(404)
+      expect(yield* json<{ _tag: string }>(response)).toMatchObject({
+        _tag: "ProfileNotFoundError",
+      })
+    }),
+  )
+
+  it.effect("rejects Handles outside the allowed length and character set", () =>
+    Effect.gen(function* () {
+      for (const handle of ["ab", "a".repeat(31), "reader one", "reader.one", "réader"]) {
+        const response = yield* profileRequest("POST", "/v1/profile/handle", {
+          handle,
+        }).pipe(Effect.provide(routeLayer({ sessionUserId: userId })))
+
+        expect(response.status).toBe(400)
+        expect(yield* json<{ _tag: string }>(response)).toMatchObject({
+          _tag: "InvalidHandleError",
+        })
+      }
+    }),
+  )
+
+  it.effect("rejects reserved Handles", () =>
+    Effect.gen(function* () {
+      for (const handle of RESERVED_HANDLES) {
+        const response = yield* profileRequest("POST", "/v1/profile/handle", {
+          handle,
+        }).pipe(Effect.provide(routeLayer({ sessionUserId: userId })))
+
+        expect(response.status).toBe(400)
+      }
+    }),
+  )
+
+  it.effect("refuses a Handle another Account holds in a different case", () =>
+    Effect.gen(function* () {
+      const response = yield* profileRequest("POST", "/v1/profile/handle", {
+        handle: "ReaderOne",
+      }).pipe(Effect.provide(routeLayer({
+        sessionUserId: userId,
+        claimedHandle: { userId: otherUserId, handle: "readerone" },
+      })))
+
+      expect(response.status).toBe(409)
+      expect(yield* json<{ _tag: string }>(response)).toMatchObject({
+        _tag: "HandleConflictError",
+      })
+    }),
+  )
+
+  it.effect("reports whether a Handle is available before it is claimed", () =>
+    Effect.gen(function* () {
+      const layer = routeLayer({
+        sessionUserId: userId,
+        claimedHandle: { userId: otherUserId, handle: "readerone" },
+      })
+
+      const taken = yield* request(
+        "/v1/profile/handle-availability?handle=ReaderOne",
+      ).pipe(Effect.provide(layer))
+
+      expect(taken.status).toBe(200)
+      expect(yield* json(taken)).toEqual({ handle: "readerone", available: false })
+
+      const free = yield* request(
+        "/v1/profile/handle-availability?handle=reader-two",
+      ).pipe(Effect.provide(layer))
+
+      expect(yield* json(free)).toEqual({ handle: "reader-two", available: true })
+    }),
+  )
+
+  it.effect("renames a claimed Handle", () =>
+    Effect.gen(function* () {
+      const layer = routeLayer({
+        sessionUserId: userId,
+        claimedHandle: { userId, handle: "readerone" },
+      })
+
+      const renamed = yield* profileRequest("PATCH", "/v1/profile/handle", {
+        handle: "Reader-Two",
+      }).pipe(Effect.provide(layer))
+
+      expect(renamed.status).toBe(200)
+      expect(yield* json<{ handle: string }>(renamed)).toMatchObject({
+        handle: "reader-two",
+      })
+    }),
+  )
+
+  it.effect("keeps the Handle claimed when Profile Visibility goes off again", () =>
+    Effect.gen(function* () {
+      const layer = routeLayer({
+        sessionUserId: userId,
+        claimedHandle: { userId, handle: "readerone" },
+      })
+
+      const published = yield* profileRequest("PUT", "/v1/profile/visibility", {
+        visibility: "public",
+      }).pipe(Effect.provide(layer))
+
+      expect(published.status).toBe(200)
+      expect(yield* json<{ visibility: string }>(published)).toMatchObject({
+        visibility: "public",
+      })
+
+      const hidden = yield* profileRequest("PUT", "/v1/profile/visibility", {
+        visibility: "private",
+      }).pipe(Effect.provide(layer))
+
+      expect(yield* json<{ handle: string; visibility: string }>(hidden)).toMatchObject({
+        handle: "readerone",
+        visibility: "private",
+      })
+
+      const read = yield* request("/v1/profile").pipe(Effect.provide(layer))
+
+      expect(yield* json<{ handle: string; visibility: string }>(read)).toMatchObject({
+        handle: "readerone",
+        visibility: "private",
+      })
+    }),
+  )
+
+  it.effect("requires a session for profile routes", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/v1/profile").pipe(
+        Effect.provide(routeLayer()),
+      )
+
+      expect(response.status).toBe(401)
+      expect(yield* json(response)).toEqual({
+        _tag: "Unauthorized",
+        message: "Sign in required.",
+      })
+    }),
+  )
 })

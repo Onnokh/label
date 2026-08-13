@@ -18,9 +18,17 @@ import {
   FolderNamePayload,
   FolderNotFoundError,
   FoldersResponse,
+  HandleAvailabilityQuery,
+  HandleAvailabilityResponse,
+  HandleConflictError,
+  HandlePayload,
   HealthResponse,
   InvalidFolderNameError,
+  InvalidHandleError,
   InvalidUrlError,
+  ProfileDto,
+  ProfileNotFoundError,
+  ProfileVisibilityPayload,
   RateLimitExceeded,
   SavedItemDto,
   SavedItemNotFoundError,
@@ -30,6 +38,7 @@ import {
   Unauthorized,
 } from "@sleevy/contract"
 
+import type { Profile } from "../domain/Profile.js"
 import { FolderId, SavedItemId, type SavedItemWithLink, type UserId } from "../domain/SavedItem.js"
 import { AuthContext, V1_SCOPES } from "../modules/auth/Scopes.js"
 import { CONNECT_CLIENT_IDS } from "../modules/connect/ConnectClients.js"
@@ -46,9 +55,17 @@ export {
   FolderNamePayload,
   FolderNotFoundError,
   FoldersResponse,
+  HandleAvailabilityQuery,
+  HandleAvailabilityResponse,
+  HandleConflictError,
+  HandlePayload,
   HealthResponse,
   InvalidFolderNameError,
+  InvalidHandleError,
   InvalidUrlError,
+  ProfileDto,
+  ProfileNotFoundError,
+  ProfileVisibilityPayload,
   RateLimitExceeded,
   SavedItemDto,
   SavedItemNotFoundError,
@@ -57,6 +74,14 @@ export {
   SavedItemsResponse,
   Unauthorized,
 }
+
+export const profileToDto = (profile: Profile) =>
+  new ProfileDto({
+    handle: profile.handle,
+    visibility: profile.visibility,
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+  })
 
 export const savedItemToDto = ({
   savedItem,
@@ -279,6 +304,46 @@ const foldersGroup = HttpApiGroup.make("folders")
   )
   .middleware(SessionOrApiKeyAuth)
 
+// Handle and Profile Visibility are Account settings, so this group is
+// session-only: the v1 REST API does not expose account administration
+// through API Keys.
+const profileGroup = HttpApiGroup.make("profile")
+  .add(
+    HttpApiEndpoint.get("get", "/v1/profile", {
+      success: ProfileDto,
+      error: [ProfileNotFoundError, RateLimitExceeded],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("checkHandle", "/v1/profile/handle-availability", {
+      query: HandleAvailabilityQuery,
+      success: HandleAvailabilityResponse,
+      error: [InvalidHandleError, RateLimitExceeded],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("claimHandle", "/v1/profile/handle", {
+      payload: HandlePayload,
+      success: ProfileDto,
+      error: [InvalidHandleError, HandleConflictError, RateLimitExceeded],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.patch("renameHandle", "/v1/profile/handle", {
+      payload: HandlePayload,
+      success: ProfileDto,
+      error: [InvalidHandleError, ProfileNotFoundError, HandleConflictError, RateLimitExceeded],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.put("setVisibility", "/v1/profile/visibility", {
+      payload: ProfileVisibilityPayload,
+      success: ProfileDto,
+      error: [ProfileNotFoundError, RateLimitExceeded],
+    }),
+  )
+  .middleware(SessionOnlyAuth)
+
 const connectAuthorizeGroup = HttpApiGroup.make("connect-authorize")
   .add(
     HttpApiEndpoint.post("authorize", "/connect/authorize", {
@@ -310,5 +375,6 @@ export const sleevyApi = HttpApi.make("SleevyApi")
   .add(capturesGroup)
   .add(savedItemsGroup)
   .add(foldersGroup)
+  .add(profileGroup)
   .add(connectAuthorizeGroup)
   .add(connectExchangeGroup)
