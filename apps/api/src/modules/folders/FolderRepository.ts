@@ -58,8 +58,8 @@ export class FolderRepository extends Context.Service<FolderRepository>()(
         }),
 
         // Every field is optional: an omitted field keeps its stored value, so
-        // a name-only caller never clears the emoji, the color, or the Private
-        // Folder flag.
+        // a name-only caller never clears the emoji, the color, or the publish
+        // flag.
         update: Effect.fn("FolderRepository.update")(function* (
           userId: UserId,
           id: FolderId,
@@ -67,7 +67,7 @@ export class FolderRepository extends Context.Service<FolderRepository>()(
             readonly name?: string
             readonly emoji?: string | null
             readonly color?: string | null
-            readonly isPrivate?: boolean
+            readonly isPublished?: boolean
           },
         ) {
           const [row] = yield* db
@@ -76,7 +76,7 @@ export class FolderRepository extends Context.Service<FolderRepository>()(
               ...(changes.name !== undefined ? { name: changes.name } : {}),
               ...(changes.emoji !== undefined ? { emoji: changes.emoji } : {}),
               ...(changes.color !== undefined ? { color: changes.color } : {}),
-              ...(changes.isPrivate !== undefined ? { isPrivate: changes.isPrivate } : {}),
+              ...(changes.isPublished !== undefined ? { isPublished: changes.isPublished } : {}),
               updatedAt: new Date(),
             })
             .where(and(eq(foldersTable.userId, userId), eq(foldersTable.id, id)))

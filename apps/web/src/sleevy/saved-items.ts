@@ -172,41 +172,6 @@ export function useSetReadState() {
   })
 }
 
-type SetPrivateInput = { readonly id: string; readonly isPrivate: boolean }
-
-// Marks one Saved Item as a Private Saved Item, or returns it to the published
-// set. The row flips at once, like the read-state actions, because the marker
-// is the only feedback the action has.
-export function useSetSavedItemPrivate() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: ({ id, isPrivate }: SetPrivateInput) =>
-      apiFetch<void>(`/v1/saved-items/${id}/private`, {
-        method: "PUT",
-        body: JSON.stringify({ isPrivate }),
-      }),
-    onMutate: async ({ id, isPrivate }) => {
-      await queryClient.cancelQueries({ queryKey: savedItemsQueryKey })
-      const previous = queryClient.getQueriesData<SavedItemsResponseJson>({ queryKey: savedItemsQueryKey })
-      updateSavedItemsCaches(queryClient, (response) => ({
-        savedItems: response.savedItems.map((item) =>
-          item.id === id ? { ...item, isPrivate } : item,
-        ),
-      }))
-      return { previous }
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) {
-        for (const [key, data] of context.previous) {
-          queryClient.setQueryData(key, data)
-        }
-      }
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: savedItemsQueryKey }),
-  })
-}
-
 export function useDeleteItem() {
   const queryClient = useQueryClient()
 

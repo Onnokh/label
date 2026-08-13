@@ -4,7 +4,8 @@ import { PgDialect } from "drizzle-orm/pg-core"
 import { Effect, Option } from "effect"
 import { Pool } from "pg"
 
-import type { UserId } from "../../src/domain/SavedItem.js"
+import type { FolderId, UserId } from "../../src/domain/SavedItem.js"
+import { FolderRepository } from "../../src/modules/folders/FolderRepository.js"
 import { PublicProfileRepository } from "../../src/modules/profiles/PublicProfileRepository.js"
 import { publicSavedItemFilter } from "../../src/modules/profiles/PublicSavedItems.js"
 import {
@@ -14,8 +15,8 @@ import {
   withTestDatabaseUrl,
 } from "../lib/postgres.js"
 
-// No skip guard on purpose: which Saved Items a Public Profile counts, and the
-// one-hour boundary that Postgres owns, are database rules. A missing database
+// No skip guard on purpose: which Saved Items a Public Profile shows is a
+// database rule, and so is what a Folder row defaults to. A missing database
 // must fail this suite loudly instead of letting it pass empty.
 //
 // Every test asserts on the value this returns rather than inside the Effect,
@@ -25,6 +26,11 @@ const runIntegration = <A, E>(
 ) =>
   withTestDatabaseUrl(() =>
     Effect.runPromise(effect.pipe(Effect.provide(PublicProfileRepository.defaultLayer))),
+  )
+
+const runFolders = <A, E>(effect: Effect.Effect<A, E, FolderRepository>) =>
+  withTestDatabaseUrl(() =>
+    Effect.runPromise(effect.pipe(Effect.provide(FolderRepository.defaultLayer))),
   )
 
 const findPublicByHandle = (handle: string) =>
@@ -88,27 +94,35 @@ const insertProfile = (
     ),
   )
 
-const insertFolder = async (userId: UserId, name: string, isPrivate: boolean) => {
+const insertFolder = async (userId: UserId, name: string, isPublished: boolean) => {
   const folderId = randomUUID()
   await withPool((pool) =>
     pool.query(
-      `insert into "folders" (id, user_id, name, is_private) values ($1, $2, $3, $4)`,
-      [folderId, userId, name, isPrivate],
+      `insert into "folders" (id, user_id, name, is_published) values ($1, $2, $3, $4)`,
+      [folderId, userId, name, isPublished],
     ),
   )
   return folderId
 }
 
-// One Saved Item with a chosen age, privacy, and Folder, written straight to
-// Postgres so the row timestamps decide what the query sees. The Link gets its
-// metadata and enrichment rows the way capture creates them, because the public
-// list reads all three. Returns the Original URL, which is how a test recognizes
-// the item in a published page.
+const setFolderPublished = (folderId: string, isPublished: boolean) =>
+  withPool((pool) =>
+    pool.query(`update "folders" set is_published = $2 where id = $1`, [
+      folderId,
+      isPublished,
+    ]),
+  )
+
+// One Saved Item with a chosen age and Folder, written straight to Postgres so
+// the row itself decides what the query sees. `folderId` is the whole audience
+// rule: omit it and the Saved Item is in no Folder, which never publishes. The
+// Link gets its metadata and enrichment rows the way capture creates them,
+// because the public list reads all three. Returns the Original URL, which is
+// how a test recognizes the item in a published page.
 const insertSavedItem = (
   userId: UserId,
   input: {
     readonly ageMinutes: number
-    readonly isPrivate?: boolean
     readonly folderId?: string | null
     readonly path?: string
     readonly title?: string
@@ -145,11 +159,11 @@ const insertSavedItem = (
     )
     await pool.query(
       `
-        insert into "saved_items" (id, user_id, link_id, folder_id, is_private, tags, created_at, last_saved_at)
+        insert into "saved_items" (id, user_id, link_id, folder_id, tags, created_at, last_saved_at)
         values (
-          $1, $2, $3, $4, $5, $6,
-          now() - ($7 || ' minutes')::interval,
-          now() - ($8 || ' minutes')::interval
+          $1, $2, $3, $4, $5,
+          now() - ($6 || ' minutes')::interval,
+          now() - ($7 || ' minutes')::interval
         )
       `,
       [
@@ -157,7 +171,6 @@ const insertSavedItem = (
         userId,
         linkId,
         input.folderId ?? null,
-        input.isPrivate ?? false,
         input.tags ?? [],
         String(input.ageMinutes),
         String(input.lastSavedAgeMinutes ?? input.ageMinutes),
@@ -199,26 +212,25 @@ beforeEach(async () => {
 })
 
 describe("public profile integration flow", () => {
-  test("counts only the Saved Items a Public Profile shows", async () => {
+  test("counts only the Saved Items inside a Published Folder", async () => {
     const userId = `integration-user-${randomUUID()}` as UserId
     const handle = `reader-${randomUUID().slice(0, 8)}`
     await insertUser(userId, 40)
     await insertProfile(userId, handle, "public")
 
-    const privateFolderId = await insertFolder(userId, "Private work", true)
-    const publicFolderId = await insertFolder(userId, "Reading", false)
+    const publishedFolderId = await insertFolder(userId, "Reading", true)
+    const unpublishedFolderId = await insertFolder(userId, "Private work", false)
 
-    // Counted.
+    // Counted: inside a Published Folder.
+    await insertSavedItem(userId, { ageMinutes: 120, folderId: publishedFolderId })
+    await insertSavedItem(userId, { ageMinutes: 61, folderId: publishedFolderId })
+    // Counted the moment it lands: publishing the Folder was the decision, so
+    // there is no delay left to wait out.
+    await insertSavedItem(userId, { ageMinutes: 0, folderId: publishedFolderId })
+    // Withheld: inside a Folder nobody published.
+    await insertSavedItem(userId, { ageMinutes: 120, folderId: unpublishedFolderId })
+    // Withheld: in no Folder at all.
     await insertSavedItem(userId, { ageMinutes: 120 })
-    await insertSavedItem(userId, { ageMinutes: 120, folderId: publicFolderId })
-    // Counted: just past the one-hour boundary Postgres owns.
-    await insertSavedItem(userId, { ageMinutes: 61 })
-    // Withheld: a Private Saved Item.
-    await insertSavedItem(userId, { ageMinutes: 120, isPrivate: true })
-    // Withheld: inside a Private Folder.
-    await insertSavedItem(userId, { ageMinutes: 120, folderId: privateFolderId })
-    // Withheld: still inside the first hour.
-    await insertSavedItem(userId, { ageMinutes: 59 })
     await insertSavedItem(userId, { ageMinutes: 0 })
 
     const found = await findPublicByHandle(handle)
@@ -227,6 +239,35 @@ describe("public profile integration flow", () => {
     const profile = Option.getOrThrow(found)
     expect(profile.handle).toBe(handle)
     expect(profile.publicSavedItemCount).toBe(3)
+  })
+
+  // The clause a null `folder_id` must never satisfy. A capture that files
+  // nothing publishes nothing, whatever the Account's other Folders say.
+  test("never publishes a Saved Item that is in no Folder", async () => {
+    const userId = `integration-user-${randomUUID()}` as UserId
+    const handle = `reader-${randomUUID().slice(0, 8)}`
+    await insertUser(userId, 40)
+    await insertProfile(userId, handle, "public")
+
+    // The Account has a Published Folder, so the Profile Visibility clause and
+    // the Published Folder clause both have something to match. Only the item's
+    // own missing Folder keeps it off the page.
+    const publishedFolderId = await insertFolder(userId, "Reading", true)
+    const filed = await insertSavedItem(userId, {
+      ageMinutes: 120,
+      folderId: publishedFolderId,
+      path: "filed-in-a-published-folder",
+    })
+    await insertSavedItem(userId, { ageMinutes: 120, path: "filed-nowhere" })
+    await insertSavedItem(userId, { ageMinutes: 120, folderId: null, path: "filed-nowhere-too" })
+
+    const counted = await countThroughSharedFilter(userId)
+    const page = Option.getOrThrow(
+      await listPublicSavedItems(handle, { page: 1, pageSize: 50 }),
+    )
+
+    expect(counted).toBe(1)
+    expect(page.savedItems.map((item) => item.originalUrl)).toEqual([filed])
   })
 
   test("counts nothing while another Account owns the Saved Items", async () => {
@@ -238,8 +279,9 @@ describe("public profile integration flow", () => {
     await insertProfile(userId, handle, "public")
     await insertProfile(otherUserId, `other-${handle}`, "public")
 
-    await insertSavedItem(otherUserId, { ageMinutes: 120 })
-    await insertSavedItem(otherUserId, { ageMinutes: 120 })
+    const otherFolderId = await insertFolder(otherUserId, "Reading", true)
+    await insertSavedItem(otherUserId, { ageMinutes: 120, folderId: otherFolderId })
+    await insertSavedItem(otherUserId, { ageMinutes: 120, folderId: otherFolderId })
 
     const found = await findPublicByHandle(handle)
 
@@ -251,7 +293,8 @@ describe("public profile integration flow", () => {
     const handle = `reader-${randomUUID().slice(0, 8)}`
     await insertUser(userId, 40)
     await insertProfile(userId, handle, "private")
-    await insertSavedItem(userId, { ageMinutes: 120 })
+    const folderId = await insertFolder(userId, "Reading", true)
+    await insertSavedItem(userId, { ageMinutes: 120, folderId })
 
     const claimedButPrivate = await findPublicByHandle(handle)
     const unknown = await findPublicByHandle(`nobody-${randomUUID().slice(0, 8)}`)
@@ -262,13 +305,15 @@ describe("public profile integration flow", () => {
     expect(Option.isNone(unknown)).toBe(true)
   })
 
+  // The clause that a Published Folder alone must not be able to satisfy.
   test("shows no Saved Item through the shared filter while Profile Visibility is private", async () => {
     const userId = `integration-user-${randomUUID()}` as UserId
     const handle = `reader-${randomUUID().slice(0, 8)}`
     await insertUser(userId, 40)
     await insertProfile(userId, handle, "private")
-    await insertSavedItem(userId, { ageMinutes: 120 })
-    await insertSavedItem(userId, { ageMinutes: 120 })
+    const folderId = await insertFolder(userId, "Reading", true)
+    await insertSavedItem(userId, { ageMinutes: 120, folderId })
+    await insertSavedItem(userId, { ageMinutes: 120, folderId })
 
     const whilePrivate = await countThroughSharedFilter(userId)
     await setVisibility(userId, "public")
@@ -276,6 +321,28 @@ describe("public profile integration flow", () => {
 
     expect(whilePrivate).toBe(0)
     expect(whilePublic).toBe(2)
+  })
+
+  // Unpublishing is how an Account withdraws content, so it has to bite at
+  // once. Nothing is denormalized onto the Saved Item rows that could lag.
+  test("withdraws the Saved Items of a Folder the moment it is unpublished", async () => {
+    const userId = `integration-user-${randomUUID()}` as UserId
+    const handle = `reader-${randomUUID().slice(0, 8)}`
+    await insertUser(userId, 40)
+    await insertProfile(userId, handle, "public")
+    const folderId = await insertFolder(userId, "Reading", true)
+    await insertSavedItem(userId, { ageMinutes: 120, folderId })
+    await insertSavedItem(userId, { ageMinutes: 120, folderId })
+
+    const whilePublished = await countThroughSharedFilter(userId)
+    await setFolderPublished(folderId, false)
+    const afterWithdrawal = await countThroughSharedFilter(userId)
+    await setFolderPublished(folderId, true)
+    const afterRepublishing = await countThroughSharedFilter(userId)
+
+    expect(whilePublished).toBe(2)
+    expect(afterWithdrawal).toBe(0)
+    expect(afterRepublishing).toBe(2)
   })
 
   test("resolves a Handle whatever case the request used", async () => {
@@ -289,38 +356,40 @@ describe("public profile integration flow", () => {
     expect(Option.getOrThrow(found).handle).toBe(handle)
   })
 
-  test("lists only the Saved Items a Public Profile shows, newest first", async () => {
+  test("lists only the Saved Items inside a Published Folder, newest first", async () => {
     const userId = `integration-user-${randomUUID()}` as UserId
     const handle = `reader-${randomUUID().slice(0, 8)}`
     await insertUser(userId, 40)
     await insertProfile(userId, handle, "public")
 
-    const privateFolderId = await insertFolder(userId, "Private work", true)
-    const publicFolderId = await insertFolder(userId, "Reading", false)
+    const publishedFolderId = await insertFolder(userId, "Reading", true)
+    const unpublishedFolderId = await insertFolder(userId, "Private work", false)
 
     // Published.
-    const oldest = await insertSavedItem(userId, { ageMinutes: 240, path: "published-oldest" })
-    const inPublicFolder = await insertSavedItem(userId, {
+    const oldest = await insertSavedItem(userId, {
+      ageMinutes: 240,
+      folderId: publishedFolderId,
+      path: "published-oldest",
+    })
+    const middle = await insertSavedItem(userId, {
       ageMinutes: 120,
-      folderId: publicFolderId,
-      path: "published-in-a-folder",
+      folderId: publishedFolderId,
+      path: "published-middle",
     })
-    // Published: just past the one-hour boundary Postgres owns.
-    const justPastTheHour = await insertSavedItem(userId, {
-      ageMinutes: 61,
-      path: "published-just-past-the-hour",
+    // Published the moment it is saved, because the Folder was published first.
+    const justNow = await insertSavedItem(userId, {
+      ageMinutes: 0,
+      folderId: publishedFolderId,
+      path: "published-just-now",
     })
-    // Withheld: a Private Saved Item.
-    await insertSavedItem(userId, { ageMinutes: 120, isPrivate: true, path: "private-item" })
-    // Withheld: inside a Private Folder.
+    // Withheld: inside a Folder nobody published.
     await insertSavedItem(userId, {
       ageMinutes: 120,
-      folderId: privateFolderId,
-      path: "in-a-private-folder",
+      folderId: unpublishedFolderId,
+      path: "in-an-unpublished-folder",
     })
-    // Withheld: still inside the first hour.
-    await insertSavedItem(userId, { ageMinutes: 59, path: "inside-the-first-hour" })
-    await insertSavedItem(userId, { ageMinutes: 0, path: "saved-just-now" })
+    // Withheld: in no Folder at all.
+    await insertSavedItem(userId, { ageMinutes: 180, path: "filed-nowhere" })
 
     const page = Option.getOrThrow(
       await listPublicSavedItems(handle, { page: 1, pageSize: 50 }),
@@ -329,8 +398,8 @@ describe("public profile integration flow", () => {
     // Each withheld item is absent, with no placeholder standing in for it and
     // nothing counting it.
     expect(page.savedItems.map((item) => item.originalUrl)).toEqual([
-      justPastTheHour,
-      inPublicFolder,
+      justNow,
+      middle,
       oldest,
     ])
     expect(page.totalCount).toBe(3)
@@ -341,7 +410,8 @@ describe("public profile integration flow", () => {
     const handle = `reader-${randomUUID().slice(0, 8)}`
     await insertUser(userId, 40)
     await insertProfile(userId, handle, "private")
-    await insertSavedItem(userId, { ageMinutes: 120 })
+    const folderId = await insertFolder(userId, "Reading", true)
+    await insertSavedItem(userId, { ageMinutes: 120, folderId })
 
     const whilePrivate = await listPublicSavedItems(handle, { page: 1, pageSize: 50 })
     await setVisibility(userId, "public")
@@ -358,9 +428,11 @@ describe("public profile integration flow", () => {
     const handle = `reader-${randomUUID().slice(0, 8)}`
     await insertUser(userId, 40)
     await insertProfile(userId, handle, "public")
-    // Both are withheld, so the Account publishes nothing yet.
-    await insertSavedItem(userId, { ageMinutes: 30 })
-    await insertSavedItem(userId, { ageMinutes: 120, isPrivate: true })
+    // Turning the profile on publishes nothing by itself: both of these are
+    // withheld until a Folder is published.
+    const unpublishedFolderId = await insertFolder(userId, "Reading", false)
+    await insertSavedItem(userId, { ageMinutes: 120, folderId: unpublishedFolderId })
+    await insertSavedItem(userId, { ageMinutes: 120 })
 
     const page = Option.getOrThrow(
       await listPublicSavedItems(handle, { page: 1, pageSize: 50 }),
@@ -384,16 +456,19 @@ describe("public profile integration flow", () => {
     const handle = `reader-${randomUUID().slice(0, 8)}`
     await insertUser(userId, 40)
     await insertProfile(userId, handle, "public")
+    const folderId = await insertFolder(userId, "Reading", true)
 
     // Created three days ago and saved again a minute ago, the way Renewed
     // Intent leaves a row.
     const savedAgainJustNow = await insertSavedItem(userId, {
       ageMinutes: 3 * 24 * 60,
       lastSavedAgeMinutes: 1,
+      folderId,
       path: "saved-again-just-now",
     })
     const createdLater = await insertSavedItem(userId, {
       ageMinutes: 120,
+      folderId,
       path: "created-two-hours-ago",
     })
 
@@ -413,11 +488,12 @@ describe("public profile integration flow", () => {
     const handle = `reader-${randomUUID().slice(0, 8)}`
     await insertUser(userId, 40)
     await insertProfile(userId, handle, "public")
+    const folderId = await insertFolder(userId, "Reading", true)
 
-    const fourth = await insertSavedItem(userId, { ageMinutes: 240, path: "page-item-4" })
-    const third = await insertSavedItem(userId, { ageMinutes: 180, path: "page-item-3" })
-    const second = await insertSavedItem(userId, { ageMinutes: 120, path: "page-item-2" })
-    const first = await insertSavedItem(userId, { ageMinutes: 61, path: "page-item-1" })
+    const fourth = await insertSavedItem(userId, { ageMinutes: 240, folderId, path: "page-item-4" })
+    const third = await insertSavedItem(userId, { ageMinutes: 180, folderId, path: "page-item-3" })
+    const second = await insertSavedItem(userId, { ageMinutes: 120, folderId, path: "page-item-2" })
+    const first = await insertSavedItem(userId, { ageMinutes: 61, folderId, path: "page-item-1" })
 
     const pageOne = Option.getOrThrow(await listPublicSavedItems(handle, { page: 1, pageSize: 2 }))
     const pageTwo = Option.getOrThrow(await listPublicSavedItems(handle, { page: 2, pageSize: 2 }))
@@ -435,9 +511,11 @@ describe("public profile integration flow", () => {
     const handle = `reader-${randomUUID().slice(0, 8)}`
     await insertUser(userId, 40)
     await insertProfile(userId, handle, "public")
+    const folderId = await insertFolder(userId, "Reading", true)
 
     const ownTags = await insertSavedItem(userId, {
       ageMinutes: 61,
+      folderId,
       path: "with-saved-item-tags",
       title: "Saved Item Tags win",
       previewSummary: "One sentence a visitor reads before opening the Link.",
@@ -446,6 +524,7 @@ describe("public profile integration flow", () => {
     })
     const enrichedTags = await insertSavedItem(userId, {
       ageMinutes: 120,
+      folderId,
       path: "with-enrichment-tags-only",
       title: "Enrichment Tags stand in",
       enrichmentTags: ["design"],
@@ -455,6 +534,8 @@ describe("public profile integration flow", () => {
       await listPublicSavedItems(handle, { page: 1, pageSize: 50 }),
     )
 
+    // The Folder that published this item is itself withheld: a visitor learns
+    // nothing about how the Account files things.
     const { savedAt, ...published } = page.savedItems[0]!
     expect(published).toEqual({
       originalUrl: ownTags,
@@ -469,8 +550,7 @@ describe("public profile integration flow", () => {
       tags: ["backend"],
       previewSummary: "One sentence a visitor reads before opening the Link.",
     })
-    // The save date is the row's creation time, which is also why this item is
-    // past the one-hour boundary.
+    // The save date is the row's creation time, not when it was saved again.
     const savedMinutesAgo = (Date.now() - savedAt.getTime()) / 60_000
     expect(savedMinutesAgo).toBeGreaterThan(60)
     expect(savedMinutesAgo).toBeLessThan(62)
@@ -488,9 +568,9 @@ describe("public profile integration flow", () => {
     const userId = `integration-user-${randomUUID()}` as UserId
     await insertUser(userId, input.accountAgeDays)
     await insertProfile(userId, input.handle, "public")
+    const folderId = await insertFolder(userId, "Reading", true)
     for (let index = 0; index < input.publishedCount; index += 1) {
-      // Every one of them past the one-hour boundary, so they all publish.
-      await insertSavedItem(userId, { ageMinutes: 61 + index * 60 })
+      await insertSavedItem(userId, { ageMinutes: 61 + index * 60, folderId })
     }
     return userId
   }
@@ -511,8 +591,9 @@ describe("public profile integration flow", () => {
       accountAgeDays: 40,
       publishedCount: 4,
     })
-    await insertSavedItem(shortUserId, { ageMinutes: 120, isPrivate: true })
-    await insertSavedItem(shortUserId, { ageMinutes: 30 })
+    const shortUnpublishedFolderId = await insertFolder(shortUserId, "Private work", false)
+    await insertSavedItem(shortUserId, { ageMinutes: 120, folderId: shortUnpublishedFolderId })
+    await insertSavedItem(shortUserId, { ageMinutes: 120 })
 
     await publishAccount({ handle: tooYoung, accountAgeDays: 6, publishedCount: 12 })
 
@@ -520,8 +601,12 @@ describe("public profile integration flow", () => {
     const privateUserId = `integration-user-${randomUUID()}` as UserId
     await insertUser(privateUserId, 40)
     await insertProfile(privateUserId, notPublic, "private")
+    const privateFolderId = await insertFolder(privateUserId, "Reading", true)
     for (let index = 0; index < 12; index += 1) {
-      await insertSavedItem(privateUserId, { ageMinutes: 61 + index * 60 })
+      await insertSavedItem(privateUserId, {
+        ageMinutes: 61 + index * 60,
+        folderId: privateFolderId,
+      })
     }
 
     const page = await listIndexableProfiles()
@@ -536,18 +621,24 @@ describe("public profile integration flow", () => {
     const userId = `integration-user-${randomUUID()}` as UserId
     await insertUser(userId, 40)
     await insertProfile(userId, handle, "public")
+    const publishedFolderId = await insertFolder(userId, "Reading", true)
+    const unpublishedFolderId = await insertFolder(userId, "Private work", false)
 
     // Four published Saved Items, the oldest of them saved again a minute ago
     // the way Renewed Intent leaves a row.
-    await insertSavedItem(userId, { ageMinutes: 300, lastSavedAgeMinutes: 1 })
-    await insertSavedItem(userId, { ageMinutes: 240 })
-    await insertSavedItem(userId, { ageMinutes: 180 })
-    await insertSavedItem(userId, { ageMinutes: 120 })
+    await insertSavedItem(userId, {
+      ageMinutes: 300,
+      lastSavedAgeMinutes: 1,
+      folderId: publishedFolderId,
+    })
+    await insertSavedItem(userId, { ageMinutes: 240, folderId: publishedFolderId })
+    await insertSavedItem(userId, { ageMinutes: 180, folderId: publishedFolderId })
+    await insertSavedItem(userId, { ageMinutes: 120, folderId: publishedFolderId })
     // The newest published one: this is when the page last changed.
-    await insertSavedItem(userId, { ageMinutes: 61 })
-    // Newer, and withheld: a Private Saved Item and one still inside the first
-    // hour change nothing a crawler can see.
-    await insertSavedItem(userId, { ageMinutes: 45, isPrivate: true })
+    await insertSavedItem(userId, { ageMinutes: 61, folderId: publishedFolderId })
+    // Newer, and withheld: one inside a Folder nobody published and one in no
+    // Folder at all change nothing a crawler can see.
+    await insertSavedItem(userId, { ageMinutes: 45, folderId: unpublishedFolderId })
     await insertSavedItem(userId, { ageMinutes: 5 })
 
     const page = await listIndexableProfiles()
@@ -592,5 +683,71 @@ describe("public profile integration flow", () => {
       (Date.now() - Option.getOrThrow(found).joinedAt.getTime()) / (24 * 60 * 60 * 1000)
     expect(ageDays).toBeGreaterThan(39.9)
     expect(ageDays).toBeLessThan(40.1)
+  })
+
+  // The write side of the same rule. A Folder is the only thing that publishes
+  // a Saved Item, so what its flag defaults to and what a partial update leaves
+  // alone belong beside the query that reads it.
+  test("leaves a Folder unpublished when a row is written without the flag", async () => {
+    const userId = `integration-user-${randomUUID()}` as UserId
+    const folderId = randomUUID()
+    await insertUser(userId, 40)
+
+    // Written the way a row existed before the column was added: the database,
+    // not the application, decides that an unclaimed Folder publishes nothing.
+    const isPublished = await withPool(async (pool) => {
+      await pool.query(
+        `insert into "folders" (id, user_id, name) values ($1, $2, $3)`,
+        [folderId, userId, "Legacy"],
+      )
+      const row = await pool.query(
+        `select is_published from "folders" where id = $1`,
+        [folderId],
+      )
+      return row.rows[0]?.is_published
+    })
+
+    expect(isPublished).toBe(false)
+  })
+
+  test("publishes a Folder and leaves the flag alone on a name-only update", async () => {
+    const userId = `integration-user-${randomUUID()}` as UserId
+    await insertUser(userId, 40)
+
+    const states = await runFolders(
+      Effect.gen(function* () {
+        const repo = yield* FolderRepository
+
+        const created = yield* repo.create(userId, "Research", null, null)
+        if (Option.isNone(created)) throw new Error("expected the Folder to be created")
+        const folderId: FolderId = created.value.id
+
+        const published = yield* repo.update(userId, folderId, { isPublished: true })
+        if (Option.isNone(published)) throw new Error("expected the Folder to be updated")
+
+        // A name-only caller never withdraws a Published Folder.
+        const renamed = yield* repo.update(userId, folderId, { name: "Reading" })
+        if (Option.isNone(renamed)) throw new Error("expected the Folder to be renamed")
+
+        const withdrawn = yield* repo.update(userId, folderId, { isPublished: false })
+        if (Option.isNone(withdrawn)) throw new Error("expected the Folder to be withdrawn")
+
+        return {
+          created: created.value.isPublished,
+          published: published.value.isPublished,
+          renamedName: renamed.value.name,
+          renamedIsPublished: renamed.value.isPublished,
+          withdrawn: withdrawn.value.isPublished,
+        }
+      }),
+    )
+
+    expect(states).toEqual({
+      created: false,
+      published: true,
+      renamedName: "Reading",
+      renamedIsPublished: true,
+      withdrawn: false,
+    })
   })
 })

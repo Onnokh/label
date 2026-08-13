@@ -43,7 +43,6 @@ import {
   ReadingActivityResponse,
   SavedItemDto,
   SavedItemNotFoundError,
-  SavedItemPrivacyPayload,
   SavedItemReadStatePayload,
   SavedItemsQuery,
   SavedItemsResponse,
@@ -99,7 +98,6 @@ export {
   ReadingActivityResponse,
   SavedItemDto,
   SavedItemNotFoundError,
-  SavedItemPrivacyPayload,
   SavedItemReadStatePayload,
   SavedItemsQuery,
   SavedItemsResponse,
@@ -148,10 +146,9 @@ export const savedItemToDto = ({
       name: folder.name,
       emoji: folder.emoji,
       color: folder.color,
-      isPrivate: folder.isPrivate,
+      isPublished: folder.isPublished,
     }) : null,
     isRead: savedItem.isRead,
-    isPrivate: savedItem.isPrivate,
     lastSavedAt: savedItem.lastSavedAt,
     createdAt: savedItem.createdAt,
     updatedAt: savedItem.updatedAt,
@@ -303,14 +300,6 @@ const savedItemsGroup = HttpApiGroup.make("saved-items")
     HttpApiEndpoint.post("setReadState", "/v1/saved-items/:id/read-state", {
       params: Schema.Struct({ id: SavedItemId }),
       payload: SavedItemReadStatePayload,
-      success: SavedItemDto,
-      error: [SavedItemNotFoundError, RateLimitExceeded],
-    }),
-  )
-  .add(
-    HttpApiEndpoint.put("setPrivate", "/v1/saved-items/:id/private", {
-      params: Schema.Struct({ id: SavedItemId }),
-      payload: SavedItemPrivacyPayload,
       success: SavedItemDto,
       error: [SavedItemNotFoundError, RateLimitExceeded],
     }),

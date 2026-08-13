@@ -27,7 +27,6 @@ const savedItem: SavedItemWithLink = {
     linkId,
     tags: [],
     isRead: false,
-    isPrivate: false,
     lastSavedAt: now,
     createdAt: now,
     updatedAt: now,
@@ -95,9 +94,6 @@ describe("CaptureService", () => {
       expect(seen?.captureChannel).toBe("api")
       expect(seen?.folderId).toBe(folderId)
       expect("tags" in (seen ?? {})).toBe(false)
-      // An omitted private flag stays omitted, so the store can tell "leave the
-      // Saved Item as it is" from "make it public".
-      expect("isPrivate" in (seen ?? {})).toBe(false)
     }).pipe(
       Effect.provide(captureServiceLayer({
         onSave: (command) => {
@@ -107,7 +103,11 @@ describe("CaptureService", () => {
     )
   })
 
-  it.effect("passes the private flag to the store when the caller sends one", () => {
+  // A capture decides where a Saved Item is filed, never who may read it. The
+  // Folder it lands in is the only thing that can publish it, so the command a
+  // capture hands the store must carry no audience flag of its own. This test
+  // fails the moment one is added back.
+  it.effect("hands the store no audience flag of its own", () => {
     let seen: SaveCaptureCommand | undefined
 
     return Effect.gen(function* () {
@@ -115,10 +115,14 @@ describe("CaptureService", () => {
       yield* capture.save({
         userId,
         url: "https://example.com/articles/effect-api",
-        isPrivate: true,
+        folderId,
       }).pipe(Effect.exit)
 
-      expect(seen?.isPrivate).toBe(true)
+      const audienceKeys = Object.keys(seen ?? {}).filter((key) =>
+        /private|public|publish|visib/i.test(key),
+      )
+      expect(audienceKeys).toEqual([])
+      expect(seen?.folderId).toBe(folderId)
     }).pipe(
       Effect.provide(captureServiceLayer({
         onSave: (command) => {

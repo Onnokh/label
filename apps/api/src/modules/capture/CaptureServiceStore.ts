@@ -40,7 +40,6 @@ export type SaveCaptureCommand = {
   readonly captureChannel?: CaptureChannel
   readonly tags?: readonly Topic[]
   readonly folderId?: FolderId | null
-  readonly isPrivate?: boolean
 }
 
 export type CaptureResult = {
@@ -211,13 +210,6 @@ export class CaptureServiceStore extends Context.Service<CaptureServiceStore>()(
                     ...(sourceId !== undefined ? { sourceId } : {}),
                     ...(input.captureChannel !== undefined ? { captureChannel: input.captureChannel } : {}),
                     ...(input.tags !== undefined ? { tags: [...input.tags] } : {}),
-                    // A Duplicate Save that omits the flag keeps the stored
-                    // value, unlike folderId just below, which the capture
-                    // always rewrites. Resetting the flag would republish a
-                    // Private Saved Item on the Public Profile without the
-                    // Account asking for it, and clients that never send the
-                    // flag re-save constantly.
-                    ...(input.isPrivate !== undefined ? { isPrivate: input.isPrivate } : {}),
                     folderId,
                   })
                   .where(eq(savedItemsTable.id, existing.id))
@@ -243,8 +235,6 @@ export class CaptureServiceStore extends Context.Service<CaptureServiceStore>()(
                   userId: input.userId,
                   linkId: link.id,
                   isRead: false,
-                  // A first capture without the flag creates a public Saved Item.
-                  isPrivate: input.isPrivate ?? false,
                   tags: input.tags ? [...input.tags] : [],
                   folderId,
                   ...(sourceId !== undefined ? { sourceId } : {}),

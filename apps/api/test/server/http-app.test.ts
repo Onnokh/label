@@ -104,7 +104,6 @@ const routeLayer = (input: {
     readonly userId: UserId
     readonly url: string
     readonly captureChannel?: CaptureChannel | undefined
-    readonly isPrivate?: boolean | undefined
   }) => void) | undefined
   readonly onConnectRateLimit?: ((input: {
     readonly limiter: "authorize" | "exchange"
@@ -151,7 +150,7 @@ const routeLayer = (input: {
     name: "Research",
     emoji: null as string | null,
     color: null as string | null,
-    isPrivate: false,
+    isPublished: false,
     createdAt: now,
     updatedAt: now,
   }
@@ -234,14 +233,11 @@ const routeLayer = (input: {
             userId: captureInput.userId,
             url: captureInput.url,
             captureChannel: captureInput.captureChannel,
-            isPrivate: captureInput.isPrivate,
           })
 
           return {
             savedItem: makeSavedItem(captureInput.userId, {
               captureChannel: captureInput.captureChannel,
-              // A capture without the flag lands as a public Saved Item.
-              isPrivate: captureInput.isPrivate ?? false,
             }),
             captureResult: "created" as const,
             enrichment: { _tag: "start" as const, linkId },
@@ -263,24 +259,24 @@ const routeLayer = (input: {
           name,
           emoji,
           color,
-          isPrivate: false,
+          isPublished: false,
           createdAt: now,
           updatedAt: now,
         })),
       // Applies only the fields the request carried, the way the repository
-      // does, so a name-only caller cannot clear the Private Folder flag.
+      // does, so a name-only caller cannot unpublish a Published Folder.
       update: (_userId: UserId, id: string, changes: {
         readonly name?: string
         readonly emoji?: string | null
         readonly color?: string | null
-        readonly isPrivate?: boolean
+        readonly isPublished?: boolean
       }) =>
         Effect.sync(() => {
           if (id !== folder.id) return Option.none()
           if (changes.name !== undefined) folder.name = changes.name
           if (changes.emoji !== undefined) folder.emoji = changes.emoji
           if (changes.color !== undefined) folder.color = changes.color
-          if (changes.isPrivate !== undefined) folder.isPrivate = changes.isPrivate
+          if (changes.isPublished !== undefined) folder.isPublished = changes.isPublished
           return Option.some(folder)
         }),
       deleteByUserAndId: () => Effect.succeed(true),
@@ -421,12 +417,6 @@ const routeLayer = (input: {
             : { items: [], nextCursor: null },
         ),
       setReadState: () => Effect.succeed(Option.none()),
-      setPrivate: (_userId: UserId, id: SavedItemId, isPrivate: boolean) =>
-        Effect.sync(() =>
-          id === savedItemId
-            ? Option.some(makeSavedItem(userId, { isPrivate }))
-            : Option.none(),
-        ),
       deleteByUserAndId: () => ({
         execute: () => Promise.resolve({}),
         comment: () => undefined,
@@ -472,7 +462,6 @@ const makeSavedItem = (
   savedByUserId: UserId,
   input: {
     readonly captureChannel?: CaptureChannel | undefined
-    readonly isPrivate?: boolean | undefined
   } = {},
 ): SavedItemWithLink => ({
   savedItem: {
@@ -482,7 +471,6 @@ const makeSavedItem = (
     captureChannel: input.captureChannel,
     tags: ["backend"],
     isRead: false,
-    isPrivate: input.isPrivate ?? false,
     lastSavedAt: now,
     createdAt: now,
     updatedAt: now,
@@ -653,8 +641,10 @@ describe("HttpApp", () => {
       expect(body.paths?.["/v1/saved-items/{id}/read"]).toBeDefined()
       expect(body.paths?.["/v1/saved-items/{id}/unread"]).toBeDefined()
       expect(body.paths?.["/v1/saved-items/{id}/read-state"]).toBeDefined()
-      expect(body.paths?.["/v1/saved-items/{id}/private"]).toBeDefined()
       expect(body.paths?.["/v1/saved-items/{id}/folder"]).toBeDefined()
+      // Publishing is a Folder decision, so no Saved Item route offers an
+      // audience flag. The removed per-item route must stay removed.
+      expect(body.paths?.["/v1/saved-items/{id}/private"]).toBeUndefined()
       expect(body.paths?.["/v1/folders"]).toBeDefined()
       expect(body.paths?.["/v1/folders/{id}"]).toBeDefined()
       expect(body.paths?.["/v1/profile"]).toBeDefined()
@@ -1176,103 +1166,46 @@ describe("HttpApp", () => {
     })
   })
 
-  it.effect("captures a Private Saved Item when the payload carries the flag", () => {
-    let seenIsPrivate: boolean | undefined
-
-    return Effect.gen(function* () {
-      const response = yield* jsonRequest("POST", "/v1/captures", {
-        url: "https://example.com/articles/route-test",
-        isPrivate: true,
-      }).pipe(
-        Effect.provide(routeLayer({
-          sessionUserId: userId,
-          onCapture: (captureInput) => {
-            seenIsPrivate = captureInput.isPrivate
-          },
-        })),
-      )
-
-      expect(response.status).toBe(201)
-      expect(seenIsPrivate).toBe(true)
-      expect(yield* json<{ readonly savedItem: { readonly isPrivate: boolean } }>(response))
-        .toMatchObject({ savedItem: { isPrivate: true } })
-    })
-  })
-
-  it.effect("captures a public Saved Item when the payload omits the flag", () => {
-    let seenIsPrivate: boolean | undefined = true
-
-    return Effect.gen(function* () {
-      const response = yield* jsonRequest("POST", "/v1/captures", {
-        url: "https://example.com/articles/route-test",
-      }).pipe(
-        Effect.provide(routeLayer({
-          sessionUserId: userId,
-          onCapture: (captureInput) => {
-            seenIsPrivate = captureInput.isPrivate
-          },
-        })),
-      )
-
-      expect(response.status).toBe(201)
-      // The capture passes no flag on, which is what lets a Duplicate Save keep
-      // the stored value.
-      expect(seenIsPrivate).toBeUndefined()
-      expect(yield* json<{ readonly savedItem: { readonly isPrivate: boolean } }>(response))
-        .toMatchObject({ savedItem: { isPrivate: false } })
-    })
-  })
-
-  it.effect("marks a Saved Item private and public again", () =>
+  // A capture cannot publish or withhold anything, because publishing is a
+  // Folder decision. Neither the request nor the response carries an audience
+  // flag, and this test fails if one comes back.
+  it.effect("captures a Saved Item without any audience flag", () =>
     Effect.gen(function* () {
-      const layer = routeLayer({ sessionUserId: userId })
+      const response = yield* jsonRequest("POST", "/v1/captures", {
+        url: "https://example.com/articles/route-test",
+      }).pipe(Effect.provide(routeLayer({ sessionUserId: userId })))
 
-      const marked = yield* jsonRequest(
-        "PUT",
-        `/v1/saved-items/${savedItemId}/private`,
-        { isPrivate: true },
-      ).pipe(Effect.provide(layer))
-
-      expect(marked.status).toBe(200)
-      expect(yield* json<{ readonly id: string; readonly isPrivate: boolean }>(marked))
-        .toMatchObject({ id: savedItemId, isPrivate: true })
-
-      const restored = yield* jsonRequest(
-        "PUT",
-        `/v1/saved-items/${savedItemId}/private`,
-        { isPrivate: false },
-      ).pipe(Effect.provide(layer))
-
-      expect(restored.status).toBe(200)
-      expect(yield* json<{ readonly isPrivate: boolean }>(restored))
-        .toMatchObject({ isPrivate: false })
+      expect(response.status).toBe(201)
+      const body = yield* json<{ readonly savedItem: Record<string, unknown> }>(response)
+      const audienceKeys = Object.keys(body.savedItem).filter((key) =>
+        /private|public|publish|visib/i.test(key),
+      )
+      expect(audienceKeys).toEqual([])
     }),
   )
 
-  it.effect("returns not found when the Saved Item to mark private is unknown", () =>
+  // The per-item route is gone, so the path is no longer routed at all.
+  it.effect("no longer answers the removed per-item privacy route", () =>
     Effect.gen(function* () {
       const response = yield* jsonRequest(
         "PUT",
-        "/v1/saved-items/route-saved-item-unknown/private",
+        `/v1/saved-items/${savedItemId}/private`,
         { isPrivate: true },
       ).pipe(Effect.provide(routeLayer({ sessionUserId: userId })))
 
       expect(response.status).toBe(404)
-      expect(yield* json<{ readonly _tag: string }>(response)).toMatchObject({
-        _tag: "SavedItemNotFoundError",
-      })
     }),
   )
 
-  it.effect("refuses the private action without the saved-items write scope", () =>
+  it.effect("refuses the folder action without the saved-items write scope", () =>
     Effect.gen(function* () {
-      const response = yield* request(`/v1/saved-items/${savedItemId}/private`, {
+      const response = yield* request(`/v1/saved-items/${savedItemId}/folder`, {
         method: "PUT",
         headers: {
           authorization: `Bearer ${apiKey}`,
           "content-type": "application/json",
         },
-        body: globalThis.JSON.stringify({ isPrivate: true }),
+        body: globalThis.JSON.stringify({ folderId: null }),
       }).pipe(
         Effect.provide(routeLayer({ apiKeyPermissions: { "saved-items": ["read"] } })),
       )
@@ -1284,27 +1217,36 @@ describe("HttpApp", () => {
     }),
   )
 
-  it.effect("marks a Folder private through the widened update", () =>
+  it.effect("publishes a Folder through the widened update", () =>
     Effect.gen(function* () {
       const layer = routeLayer({ sessionUserId: userId })
 
-      const marked = yield* jsonRequest("PATCH", "/v1/folders/route-folder-1", {
-        isPrivate: true,
+      const published = yield* jsonRequest("PATCH", "/v1/folders/route-folder-1", {
+        isPublished: true,
       }).pipe(Effect.provide(layer))
 
-      expect(marked.status).toBe(200)
-      expect(yield* json<{ readonly name: string; readonly isPrivate: boolean }>(marked))
-        .toMatchObject({ name: "Research", isPrivate: true })
+      expect(published.status).toBe(200)
+      expect(yield* json<{ readonly name: string; readonly isPublished: boolean }>(published))
+        .toMatchObject({ name: "Research", isPublished: true })
 
-      // A name-only caller keeps working and leaves the Private Folder flag as
-      // it is.
+      // A name-only caller keeps working and leaves the Folder published, so a
+      // rename cannot silently withdraw a page.
       const renamed = yield* jsonRequest("PATCH", "/v1/folders/route-folder-1", {
         name: "Reading",
       }).pipe(Effect.provide(layer))
 
       expect(renamed.status).toBe(200)
-      expect(yield* json<{ readonly name: string; readonly isPrivate: boolean }>(renamed))
-        .toMatchObject({ name: "Reading", isPrivate: true })
+      expect(yield* json<{ readonly name: string; readonly isPublished: boolean }>(renamed))
+        .toMatchObject({ name: "Reading", isPublished: true })
+
+      // And unpublishing takes effect at once, with no delay in between.
+      const withdrawn = yield* jsonRequest("PATCH", "/v1/folders/route-folder-1", {
+        isPublished: false,
+      }).pipe(Effect.provide(layer))
+
+      expect(withdrawn.status).toBe(200)
+      expect(yield* json<{ readonly isPublished: boolean }>(withdrawn))
+        .toMatchObject({ isPublished: false })
     }),
   )
 

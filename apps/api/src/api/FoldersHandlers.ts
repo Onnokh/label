@@ -19,14 +19,14 @@ const toDto = (folder: {
   readonly name: string
   readonly emoji: string | null
   readonly color: string | null
-  readonly isPrivate: boolean
+  readonly isPublished: boolean
 }) =>
   new FolderDto({
     id: folder.id,
     name: folder.name,
     emoji: folder.emoji,
     color: folder.color,
-    isPrivate: folder.isPrivate,
+    isPublished: folder.isPublished,
   })
 
 const validateName = (name: string) => {
@@ -81,8 +81,8 @@ export const foldersGroupLive = HttpApiBuilder.group(sleevyApi, "folders", (hand
         const found = yield* repo.findByUserAndId(userId, params.id).pipe(Effect.orDie)
         if (found._tag === "None") return yield* notFound(params.id)
         // The name is validated and checked for conflicts only when the caller
-        // sends one, so a payload that carries the Private Folder flag alone
-        // leaves the name as it is.
+        // sends one, so a payload that carries the publish flag alone leaves
+        // the name as it is.
         let name: string | undefined
         if (payload.name !== undefined) {
           name = yield* validateName(payload.name)
@@ -93,7 +93,7 @@ export const foldersGroupLive = HttpApiBuilder.group(sleevyApi, "folders", (hand
           ...(name !== undefined ? { name } : {}),
           ...(payload.emoji !== undefined ? { emoji: payload.emoji } : {}),
           ...(payload.color !== undefined ? { color: payload.color } : {}),
-          ...(payload.isPrivate !== undefined ? { isPrivate: payload.isPrivate } : {}),
+          ...(payload.isPublished !== undefined ? { isPublished: payload.isPublished } : {}),
         }).pipe(Effect.orDie)
         if (updated._tag === "None") return yield* notFound(params.id)
         if (name !== undefined) {
@@ -101,12 +101,12 @@ export const foldersGroupLive = HttpApiBuilder.group(sleevyApi, "folders", (hand
             .track({ name: "folder_renamed", userId })
             .pipe(Effect.forkDetach)
         }
-        if (payload.isPrivate !== undefined) {
+        if (payload.isPublished !== undefined) {
           yield* analytics
             .track({
-              name: "folder_privacy_changed",
+              name: "folder_publish_changed",
               userId,
-              properties: { is_private: payload.isPrivate },
+              properties: { is_published: payload.isPublished },
             })
             .pipe(Effect.forkDetach)
         }

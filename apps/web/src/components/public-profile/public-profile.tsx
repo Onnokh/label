@@ -221,20 +221,14 @@ export function PublicProfilePanel() {
                 <h3 className={styles["confirm-title"]}>Before you make your profile public</h3>
                 <ul className={styles["confirm-list"]}>
                   <li>
-                    Everything you saved until now becomes public, not only what you save from today. Sleevy
-                    publishes your whole library in one step, and there is no review screen.
+                    This publishes nothing on its own. Your library stays private until you publish a folder.
                   </li>
                   <li>
-                    Every new save then publishes automatically, including saves from the iPhone app, the Chrome
-                    extension, and Raycast. Those apps do not ask you first.
+                    You choose what appears. Publish a folder from its menu, and everything in it shows on your
+                    page. Remove it, and it is gone from the page at once.
                   </li>
                   <li>
-                    A new save stays hidden for its first hour. If you save something you do not want to show, you
-                    have that hour to delete it or to mark it private.
-                  </li>
-                  <li>
-                    Anything you mark private stays hidden: an item you marked private, a folder you marked private,
-                    and every item in that folder.
+                    An item you file in no folder never appears, so a save that files nothing publishes nothing.
                   </li>
                   <li>
                     Your page becomes {displayProfileUrl(profile.handle)}. Anyone with the link can read it, and

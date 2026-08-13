@@ -29,7 +29,6 @@ export const capturesGroupLive = HttpApiBuilder.group(sleevyApi, "captures", (ha
         ...(payload.sourceName !== undefined ? { sourceName: payload.sourceName } : {}),
         ...(payload.captureChannel !== undefined ? { captureChannel: payload.captureChannel } : {}),
         ...(payload.tags !== undefined ? { tags: payload.tags } : {}),
-        ...(payload.isPrivate !== undefined ? { isPrivate: payload.isPrivate } : {}),
         folderId: payload.folderId === null || payload.folderId === undefined
           ? null
           : payload.folderId as FolderId,

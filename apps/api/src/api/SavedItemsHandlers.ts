@@ -88,28 +88,6 @@ export const savedItemsGroupLive = HttpApiBuilder.group(sleevyApi, "saved-items"
     .handle("markRead", gated("saved-items:write", ({ params }) => setSavedItemReadState(params.id, true)))
     .handle("markUnread", gated("saved-items:write", ({ params }) => setSavedItemReadState(params.id, false)))
     .handle("setReadState", gated("saved-items:write", ({ params, payload }) => setSavedItemReadState(params.id, payload.isRead)))
-    .handle("setPrivate", gated("saved-items:write", ({ params, payload }) =>
-      Effect.gen(function* () {
-        const repo = yield* SavedItemRepository
-        const analytics = yield* Analytics
-        const userId = yield* CurrentUser
-        const updated = yield* repo.setPrivate(userId, params.id, payload.isPrivate).pipe(Effect.orDie)
-        if (updated._tag === "None") {
-          return yield* new SavedItemNotFoundError({
-            message: "Saved Item was not found.",
-            savedItemId: params.id,
-          })
-        }
-        yield* analytics
-          .track({
-            name: "item_privacy_changed",
-            userId,
-            properties: { is_private: payload.isPrivate },
-          })
-          .pipe(Effect.forkDetach)
-        return savedItemToDto(updated.value)
-      }),
-    ))
     .handle("setFolder", gated("saved-items:write", ({ params, payload }) =>
       Effect.gen(function* () {
         const repo = yield* SavedItemRepository

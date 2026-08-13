@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "65081af1-f5b7-4785-9cc6-6b23042114b0",
+  "id": "f635cdea-17e1-4a6b-a4f3-78e255c4df62",
   "prevIds": [
     "3f8b0720-d66b-4dd6-9b41-983ca88b16d6"
   ],
@@ -951,7 +951,7 @@
       "default": "false",
       "generated": null,
       "identity": null,
-      "name": "is_private",
+      "name": "is_published",
       "entityType": "columns",
       "schema": "public",
       "table": "folders"
@@ -2291,19 +2291,6 @@
       "generated": null,
       "identity": null,
       "name": "is_read",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "saved_items"
-    },
-    {
-      "type": "boolean",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "false",
-      "generated": null,
-      "identity": null,
-      "name": "is_private",
       "entityType": "columns",
       "schema": "public",
       "table": "saved_items"

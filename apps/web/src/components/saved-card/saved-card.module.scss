@@ -98,19 +98,6 @@
   vertical-align: 0.0625rem;
 }
 
-.privateMarker {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  color: var(--muted);
-}
-
-/* A row withheld through a Private Folder carries no marker of its own, so it
-   reads one step quieter than an item its Account marked itself. */
-.privateMarkerFolder {
-  color: var(--faint);
-}
-
 .menu-wrapper {
   position: absolute;
   right: 0.5rem;

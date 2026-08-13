@@ -11,9 +11,9 @@ const API_KEY_LENGTH = 64
 // prefix, so one path test picks out the group that takes the per-IP budget.
 export const PUBLIC_API_PREFIX = "/v1/public/"
 
-// ADR 0016: public responses cache for five minutes, which together with the
-// one-hour rule makes a save visible 60 to 65 minutes after capture. Only a
-// success is cached — a not-found answer must not keep a profile hidden after
+// ADR 0016: public responses cache for five minutes, so publishing a Folder
+// shows up within five minutes and unpublishing one withdraws it as fast. Only
+// a success is cached — a not-found answer must not keep a profile hidden after
 // its owner turns Profile Visibility on.
 const PUBLIC_CACHE_CONTROL = "public, max-age=300"
 

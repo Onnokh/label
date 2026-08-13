@@ -86,8 +86,6 @@ export class SavedItemDto extends Schema.Class<SavedItemDto>("SavedItemDto")({
   captureChannel: Schema.optional(CaptureChannel),
   folder: Schema.NullOr(Schema.suspend(() => FolderDto)),
   isRead: Schema.Boolean,
-  // A Private Saved Item is withheld from the Public Profile.
-  isPrivate: Schema.Boolean,
   lastSavedAt: Schema.DateFromString,
   createdAt: Schema.DateFromString,
   updatedAt: Schema.DateFromString,
@@ -108,8 +106,9 @@ export class FolderDto extends Schema.Class<FolderDto>("FolderDto")({
   name: Schema.String,
   emoji: Schema.NullOr(Schema.String),
   color: Schema.NullOr(Schema.String),
-  // Every Saved Item inside a Private Folder is withheld from the Public Profile.
-  isPrivate: Schema.Boolean,
+  // A Published Folder shows every Saved Item inside it on the Public Profile,
+  // once Profile Visibility is public. Nothing else publishes a Saved Item.
+  isPublished: Schema.Boolean,
 }) {}
 export namespace FolderDto {
   export type Encoded = Schema.Codec.Encoded<typeof FolderDto>
@@ -314,9 +313,6 @@ export class CapturePayload extends Schema.Class<CapturePayload>("CapturePayload
   captureChannel: Schema.optional(CaptureChannel),
   tags: Schema.optional(Schema.Array(Topic)),
   folderId: Schema.optional(Schema.NullOr(Schema.String)),
-  // Omitted on a first capture the Saved Item is public. Omitted on a
-  // Duplicate Save the current value is kept; see CaptureServiceStore.
-  isPrivate: Schema.optional(Schema.Boolean),
 }) {}
 export namespace CapturePayload {
   export type Encoded = Schema.Codec.Encoded<typeof CapturePayload>
@@ -329,18 +325,6 @@ export class SavedItemReadStatePayload extends Schema.Class<SavedItemReadStatePa
 }) {}
 export namespace SavedItemReadStatePayload {
   export type Encoded = Schema.Codec.Encoded<typeof SavedItemReadStatePayload>
-}
-
-// The Saved Item half of publishing: one flag per item, set by its own action.
-// Profile Visibility (public or private) is the Account setting and keeps its
-// own payload.
-export class SavedItemPrivacyPayload extends Schema.Class<SavedItemPrivacyPayload>(
-  "SavedItemPrivacyPayload",
-)({
-  isPrivate: Schema.Boolean,
-}) {}
-export namespace SavedItemPrivacyPayload {
-  export type Encoded = Schema.Codec.Encoded<typeof SavedItemPrivacyPayload>
 }
 
 export class SavedItemsQuery extends Schema.Class<SavedItemsQuery>("SavedItemsQuery")({
@@ -368,7 +352,7 @@ export class FolderUpdatePayload extends Schema.Class<FolderUpdatePayload>("Fold
   name: Schema.optional(Schema.String),
   emoji: Schema.optional(Schema.NullOr(Schema.String)),
   color: Schema.optional(Schema.NullOr(Schema.String)),
-  isPrivate: Schema.optional(Schema.Boolean),
+  isPublished: Schema.optional(Schema.Boolean),
 }) {}
 export namespace FolderUpdatePayload {
   export type Encoded = Schema.Codec.Encoded<typeof FolderUpdatePayload>

@@ -9,8 +9,7 @@ CREATE TABLE "profiles" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "folders" ADD COLUMN "is_private" boolean DEFAULT false NOT NULL;--> statement-breakpoint
-ALTER TABLE "saved_items" ADD COLUMN "is_private" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "folders" ADD COLUMN "is_published" boolean DEFAULT false NOT NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "profiles_user_id_unique" ON "profiles" ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "profiles_handle_lower_unique" ON "profiles" (lower("handle"));--> statement-breakpoint
 CREATE INDEX "saved_items_user_created_at_idx" ON "saved_items" ("user_id","created_at");--> statement-breakpoint

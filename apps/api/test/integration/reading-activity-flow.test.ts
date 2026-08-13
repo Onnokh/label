@@ -76,12 +76,12 @@ const insertProfile = (
     ),
   )
 
-const insertFolder = async (userId: UserId, name: string, isPrivate: boolean) => {
+const insertFolder = async (userId: UserId, name: string, isPublished: boolean) => {
   const folderId = randomUUID()
   await withPool((pool) =>
     pool.query(
-      `insert into "folders" (id, user_id, name, is_private) values ($1, $2, $3, $4)`,
-      [folderId, userId, name, isPrivate],
+      `insert into "folders" (id, user_id, name, is_published) values ($1, $2, $3, $4)`,
+      [folderId, userId, name, isPublished],
     ),
   )
   return folderId
@@ -93,7 +93,6 @@ const insertSavedItemAt = (
   userId: UserId,
   createdAt: Date,
   input: {
-    readonly isPrivate?: boolean
     readonly folderId?: string | null
   } = {},
 ) =>
@@ -107,15 +106,14 @@ const insertSavedItemAt = (
     )
     await pool.query(
       `
-        insert into "saved_items" (id, user_id, link_id, folder_id, is_private, created_at, last_saved_at)
-        values ($1, $2, $3, $4, $5, $6, $6)
+        insert into "saved_items" (id, user_id, link_id, folder_id, created_at, last_saved_at)
+        values ($1, $2, $3, $4, $5, $5)
       `,
       [
         savedItemId,
         userId,
         linkId,
         input.folderId ?? null,
-        input.isPrivate ?? false,
         createdAt.toISOString(),
       ],
     )
@@ -294,12 +292,12 @@ describe("reading activity integration flow", () => {
     await insertUser(userId)
     await insertProfile(userId, handle, "public")
 
-    const privateFolderId = await insertFolder(userId, "Private work", true)
+    const unpublishedFolderId = await insertFolder(userId, "Private work", false)
     const savedDay = daysBefore(utcMidnightToday(), 3)
     const savedMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
 
-    await insertSavedItemAt(userId, at(savedDay, 12, 0), { isPrivate: true })
-    await insertSavedItemAt(userId, at(savedDay, 13, 0), { folderId: privateFolderId })
+    await insertSavedItemAt(userId, at(savedDay, 12, 0))
+    await insertSavedItemAt(userId, at(savedDay, 13, 0), { folderId: unpublishedFolderId })
     await insertSavedItemAt(userId, savedMinutesAgo)
 
     const activity = Option.getOrThrow(await findReadingActivity(handle))
@@ -312,9 +310,9 @@ describe("reading activity integration flow", () => {
       ),
     )
 
-    // A Private Saved Item, a Saved Item inside a Private Folder, and a save from
-    // the last hour: the grid counts all three while the item list shows none of
-    // them. The grid may therefore show a save today and the list none.
+    // Two Saved Items in no Folder and one inside a Folder nobody published:
+    // the grid counts all three while the item list shows none of them. The
+    // grid may therefore show a save today and the list none.
     expect(totalCount(activity.days)).toBe(3)
     expect(activity.days).toEqual([
       { date: dayText(savedDay), count: 2 },

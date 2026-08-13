@@ -48,19 +48,20 @@ export function useRenameFolder() {
   })
 }
 
-// Marks one Folder as a Private Folder, withholding every Saved Item inside it
-// from the Public Profile. The payload carries `isPrivate` alone, because an
-// omitted field keeps its stored value and the name, emoji, and colour are not
-// being changed here. Saved Items are invalidated too, since every row carries
-// its Folder Summary and reads its Folder's marker from it.
-export function useSetFolderPrivate() {
+// Publishes one Folder to the Public Profile, or takes it back off. Every Saved
+// Item inside a published Folder appears on the page while Profile Visibility is
+// public; nothing else publishes a Saved Item. The payload carries `isPublished`
+// alone, because an omitted field keeps its stored value and the name, emoji,
+// and colour are not being changed here. Saved Items are invalidated too, since
+// every row carries its Folder Summary and reads the publish state from it.
+export function useSetFolderPublished() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, isPrivate }: { readonly id: string; readonly isPrivate: boolean }) =>
+    mutationFn: ({ id, isPublished }: { readonly id: string; readonly isPublished: boolean }) =>
       apiFetch<Folder>(`/v1/folders/${encodeURIComponent(id)}`, {
         method: "PATCH",
-        body: JSON.stringify({ isPrivate }),
+        body: JSON.stringify({ isPublished }),
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: foldersQueryKey })

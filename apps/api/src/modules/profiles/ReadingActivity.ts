@@ -7,13 +7,13 @@ import { savedItemsTable } from "../persistence/schema.js"
 // the rule: first captures only, bucketed by Saved Item creation time in UTC,
 // over a rolling 52 weeks.
 //
-// Of the four parts of publicSavedItemFilter only Profile Visibility survives
+// Of the two clauses of publicSavedItemFilter only Profile Visibility survives
 // here, and it arrives through the Handle lookup rather than through this
-// filter: the grid counts Private Saved Items, Saved Items inside Private
-// Folders, and saves from the last hour. A count is not a URL, and a grid
-// restricted to the items the list shows would be too empty to be worth
-// drawing. There is no switch to hide it. So the grid may show a save today
-// while the item list still withholds it, which is intended.
+// filter: the grid counts every Saved Item, including one in no Folder and one
+// inside a Folder nobody published. A count is not a URL, and a grid restricted
+// to the items the list shows would be too empty to be worth drawing. There is
+// no switch to hide it. So the grid may show a save the item list withholds,
+// which is intended.
 //
 // Every Saved Item row is one first capture. A Duplicate Save updates
 // `last_saved_at` on the row it found and inserts nothing, so counting rows by
@@ -23,10 +23,9 @@ import { savedItemsTable } from "../persistence/schema.js"
 const READING_ACTIVITY_WEEKS = 52
 export const READING_ACTIVITY_DAYS = READING_ACTIVITY_WEEKS * 7
 
-// Postgres owns the window, the way it owns the one-hour boundary of the item
-// list: the codebase reads the wall clock directly and has no injected clock, so
-// the database clock is the only one a test can aim at by choosing row
-// timestamps. `now() at time zone 'utc'` is used rather than `current_date`
+// Postgres owns the window: the codebase reads the wall clock directly and has
+// no injected clock, so the database clock is the only one a test can aim at by
+// choosing row timestamps. `now() at time zone 'utc'` is used rather than `current_date`
 // because the session timezone must not decide which day a save lands in.
 const UTC_TODAY = sql`(now() at time zone 'utc')::date`
 

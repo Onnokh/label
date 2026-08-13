@@ -159,9 +159,9 @@ export function useSetProfileVisibility() {
   })
 }
 
-// A private marker answers "what will a visitor not see?", so it only means
-// something while there is a visitor. Until Profile Visibility is public, every
-// Saved Item is already withheld and the rows stay quiet.
+// A published marker answers "what will a visitor see?", so it only means
+// something while there is a visitor. Until Profile Visibility is public, a
+// Published Folder shows nobody anything and the rows stay quiet.
 export function useIsProfilePublic() {
   const { profile } = useProfile()
   return profile?.visibility === "public"

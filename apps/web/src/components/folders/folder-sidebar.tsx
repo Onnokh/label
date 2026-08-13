@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { EyeOff, Folder as FolderIcon, MoreVertical, Plus } from "lucide-react"
+import { Folder as FolderIcon, Globe, MoreVertical, Plus } from "lucide-react"
 import { type DragEvent, useState } from "react"
 
 import { ContextMenu, type ContextMenuItem } from "../ui/context-menu/context-menu"
@@ -12,14 +12,14 @@ import {
   useFolders,
   useMoveSavedItemToFolder,
   useRenameFolder,
-  useSetFolderPrivate,
+  useSetFolderPublished,
 } from "../../sleevy/folders"
 import { useIsProfilePublic } from "../../sleevy/profile"
 import { useSavedItems } from "../../sleevy/saved-items"
 import styles from "./folder-sidebar.module.scss"
 
-const privateFolderLabel =
-  "Private folder. A visitor to your Public Profile sees nothing inside it."
+const publishedFolderLabel =
+  "On your profile. A visitor to your Public Profile sees everything in this folder."
 
 function errorMessage(cause: unknown): string {
   if (!(cause instanceof Error)) return "Something went wrong."
@@ -40,7 +40,7 @@ export function FolderSidebar() {
   const renameMutation = useRenameFolder()
   const deleteMutation = useDeleteFolder()
   const moveMutation = useMoveSavedItemToFolder()
-  const setPrivateMutation = useSetFolderPrivate()
+  const setPublishedMutation = useSetFolderPublished()
   const isProfilePublic = useIsProfilePublic()
   const [creating, setCreating] = useState(false)
   const [renaming, setRenaming] = useState<Folder | null>(null)
@@ -76,12 +76,12 @@ export function FolderSidebar() {
             const menu: readonly ContextMenuItem[] = [
               { key: "rename", label: "Rename", onClick: () => setRenaming(folder) },
               {
-                key: "private",
-                // The label states the stored marker, which is how the flag stays
-                // legible while Profile Visibility is private and the row shows
-                // no marker.
-                label: folder.isPrivate ? "Show on Public Profile" : "Hide from Public Profile",
-                onClick: () => setPrivateMutation.mutate({ id: folder.id, isPrivate: !folder.isPrivate }),
+                key: "publish",
+                // The label states what the action does next, so the stored
+                // state stays legible while Profile Visibility is private and
+                // the row shows no marker.
+                label: folder.isPublished ? "Remove from profile" : "Publish to profile",
+                onClick: () => setPublishedMutation.mutate({ id: folder.id, isPublished: !folder.isPublished }),
               },
               { key: "delete", label: "Delete", destructive: true, onClick: () => setDeleting(folder) },
             ]
@@ -104,14 +104,14 @@ export function FolderSidebar() {
                 >
                   <FolderIcon size={14} className={styles.icon} />
                   <span className={styles.name}>{folder.name}</span>
-                  {isProfilePublic && folder.isPrivate ? (
+                  {isProfilePublic && folder.isPublished ? (
                     <span
-                      className={styles.privateMarker}
+                      className={styles.publishedMarker}
                       role="img"
-                      aria-label={privateFolderLabel}
-                      title={privateFolderLabel}
+                      aria-label={publishedFolderLabel}
+                      title={publishedFolderLabel}
                     >
-                      <EyeOff size={12} />
+                      <Globe size={12} />
                     </span>
                   ) : null}
                   <span className={styles.count}>{counts.get(folder.id) ?? 0}</span>
