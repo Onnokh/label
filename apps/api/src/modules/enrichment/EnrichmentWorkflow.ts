@@ -10,7 +10,7 @@ import {
   EnrichmentJob,
   EnrichmentStageResult,
 } from "../../domain/EnrichmentJob.js"
-import { AiEnricher } from "../ai/AiEnricher.js"
+import { AiEnricher, type AiEnrichmentResult } from "../ai/AiEnricher.js"
 import { SavedItemIntake } from "../saved-items/SavedItemIntake.js"
 import { PageFetcher } from "../fetch/PageFetcher.js"
 import { Metadata, MetadataFetcher } from "../metadata/MetadataFetcher.js"
@@ -112,27 +112,57 @@ export class EnrichmentWorkflow extends Context.Service<EnrichmentWorkflow>()(
             }
           }
 
+          // Extracted Page Content is best effort: AI Enrichment still runs on
+          // metadata alone when the page was not fetched or held no prose.
+          const content = Result.isSuccess(pageResult)
+            ? yield* Option.match(pageResult.success, {
+              onNone: () => Effect.succeed(Option.none<string>()),
+              onSome: (page) =>
+                Effect.all([metadataFetcher.extractContent(page)], {
+                  mode: "result",
+                }).pipe(
+                  Effect.map(([result]) =>
+                    Result.isSuccess(result) ? result.success : Option.none<string>(),
+                  ),
+                ),
+            })
+            : Option.none<string>()
+
           const aiInput = {
             link,
             metadata,
+            content,
           }
+
+          // Tags and Preview Summary come from one AI call, so the page is sent
+          // once. Both stages report on that call: they fail together, and each
+          // is skipped on its own when the model returns nothing for it.
+          const aiResult = yield* Effect.all([aiEnricher.enrich(aiInput)], {
+            mode: "result",
+          }).pipe(Effect.map(([result]) => result))
+
+          const aiStage = <A>(
+            pick: (result: AiEnrichmentResult) => Option.Option<A>,
+            skipMessage: string,
+          ): Effect.Effect<StageResult<A>, unknown> =>
+            Result.isFailure(aiResult)
+              ? Effect.fail(aiResult.failure)
+              : Effect.succeed(
+                Option.match(pick(aiResult.success), {
+                  onNone: (): StageResult<A> => ({
+                    _tag: "skip",
+                    message: skipMessage,
+                  }),
+                  onSome: (value): StageResult<A> => ({ _tag: "success", value }),
+                }),
+              )
 
           {
             const result = yield* runStage<readonly Topic[]>(
               "tagging",
-              aiEnricher.chooseTags(aiInput).pipe(
-                Effect.map((tagsOption) =>
-                  Option.match(tagsOption, {
-                    onNone: (): StageResult<readonly Topic[]> => ({
-                      _tag: "skip",
-                      message: "AI tags lacked enough signal or AI is disabled.",
-                    }),
-                    onSome: (value): StageResult<readonly Topic[]> => ({
-                      _tag: "success",
-                      value,
-                    }),
-                  }),
-                ),
+              aiStage(
+                (value) => value.tags,
+                "AI tags lacked enough signal or AI is disabled.",
               ),
               stages,
             )
@@ -145,19 +175,9 @@ export class EnrichmentWorkflow extends Context.Service<EnrichmentWorkflow>()(
           {
             const result = yield* runStage(
               "preview-summary",
-              aiEnricher.preview(aiInput).pipe(
-                Effect.map((summaryOption) =>
-                  Option.match(summaryOption, {
-                    onNone: (): StageResult<string> => ({
-                      _tag: "skip",
-                      message: "AI preview summary is disabled or no input was available.",
-                    }),
-                    onSome: (value): StageResult<string> => ({
-                      _tag: "success",
-                      value,
-                    }),
-                  }),
-                ),
+              aiStage(
+                (value) => value.summary,
+                "AI preview summary is disabled or no input was available.",
               ),
               stages,
             )
