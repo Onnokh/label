@@ -1,157 +1,131 @@
 .page {
-  width: min(880px, calc(100% - 64px));
+  width: min(55rem, 100% - 4rem);
   margin: 0 auto;
   padding: 8rem 0 10rem;
   color: #fff;
 
   @media (max-width: 768px) {
-    width: min(100% - 1.5rem, 880px);
+    width: min(100% - 1.5rem, 55rem);
     padding: 4rem 0 5rem;
   }
 }
 
+// The identity header: the Handle on one side, the two numbers on the other, and
+// a rule under both. The Reading Activity grid sits directly beneath that rule.
 .identity {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.75rem 1.25rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+}
 
-  h1 {
-    margin: 0;
-    font-size: clamp(2.25rem, 5vw, 3.25rem);
-    line-height: 1;
-    letter-spacing: -0.02em;
-  }
+// No display name, no biography, no avatar: a Public Profile shows a Handle only,
+// so Sleevy never republishes a profile image from a sign-in provider.
+.handle {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
 
-  // No display name, no biography, no avatar: a Public Profile shows a Handle
-  // only, so Sleevy never republishes a profile image from a sign-in provider.
-  .meta {
-    margin: 0;
-    color: rgb(255 255 255 / 60%);
-    font-size: 0.95rem;
-  }
+// The Handle is the name; what follows tells a visitor what they are looking at,
+// so it steps back rather than competing.
+.possessive {
+  color: rgb(255 255 255 / 45%);
+}
+
+.stats {
+  display: flex;
+  gap: 2rem;
+  margin: 0;
+}
+
+// The value reads above its label, and the markup keeps the term before the
+// description the way a description list must.
+.stat {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.15rem;
+  padding-left: 1.25rem;
+  border-left: 1px solid rgb(255 255 255 / 12%);
+}
+
+.statValue {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.statLabel {
+  color: rgb(255 255 255 / 45%);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .section {
   margin-top: 4rem;
-
-  h2 {
-    margin: 0 0 1.25rem;
-    font-size: 0.8rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: rgb(255 255 255 / 55%);
-  }
-}
-
-/* Reading Activity ------------------------------------------------------- */
-
-.activity {
-  overflow-x: auto;
-  padding-bottom: 0.5rem;
-}
-
-.activityGrid {
-  display: grid;
-  // One column per week, seven rows for the days, filled column by column.
-  grid-auto-flow: column;
-  grid-template-rows: repeat(7, 11px);
-  gap: 3px;
-  width: max-content;
-}
-
-.day {
-  width: 11px;
-  height: 11px;
-  border-radius: 2px;
-  background: rgb(255 255 255 / 6%);
-}
-
-.level1 { background: rgb(129 140 248 / 35%); }
-.level2 { background: rgb(129 140 248 / 55%); }
-.level3 { background: rgb(129 140 248 / 75%); }
-.level4 { background: rgb(129 140 248 / 100%); }
-
-.activityLegend {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-  color: rgb(255 255 255 / 45%);
-  font-size: 0.8rem;
 }
 
 /* Saved Items ------------------------------------------------------------ */
 
+// The cards themselves live in components/public-profile/saved-item-card.
 .items {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 1.25rem;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.item {
+// A month marker separates one stretch of saving from the next, so it needs more
+// room above it than the cards keep between themselves — otherwise it reads as
+// another row in the list rather than a break in it.
+.month {
   display: flex;
-  gap: 0.875rem;
-  padding: 0.875rem 0;
-  border-top: 1px solid rgb(255 255 255 / 8%);
-
-  &:last-child {
-    border-bottom: 1px solid rgb(255 255 255 / 8%);
-  }
-}
-
-.favicon {
-  flex: 0 0 auto;
-  width: 20px;
-  height: 20px;
-  margin-top: 0.2rem;
-  border-radius: 4px;
-  background: rgb(255 255 255 / 8%);
-  object-fit: contain;
-}
-
-.itemBody {
-  min-width: 0;
-}
-
-.itemTitle {
-  display: block;
-  color: #fff;
-  font-size: 1.05rem;
-  font-weight: 500;
-  line-height: 1.35;
-  text-decoration: none;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.itemSummary {
-  margin: 0.35rem 0 0;
-  color: rgb(255 255 255 / 65%);
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.itemMeta {
-  display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.45rem;
-  color: rgb(255 255 255 / 45%);
-  font-size: 0.8rem;
+  gap: 1.25rem;
+  margin-top: 2.25rem;
 }
 
-.tag {
-  padding: 0.1rem 0.45rem;
-  border: 1px solid rgb(255 255 255 / 12%);
-  border-radius: 999px;
+// The first marker opens the list, so the section's own spacing is already above
+// it and it needs none of its own.
+.monthFirst {
+  margin-top: 0;
+}
+
+.monthLabel {
+  color: rgb(255 255 255 / 70%);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.monthRule {
+  flex: 1;
+  height: 1px;
+  background: rgb(255 255 255 / 8%);
+}
+
+// Spoken, never shown: the markers are what a reader sees, but the section still
+// needs a heading in the document outline.
+.visuallyHidden {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .empty {
@@ -174,7 +148,7 @@
 .pageLink {
   padding: 0.5rem 1rem;
   border: 1px solid rgb(255 255 255 / 18%);
-  border-radius: 8px;
+  border-radius: 0.5rem;
   color: #fff;
   font-size: 0.9rem;
   text-decoration: none;

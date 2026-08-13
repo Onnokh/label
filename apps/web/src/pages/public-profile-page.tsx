@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router"
+import { Fragment } from "react"
 
-import { SaveToLibraryButton } from "../components/public-profile/save-to-library-button"
+import { SavedItemCard } from "../components/public-profile/saved-item-card"
 import type {
   PublicProfile,
   PublicSavedItem,
@@ -15,8 +16,7 @@ export type PublicProfileData = {
   readonly activity: ReadingActivity
 }
 
-const monthYear = new Intl.DateTimeFormat("en", { month: "long", year: "numeric" })
-const dayMonth = new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" })
+const shortMonthYear = new Intl.DateTimeFormat("en", { month: "short", year: "numeric" })
 
 // The API buckets Reading Activity by UTC day, so the grid reads those days back
 // as UTC too. Parsing "2026-08-13" as a local date would shift a save into the
@@ -51,70 +51,45 @@ const activityCells = (activity: ReadingActivity) => {
   return cells
 }
 
-const ReadingActivityGrid = ({ activity }: { readonly activity: ReadingActivity }) => {
+// The grid sits directly under the rule of the identity header, with no heading
+// and no legend of dates: the header already states the total, so a sentence here
+// would say it a second time.
+//
+// The window is a rolling 52 weeks rather than a calendar year, which is why the
+// label below says "the last year" — naming a year would be a claim the count
+// cannot support, because the window spans parts of two of them.
+const ReadingActivityGrid = ({
+  activity,
+  handle,
+}: {
+  readonly activity: ReadingActivity
+  readonly handle: string
+}) => {
   const cells = activityCells(activity)
   const total = activity.days.reduce((sum, day) => sum + day.count, 0)
+  const sentence =
+    `@${handle} has sleeved ${total} ${total === 1 ? "link" : "links"} in the last year`
 
   return (
-    <section className={styles.section}>
-      <h2>{total} {total === 1 ? "save" : "saves"} in the last year</h2>
+    <section className={styles.activitySection}>
       <div className={styles.activity}>
-        <div className={styles.activityGrid} role="img" aria-label={`${total} saves in the last year`}>
+        {/* Nothing states this in view, so the grid carries the sentence as its
+            label: it reads as one image, and a screen reader hears the meaning
+            once rather than 365 empty cells. Each day still carries its own count
+            for a pointer. */}
+        <div className={styles.activityGrid} role="img" aria-label={sentence}>
           {cells.map((cell, index) => (
             <div
               key={cell.date ?? `pad-${index}`}
               className={`${styles.day} ${activityLevel(cell.count)}`}
-              title={cell.date ? `${cell.count} on ${cell.date}` : undefined}
+              title={cell.date && cell.count > 0
+                ? `${cell.count} ${cell.count === 1 ? "save" : "saves"} on ${cell.date}`
+                : undefined}
             />
           ))}
         </div>
       </div>
-      <p className={styles.activityLegend}>
-        <span>{activity.from}</span>
-        <span>→</span>
-        <span>{activity.to} (UTC)</span>
-      </p>
     </section>
-  )
-}
-
-const faviconFor = (item: PublicSavedItem) =>
-  item.faviconUrl ?? item.faviconLightUrl ?? item.faviconDarkUrl ?? null
-
-const SavedItemRow = ({ item }: { readonly item: PublicSavedItem }) => {
-  const favicon = faviconFor(item)
-
-  return (
-    <li className={styles.item}>
-      {favicon
-        ? <img className={styles.favicon} src={favicon} alt="" width={20} height={20} loading="lazy" />
-        : <span className={styles.favicon} aria-hidden="true" />}
-      <div className={styles.itemBody}>
-        {/* Every published outbound link carries ugc and nofollow, so a Public
-            Profile is not worth targeting for link spam. */}
-        <a
-          className={styles.itemTitle}
-          href={item.originalUrl}
-          rel="ugc nofollow noopener noreferrer"
-          target="_blank"
-        >
-          {item.title ?? item.originalUrl}
-        </a>
-        {item.previewSummary ? <p className={styles.itemSummary}>{item.previewSummary}</p> : null}
-        <div className={styles.itemMeta}>
-          <span>{item.host}</span>
-          <span>·</span>
-          <time dateTime={item.savedAt}>{dayMonth.format(new Date(item.savedAt))}</time>
-          {item.tags.map((tag) => (
-            <span key={tag} className={styles.tag}>{tag}</span>
-          ))}
-        </div>
-      </div>
-      {/* A signed-in visitor may take this Link into their own Library without
-          leaving the profile. The button attaches on the client only, so the
-          cached server-rendered HTML stays the same for every viewer. */}
-      <SaveToLibraryButton url={item.originalUrl} name={item.title ?? item.originalUrl} />
-    </li>
   )
 }
 
@@ -162,6 +137,62 @@ const Pagination = ({
   )
 }
 
+// A Handle names a page, and "sleeve" is what the product calls the thing it
+// holds, so the two are set as one line: the Handle in full strength and the
+// possessive behind it, quieter.
+const ProfileIdentity = ({ profile }: { readonly profile: PublicProfile }) => (
+  <header className={styles.identity}>
+    <h1 className={styles.handle}>
+      @{profile.handle}
+      <span className={styles.possessive}>&rsquo;s sleeve</span>
+    </h1>
+
+    {/* A description list rather than two paragraphs: each number is a labelled
+        term, so a screen reader reads "Sleeves, 118" rather than a bare count. */}
+    <dl className={styles.stats}>
+      <div className={styles.stat}>
+        <dt className={styles.statLabel}>Sleeved</dt>
+        <dd className={styles.statValue}>{profile.publicSavedItemCount}</dd>
+      </div>
+      <div className={styles.stat}>
+        <dt className={styles.statLabel}>Member since</dt>
+        <dd className={styles.statValue}>
+          {shortMonthYear.format(new Date(profile.joinedAt))}
+        </dd>
+      </div>
+    </dl>
+  </header>
+)
+
+// The month a Saved Item was sleeved in, announced wherever it changes going down
+// the list. A head at the top of the list stops helping fifty cards later, which
+// is the problem a list that runs over three pages actually has; a marker in the
+// stream keeps answering it.
+//
+// Months are compared and formatted in UTC, the way Reading Activity buckets its
+// days, so a marker never disagrees with the grid above it.
+const monthLabel = new Intl.DateTimeFormat("en", {
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+})
+
+const monthChanged = (item: PublicSavedItem, previous: PublicSavedItem | undefined) =>
+  previous === undefined || item.savedAt.slice(0, 7) !== previous.savedAt.slice(0, 7)
+
+const MonthMarker = ({
+  savedAt,
+  isFirst,
+}: {
+  readonly savedAt: string
+  readonly isFirst: boolean
+}) => (
+  <li className={isFirst ? `${styles.month} ${styles.monthFirst}` : styles.month}>
+    <span className={styles.monthLabel}>{monthLabel.format(new Date(savedAt))}</span>
+    <span className={styles.monthRule} aria-hidden="true" />
+  </li>
+)
+
 export const PublicProfileNotFound = () => (
   <div className={styles.notFound}>
     <h1>No profile here</h1>
@@ -174,25 +205,25 @@ export const PublicProfilePage = ({ data }: { readonly data: PublicProfileData }
 
   return (
     <div className={styles.page}>
-      <header className={styles.identity}>
-        <h1>@{profile.handle}</h1>
-        <p className={styles.meta}>
-          {profile.publicSavedItemCount} public {profile.publicSavedItemCount === 1 ? "save" : "saves"}
-          {" · joined "}
-          {monthYear.format(new Date(profile.joinedAt))}
-        </p>
-      </header>
+      <ProfileIdentity profile={profile} />
 
-      <ReadingActivityGrid activity={activity} />
+      <ReadingActivityGrid activity={activity} handle={profile.handle} />
 
       <section className={styles.section}>
-        <h2>Saved</h2>
+        {/* The markers in the list are what a reader sees, so the heading that
+            keeps this section in the document outline is spoken, not shown. */}
+        <h2 className={styles.visuallyHidden}>Sleeved links</h2>
         {items.savedItems.length === 0
           ? <p className={styles.empty}>Nothing published on this page.</p>
           : (
               <ul className={styles.items}>
-                {items.savedItems.map((item) => (
-                  <SavedItemRow key={item.originalUrl} item={item} />
+                {items.savedItems.map((item, at) => (
+                  <Fragment key={item.originalUrl}>
+                    {monthChanged(item, items.savedItems[at - 1])
+                      ? <MonthMarker savedAt={item.savedAt} isFirst={at === 0} />
+                      : null}
+                    <SavedItemCard item={item} />
+                  </Fragment>
                 ))}
               </ul>
             )}
