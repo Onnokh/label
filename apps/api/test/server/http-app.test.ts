@@ -17,6 +17,8 @@ import { EnrichmentWorkflow } from "../../src/modules/enrichment/EnrichmentWorkf
 import { FolderRepository } from "../../src/modules/folders/FolderRepository.js"
 import { McpTools } from "../../src/modules/mcp/McpTools.js"
 import { ApiKeyRateLimiter } from "../../src/modules/rate-limit/ApiKeyRateLimiter.js"
+import { ConnectAuthorizeRateLimiter } from "../../src/modules/rate-limit/ConnectAuthorizeRateLimiter.js"
+import { ConnectExchangeRateLimiter } from "../../src/modules/rate-limit/ConnectExchangeRateLimiter.js"
 import { SavedItemRepository } from "../../src/modules/saved-items/SavedItemRepository.js"
 import { savedItemsTable } from "../../src/modules/persistence/schema.js"
 import { AppConfig } from "../../src/runtime/Config.js"
@@ -79,7 +81,19 @@ const routeLayer = (input: {
     readonly url: string
     readonly captureChannel?: CaptureChannel | undefined
   }) => void) | undefined
+  readonly onConnectRateLimit?: ((input: {
+    readonly limiter: "authorize" | "exchange"
+    readonly key: string
+  }) => void) | undefined
 } = {}) => {
+  // The connect limiters deny every request, so a connect request stops at the
+  // limiter and reports the key it was bucketed on.
+  const connectLimiterResult = {
+    allowed: false,
+    limit: 10,
+    remaining: 0,
+    resetSeconds: 42,
+  } as const
   const baseLayer = Layer.mergeAll(
     configLayer,
     Layer.succeed(Analytics, Analytics.of({ track: () => Effect.void })),
@@ -191,6 +205,20 @@ const routeLayer = (input: {
           resetSeconds: 42,
         }),
     })),
+    Layer.succeed(ConnectAuthorizeRateLimiter, ConnectAuthorizeRateLimiter.of({
+      check: (key: string) =>
+        Effect.sync(() => {
+          input.onConnectRateLimit?.({ limiter: "authorize", key })
+          return connectLimiterResult
+        }),
+    })),
+    Layer.succeed(ConnectExchangeRateLimiter, ConnectExchangeRateLimiter.of({
+      check: (key: string) =>
+        Effect.sync(() => {
+          input.onConnectRateLimit?.({ limiter: "exchange", key })
+          return connectLimiterResult
+        }),
+    })),
   )
   return Layer.mergeAll(baseLayer, McpTools.layer.pipe(Layer.provide(baseLayer)))
 }
@@ -266,6 +294,31 @@ const mcpRequest = (
       ...(options.protocolVersion ? { "mcp-protocol-version": options.protocolVersion } : {}),
     },
     body: JSON.stringify(message),
+  })
+
+const connectExchangeRequest = (headers: Record<string, string>) =>
+  request("/connect/exchange", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify({
+      client: "raycast",
+      code: "connect-code-1",
+      codeVerifier: "connect-verifier-1",
+    }),
+  })
+
+const connectAuthorizeRequest = (headers: Record<string, string>) =>
+  request("/connect/authorize", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify({
+      client: "raycast",
+      redirectUri: "https://raycast.com/redirect/extension",
+      codeChallenge: "connect-challenge-1",
+      codeChallengeMethod: "S256",
+      scopes: ["saved-items:capture"],
+      label: "Raycast",
+    }),
   })
 
 describe("HttpApp", () => {
@@ -796,4 +849,80 @@ describe("HttpApp", () => {
       })
     }),
   )
+
+  it.effect("limits connect exchange on the Cloudflare connecting IP", () => {
+    let seen: { readonly limiter: string; readonly key: string } | undefined
+
+    return Effect.gen(function* () {
+      const response = yield* connectExchangeRequest({
+        "CF-Connecting-IP": "198.51.100.9",
+        "X-Forwarded-For": "203.0.113.7, 70.41.3.18",
+      }).pipe(
+        Effect.provide(routeLayer({
+          onConnectRateLimit: (limit) => {
+            seen = limit
+          },
+        })),
+      )
+
+      expect(response.status).toBe(429)
+      expect(seen).toEqual({ limiter: "exchange", key: "198.51.100.9" })
+    })
+  })
+
+  it.effect("limits connect exchange on the first forwarded-for entry", () => {
+    let seen: { readonly limiter: string; readonly key: string } | undefined
+
+    return Effect.gen(function* () {
+      yield* connectExchangeRequest({
+        "x-forwarded-for": "203.0.113.7, 70.41.3.18",
+      }).pipe(
+        Effect.provide(routeLayer({
+          onConnectRateLimit: (limit) => {
+            seen = limit
+          },
+        })),
+      )
+
+      expect(seen).toEqual({ limiter: "exchange", key: "203.0.113.7" })
+    })
+  })
+
+  it.effect("limits connect exchange on a stable key without address headers", () => {
+    let seen: { readonly limiter: string; readonly key: string } | undefined
+
+    return Effect.gen(function* () {
+      const response = yield* connectExchangeRequest({}).pipe(
+        Effect.provide(routeLayer({
+          onConnectRateLimit: (limit) => {
+            seen = limit
+          },
+        })),
+      )
+
+      expect(response.status).toBe(429)
+      expect(seen).toEqual({ limiter: "exchange", key: "unknown" })
+    })
+  })
+
+  it.effect("limits connect authorize on the Account, not on the address", () => {
+    let seen: { readonly limiter: string; readonly key: string } | undefined
+
+    return Effect.gen(function* () {
+      const response = yield* connectAuthorizeRequest({
+        "cf-connecting-ip": "198.51.100.9",
+        "x-forwarded-for": "203.0.113.7",
+      }).pipe(
+        Effect.provide(routeLayer({
+          sessionUserId: userId,
+          onConnectRateLimit: (limit) => {
+            seen = limit
+          },
+        })),
+      )
+
+      expect(response.status).toBe(429)
+      expect(seen).toEqual({ limiter: "authorize", key: userId })
+    })
+  })
 })

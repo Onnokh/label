@@ -7,6 +7,7 @@ import { scopesToPermissions, type Scope } from "../modules/auth/Scopes.js"
 import { ConnectCodeRepository } from "../modules/connect/ConnectCodeRepository.js"
 import { getConnectClient } from "../modules/connect/ConnectClients.js"
 import { verifyPkceS256 } from "../modules/connect/Pkce.js"
+import { clientIp } from "../modules/rate-limit/ClientIp.js"
 import { ConnectAuthorizeRateLimiter } from "../modules/rate-limit/ConnectAuthorizeRateLimiter.js"
 import { ConnectExchangeRateLimiter } from "../modules/rate-limit/ConnectExchangeRateLimiter.js"
 import { Analytics } from "../modules/analytics/Analytics.js"
@@ -22,13 +23,6 @@ import {
 const fail = (code: ConnectError["code"], message: string) =>
   new ConnectError({ code, message })
 
-const clientIp = (request: HttpServerRequest.HttpServerRequest): string => {
-  const headers = request.headers as Record<string, string | undefined>
-  const forwarded = headers["x-forwarded-for"]
-  if (forwarded) return forwarded.split(",")[0]!.trim()
-  return headers["x-real-ip"] ?? "unknown"
-}
-
 export const connectAuthorizeGroupLive = HttpApiBuilder.group(
   sleevyApi,
   "connect-authorize",
@@ -37,6 +31,9 @@ export const connectAuthorizeGroupLive = HttpApiBuilder.group(
       Effect.gen(function* () {
         const userId = yield* CurrentUser
         const limiter = yield* ConnectAuthorizeRateLimiter
+        // Authorize requires a session, so the Account is a stronger bucket than
+        // the address: it holds when one visitor rotates addresses, and it does
+        // not make everyone behind one office address share a budget.
         const result = yield* limiter.check(userId)
         if (!result.allowed) {
           return yield* new RateLimitExceeded({
