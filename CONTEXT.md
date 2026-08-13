@@ -400,7 +400,7 @@ A consistent Saved Item row height that keeps scrolling smooth whether enrichmen
 _Avoid_: Variable-height feed
 
 **Public Profile**:
-An opt-in public page that shows one Account's Handle, Reading Activity, and public Saved Items.
+An opt-in public page that shows one Account's Handle, Reading Activity, and the Saved Items in its Published Folders.
 _Avoid_: Account, social profile, published collection, user page
 
 **Handle**:
@@ -408,16 +408,12 @@ The Account-chosen unique public identifier used in a Public Profile URL, claime
 _Avoid_: Slug, username, sign-in name, display name
 
 **Profile Visibility**:
-The Account setting that turns a Public Profile on or off.
-_Avoid_: Per-item share, public folder flag, account privacy settings
+The Account setting that turns a Public Profile on or off. On its own it publishes no Saved Item: a Public Profile shows only what its Published Folders hold.
+_Avoid_: Per-item share, account privacy settings
 
-**Private Saved Item**:
-A Saved Item its Account marked to withhold from the Public Profile.
-_Avoid_: Deleted item, archived item, unread item, draft
-
-**Private Folder**:
-A Folder its Account marked so that every Saved Item inside it is withheld from the Public Profile.
-_Avoid_: Public folder flag, published collection, hidden navigation destination
+**Published Folder**:
+A Folder its Account chose to show on its Public Profile. Every Saved Item inside it is public while Profile Visibility is public, and a Folder is unpublished until its Account says otherwise.
+_Avoid_: Private Folder, shared folder, public collection, hidden navigation destination
 
 **Reading Activity**:
 Per-day counts of first captures for an Account, shown on a Public Profile as a rolling 52-week grid.
@@ -642,11 +638,13 @@ _Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
 - A **Handle** is unique across Accounts after lowercasing, is 3 to 30 characters of `a-z`, `0-9`, `-`, and `_`, and may not use a reserved path name.
 - A **Handle** stays reserved to its Account while **Profile Visibility** is private. Renaming releases the old spelling at once, and anyone may claim it. Deleting the Account releases the Handle.
 - **Profile Visibility** is private by default and becomes public through one explicit confirmed action.
-- A **Saved Item** appears on a **Public Profile** only when Profile Visibility is public, the item is not a **Private Saved Item**, its Folder is not a **Private Folder**, and it was created more than one hour ago.
-- A **Private Saved Item**, and every Saved Item inside a **Private Folder**, is absent from a Public Profile without a placeholder or a count.
+- A **Saved Item** appears on a **Public Profile** only when Profile Visibility is public and the Saved Item is in a **Published Folder**.
+- A **Saved Item** in no Folder is never public, so a capture that files nothing publishes nothing.
+- A Saved Item outside a **Published Folder** is absent from a Public Profile without a placeholder or a count.
+- Publishing and unpublishing a **Folder** takes effect at once, so unpublishing is how an Account withdraws content.
 - A **Public Profile** withholds the Folder name, **Source** name, **Capture Channel**, and **Read State** of every listed Saved Item.
 - A **Public Profile** shows a **Handle** only, without a display name, biography, or avatar.
-- **Reading Activity** counts first captures only, bucketed by Saved Item creation time in UTC, and counts **Private Saved Items**, Saved Items inside a **Private Folder**, and saves from the last hour.
+- **Reading Activity** counts first captures only, bucketed by Saved Item creation time in UTC, and counts every Saved Item, including those outside a **Published Folder**.
 - **Reading Activity** covers a rolling 52 weeks ending on the current UTC day.
 - A **Duplicate Save** adds no **Reading Activity**.
 - A **Public Profile** becomes eligible for search indexing when its Account is at least 7 days old and has at least 5 public Saved Items.
@@ -731,11 +729,12 @@ These record the reasoning behind decisions that are not obvious from the defini
 - **Source** is nullable; resolved: old items and raw API captures without a source name have no Source.
 - An **Account** is not a **Public Profile**; resolved: Account stays the private owner and keeps avoiding the word profile, while a Public Profile is a separate audience-facing surface an Account may publish.
 - A **Handle** is not a sign-in name; resolved: it is a product identifier stored with the Public Profile rather than an authentication credential.
-- Publishing is not per **Folder** and not per collection; resolved: turning **Profile Visibility** on publishes every Saved Item, with **Private Saved Items** and **Private Folders** as the exceptions, because an audience flag on every Folder would add a decision to each Folder a user creates and give Folders a second meaning.
+- Publishing is per **Folder**, and there is no per-item publishing; resolved: an Account publishes a Folder and everything inside it appears, because one audience decision per Folder is a thing a person can hold in their head, while a rule that publishes everything except marked exceptions asks them to audit a whole library.
+- A **Saved Item** carries no audience flag of its own; resolved: its Folder decides, so there is one place to look and one place to change.
 - **Reading Activity** is saves, not reads; resolved: **Read State** stays private and no read-derived statistic appears on a Public Profile.
 - **Reading Activity** is bucketed by creation time, not **Last Saved At**; resolved: a **Duplicate Save** would otherwise rewrite past activity.
 - **Reading Activity** day buckets use UTC, not the viewer timezone; resolved: per-viewer bucketing would make every response unique and prevent shared caching.
-- **Reading Activity** counts private saves; resolved: a count is not a URL, and a grid restricted to public Saved Items would be too empty to be worth showing.
+- **Reading Activity** counts saves outside a **Published Folder**; resolved: a count is not a URL, and a grid restricted to published Saved Items would be too empty to be worth showing.
 - Public Saved Item responses are not the Saved Item REST representation; resolved: the public shape is an allow-list, so fields added to the private representation later cannot leak.
 - A public Saved Item page is not ordered by **Last Saved At**; resolved: Saved Item creation time orders it, so a **Duplicate Save** cannot reorder a published page.
 - A public Saved Item page is not addressed by cursor; resolved: numbered pages give every page a shareable URL, which a crawler can reach and infinite scroll cannot.

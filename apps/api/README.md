@@ -47,7 +47,6 @@ POST /v1/saved-items/{id}/open
 POST /v1/saved-items/{id}/read
 POST /v1/saved-items/{id}/unread
 POST /v1/saved-items/{id}/read-state
-PUT /v1/saved-items/{id}/private
 PUT /v1/saved-items/{id}/folder
 DELETE /v1/saved-items/{id}
 ```
@@ -65,9 +64,7 @@ Capture `tags` are optional. When provided, they are stored on the Saved Item fo
 
 Capture `folderId` is optional on the wire for older clients. When supplied with a Folder id, capture files the Saved Item there. When `folderId` is `null` or omitted, capture files the Saved Item in the Library root, including a duplicate capture.
 
-Capture `isPrivate` is optional and makes the Saved Item a Private Saved Item, which a Public Profile withholds. Omitted on a first capture it creates a public Saved Item. Omitted on a Duplicate Save it keeps the stored value, so re-saving a private link never republishes it. `PUT /v1/saved-items/{id}/private` with `{"isPrivate": true|false}` changes the flag afterwards and needs the `saved-items:write` scope.
-
-`PATCH /v1/folders/{id}` accepts `name`, `emoji`, `color`, and `isPrivate`, all optional. An omitted field keeps its stored value, so a name-only request works exactly as before. A Folder with `isPrivate` true is a Private Folder, and a Public Profile withholds every Saved Item inside it.
+`PATCH /v1/folders/{id}` accepts `name`, `emoji`, `color`, and `isPublished`, all optional. An omitted field keeps its stored value, so a name-only request works exactly as before. A Folder with `isPublished` true is a Published Folder, and a Public Profile shows every Saved Item inside it. Publishing and unpublishing take effect at once.
 
 Folder Views use Saved Item listing with a folder selector:
 
@@ -100,6 +97,7 @@ These routes need no credentials at all. They serve one Account's published cont
 GET /v1/public/profiles/{handle}
 GET /v1/public/profiles/{handle}/saved-items?page={n}
 GET /v1/public/profiles/{handle}/activity
+GET /v1/public/indexable-profiles?page={n}
 ```
 
 A Handle nobody holds and a Handle whose Profile Visibility is private answer identically, so these routes never disclose which Handles exist.
@@ -108,9 +106,9 @@ The profile response carries the Handle, the join date, the published Saved Item
 
 `saved-items` returns 50 items to a numbered page, newest first by Saved Item creation time, so a Duplicate Save never reorders a page. Each item carries only the original URL, host, title, favicon variants, image, Type, Tags, Preview Summary, and save date. The Folder, the Source name, the Capture Channel, the Read State, the Saved Item id, and the update timestamps are withheld.
 
-A Saved Item appears only when Profile Visibility is public, the item is not a Private Saved Item, its Folder is not a Private Folder, and it was created more than an hour ago. Withheld items add nothing to the count.
+A Saved Item appears only when Profile Visibility is public and the Saved Item is in a Published Folder. A Saved Item in no Folder is never public. Everything else adds nothing to the count.
 
-`activity` returns per-day save counts over a rolling 52 weeks, bucketed by Saved Item creation time in UTC. Counts are first captures only, and they include Private Saved Items, Saved Items in Private Folders, and saves from the last hour — so the activity grid can show a save the item list does not yet list.
+`activity` returns per-day save counts over a rolling 52 weeks, bucketed by Saved Item creation time in UTC. Counts are first captures only, and they include every Saved Item, published or not — so the activity grid can show a save the item list does not list.
 
 Successful public responses carry `Cache-Control: public, max-age=300`. A not-found response is not cached.
 
