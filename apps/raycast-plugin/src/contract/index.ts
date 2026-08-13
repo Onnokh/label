@@ -4,8 +4,14 @@
 // Generator: scripts/sync-raycast-contract.mjs (run by Husky pre-commit hook)
 // =============================================================================
 
-export const linkTypes = ["article", "video", "website", "repository"] as const;
-export type LinkType = "article" | "video" | "website" | "repository";
+export const linkTypes = [
+  "article",
+  "video",
+  "website",
+  "repository",
+  "post",
+] as const;
+export type LinkType = "article" | "video" | "website" | "repository" | "post";
 
 export const topics = [
   "ai",
@@ -72,7 +78,7 @@ export type SavedItemDto = {
   readonly originalUrl: string;
   readonly normalizedUrl: string;
   readonly host: string;
-  readonly type: "article" | "video" | "website" | "repository";
+  readonly type: "article" | "video" | "website" | "repository" | "post";
   readonly tags: readonly (
     | "ai"
     | "tools"
@@ -102,6 +108,9 @@ export type SavedItemDto = {
   readonly faviconDarkUrl?: string | undefined;
   readonly imageUrl?: string | undefined;
   readonly canonicalUrl?: string | undefined;
+  readonly authorName?: string | undefined;
+  readonly authorHandle?: string | undefined;
+  readonly authorAvatarUrl?: string | undefined;
   readonly previewSummary?: string | undefined;
   readonly sourceName?: string | undefined;
   readonly captureChannel?:
@@ -121,7 +130,7 @@ export type SavedItemsResponse = {
     readonly originalUrl: string;
     readonly normalizedUrl: string;
     readonly host: string;
-    readonly type: "article" | "video" | "website" | "repository";
+    readonly type: "article" | "video" | "website" | "repository" | "post";
     readonly tags: readonly (
       | "ai"
       | "tools"
@@ -151,6 +160,9 @@ export type SavedItemsResponse = {
     readonly faviconDarkUrl?: string | undefined;
     readonly imageUrl?: string | undefined;
     readonly canonicalUrl?: string | undefined;
+    readonly authorName?: string | undefined;
+    readonly authorHandle?: string | undefined;
+    readonly authorAvatarUrl?: string | undefined;
     readonly previewSummary?: string | undefined;
     readonly sourceName?: string | undefined;
     readonly captureChannel?:
@@ -171,7 +183,7 @@ export type CaptureCreated = {
     readonly originalUrl: string;
     readonly normalizedUrl: string;
     readonly host: string;
-    readonly type: "article" | "video" | "website" | "repository";
+    readonly type: "article" | "video" | "website" | "repository" | "post";
     readonly tags: readonly (
       | "ai"
       | "tools"
@@ -201,6 +213,9 @@ export type CaptureCreated = {
     readonly faviconDarkUrl?: string | undefined;
     readonly imageUrl?: string | undefined;
     readonly canonicalUrl?: string | undefined;
+    readonly authorName?: string | undefined;
+    readonly authorHandle?: string | undefined;
+    readonly authorAvatarUrl?: string | undefined;
     readonly previewSummary?: string | undefined;
     readonly sourceName?: string | undefined;
     readonly captureChannel?:
@@ -222,7 +237,7 @@ export type CaptureUpdated = {
     readonly originalUrl: string;
     readonly normalizedUrl: string;
     readonly host: string;
-    readonly type: "article" | "video" | "website" | "repository";
+    readonly type: "article" | "video" | "website" | "repository" | "post";
     readonly tags: readonly (
       | "ai"
       | "tools"
@@ -252,6 +267,9 @@ export type CaptureUpdated = {
     readonly faviconDarkUrl?: string | undefined;
     readonly imageUrl?: string | undefined;
     readonly canonicalUrl?: string | undefined;
+    readonly authorName?: string | undefined;
+    readonly authorHandle?: string | undefined;
+    readonly authorAvatarUrl?: string | undefined;
     readonly previewSummary?: string | undefined;
     readonly sourceName?: string | undefined;
     readonly captureChannel?:

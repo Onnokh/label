@@ -69,6 +69,12 @@ const publicSavedItemProperties = [
   "faviconLightUrl",
   "faviconDarkUrl",
   "imageUrl",
+  // The Link Author, published deliberately: a Post Card names who wrote the
+  // words it shows, and all three come from the platform's own public payload
+  // for a Link the Account chose to publish.
+  "authorName",
+  "authorHandle",
+  "authorAvatarUrl",
   "type",
   "tags",
   "previewSummary",

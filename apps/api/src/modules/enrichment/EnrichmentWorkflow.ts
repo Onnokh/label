@@ -10,7 +10,7 @@ import {
   EnrichmentJob,
   EnrichmentStageResult,
 } from "../../domain/EnrichmentJob.js"
-import { AiEnricher } from "../ai/AiEnricher.js"
+import { AiEnricher, type AiEnricherError } from "../ai/AiEnricher.js"
 import { SavedItemIntake } from "../saved-items/SavedItemIntake.js"
 import { PageFetcher } from "../fetch/PageFetcher.js"
 import { Metadata, MetadataFetcher } from "../metadata/MetadataFetcher.js"
@@ -143,24 +143,33 @@ export class EnrichmentWorkflow extends Context.Service<EnrichmentWorkflow>()(
           }
 
           {
-            const result = yield* runStage(
-              "preview-summary",
-              aiEnricher.preview(aiInput).pipe(
-                Effect.map((summaryOption) =>
-                  Option.match(summaryOption, {
-                    onNone: (): StageResult<string> => ({
-                      _tag: "skip",
-                      message: "AI preview summary is disabled or no input was available.",
-                    }),
-                    onSome: (value): StageResult<string> => ({
-                      _tag: "success",
-                      value,
-                    }),
-                  }),
-                ),
-              ),
-              stages,
-            )
+            // A post already carries its own words: its Link Metadata title is
+            // the message itself, so a Preview Summary would restate what the
+            // reader is about to read, in more words than the post used. The
+            // stage is recorded as skipped rather than dropped, so a job still
+            // accounts for every stage — and no AI call is paid for.
+            const previewStage: Effect.Effect<StageResult<string>, AiEnricherError> =
+              linkEnrichment.type === "post"
+                ? Effect.succeed({
+                    _tag: "skip",
+                    message: "A post is its own preview, so it takes no Preview Summary.",
+                  })
+                : aiEnricher.preview(aiInput).pipe(
+                    Effect.map((summaryOption) =>
+                      Option.match(summaryOption, {
+                        onNone: (): StageResult<string> => ({
+                          _tag: "skip",
+                          message: "AI preview summary is disabled or no input was available.",
+                        }),
+                        onSome: (value): StageResult<string> => ({
+                          _tag: "success",
+                          value,
+                        }),
+                      }),
+                    ),
+                  )
+
+            const result = yield* runStage("preview-summary", previewStage, stages)
 
             if (Option.isSome(result)) {
               linkEnrichment = applyPreviewSummary(linkEnrichment, result.value)
@@ -317,6 +326,9 @@ const applyMetadata = (
     faviconDarkUrl: metadata.faviconDarkUrl,
     imageUrl: metadata.imageUrl,
     canonicalUrl: metadata.canonicalUrl,
+    authorName: metadata.authorName,
+    authorHandle: metadata.authorHandle,
+    authorAvatarUrl: metadata.authorAvatarUrl,
     fetchedAt: new Date(),
     updatedAt: new Date(),
   })

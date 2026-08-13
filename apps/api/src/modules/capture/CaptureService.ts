@@ -24,9 +24,24 @@ export type CaptureInput = {
 
 export type CaptureServiceError = InvalidUrl
 
+// A URL that names one message on a social platform. Only platforms a provider
+// can actually resolve belong here: a post with no Link Author and no words of
+// its own reads worse as a post than as a plain Link, so the classification and
+// the provider are extended together.
+const POST_PATTERNS: ReadonlyArray<RegExp> = [
+  /^(twitter\.com|x\.com)$/,
+]
+
+const isPostUrl = (host: string, pathname: string) =>
+  POST_PATTERNS.some((pattern) => pattern.test(host)) && /^\/[^/]+\/status\/\d+/.test(pathname)
+
 const inferType = (url: URL): LinkType => {
   const host = url.hostname.toLowerCase().replace(/^www\./, "")
   const href = url.toString().toLowerCase()
+
+  if (isPostUrl(host, url.pathname)) {
+    return "post"
+  }
 
   if (host === "github.com" || host === "gitlab.com") {
     return "repository"

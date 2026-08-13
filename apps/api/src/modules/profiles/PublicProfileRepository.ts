@@ -51,6 +51,9 @@ export type PublicSavedItem = {
   readonly faviconLightUrl?: string | undefined
   readonly faviconDarkUrl?: string | undefined
   readonly imageUrl?: string | undefined
+  readonly authorName?: string | undefined
+  readonly authorHandle?: string | undefined
+  readonly authorAvatarUrl?: string | undefined
   readonly type: LinkType
   readonly tags: ReadonlyArray<Topic>
   readonly previewSummary?: string | undefined
@@ -269,6 +272,9 @@ export class PublicProfileRepository extends Context.Service<PublicProfileReposi
                 faviconLightUrl: linkMetadataTable.faviconLightUrl,
                 faviconDarkUrl: linkMetadataTable.faviconDarkUrl,
                 imageUrl: linkMetadataTable.imageUrl,
+                authorName: linkMetadataTable.authorName,
+                authorHandle: linkMetadataTable.authorHandle,
+                authorAvatarUrl: linkMetadataTable.authorAvatarUrl,
                 type: linkEnrichmentTable.type,
                 savedItemTags: savedItemsTable.tags,
                 enrichmentTags: linkEnrichmentTable.tags,
@@ -295,6 +301,9 @@ export class PublicProfileRepository extends Context.Service<PublicProfileReposi
                 faviconLightUrl: row.faviconLightUrl ?? undefined,
                 faviconDarkUrl: row.faviconDarkUrl ?? undefined,
                 imageUrl: row.imageUrl ?? undefined,
+                authorName: row.authorName ?? undefined,
+                authorHandle: row.authorHandle ?? undefined,
+                authorAvatarUrl: row.authorAvatarUrl ?? undefined,
                 type: row.type,
                 tags: effectiveTags(row.savedItemTags, row.enrichmentTags) as ReadonlyArray<Topic>,
                 previewSummary: row.previewSummary ?? undefined,

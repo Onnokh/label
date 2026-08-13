@@ -108,6 +108,9 @@ export const linkMetadataTable = pgTable("link_metadata", {
   faviconDarkUrl: text("favicon_dark_url"),
   imageUrl: text("image_url"),
   canonicalUrl: text("canonical_url"),
+  authorName: text("author_name"),
+  authorHandle: text("author_handle"),
+  authorAvatarUrl: text("author_avatar_url"),
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })

@@ -23,6 +23,10 @@ export const linkTypes = [
   "video",
   "website",
   "repository",
+  // A short message on a social platform, where the Link Metadata title holds
+  // the words themselves rather than a headline for them. A client shows a post
+  // as the message it is; see the Post entry in CONTEXT.md.
+  "post",
 ] as const
 export const LinkType = Schema.Literals(linkTypes)
 export type LinkType = typeof LinkType.Type
@@ -78,6 +82,10 @@ export class SavedItemDto extends Schema.Class<SavedItemDto>("SavedItemDto")({
   faviconDarkUrl: Schema.optional(Schema.String),
   imageUrl: Schema.optional(Schema.String),
   canonicalUrl: Schema.optional(Schema.String),
+  // The Link Author, known for a post and absent for most other Links.
+  authorName: Schema.optional(Schema.String),
+  authorHandle: Schema.optional(Schema.String),
+  authorAvatarUrl: Schema.optional(Schema.String),
   previewSummary: Schema.optional(Schema.String),
   type: LinkType,
   tags: Schema.Array(Topic),
@@ -189,9 +197,10 @@ export namespace ReadingActivityResponse {
 
 // One published Saved Item, defined as an allow-list instead of a projection of
 // SavedItemDto. Only these properties may reach an anonymous visitor: Original
-// URL, host, title, favicon variants, image, Type, Tags, Preview Summary, and
-// the save date. The Folder, the Source name, the Capture Channel, the Read
-// State, the Saved Item identifier, and the update timestamps are withheld.
+// URL, host, title, favicon variants, image, Link Author, Type, Tags, Preview
+// Summary, and the save date. The Folder, the Source name, the Capture Channel,
+// the Read State, the Saved Item identifier, and the update timestamps are
+// withheld.
 // Reusing SavedItemDto is rejected on purpose: the private representation keeps
 // growing, and every field added to it later would publish itself by default.
 // The contract test asserts this property list exactly, so widening it can only
@@ -204,6 +213,13 @@ export class PublicSavedItemDto extends Schema.Class<PublicSavedItemDto>("Public
   faviconLightUrl: Schema.optional(Schema.String),
   faviconDarkUrl: Schema.optional(Schema.String),
   imageUrl: Schema.optional(Schema.String),
+  // The Link Author. A post is written by somebody, and the writer is the first
+  // thing a reader needs in order to place it, so these three travel with the
+  // published item. The avatar is hotlinked from the platform that serves it,
+  // which is why it is a URL here and not a stored image.
+  authorName: Schema.optional(Schema.String),
+  authorHandle: Schema.optional(Schema.String),
+  authorAvatarUrl: Schema.optional(Schema.String),
   type: LinkType,
   tags: Schema.Array(Topic),
   previewSummary: Schema.optional(Schema.String),

@@ -49,10 +49,10 @@ const makeMetadata = () =>
     updatedAt: now,
   })
 
-const makeEnrichment = () =>
+const makeEnrichment = (type: LinkEnrichment["type"] = "article") =>
   new LinkEnrichment({
     linkId,
-    type: "article",
+    type,
     tags: [],
     status: "pending",
     updatedAt: now,
@@ -85,8 +85,10 @@ const makePage = (url: string) =>
 
 const workflowLayer = (input: {
   readonly status?: LinkEnrichment["status"] | undefined
+  readonly type?: LinkEnrichment["type"] | undefined
   readonly aiTags?: readonly Topic[] | undefined
   readonly aiPreview?: string | undefined
+  readonly onPreview?: (() => void) | undefined
   readonly onStart?: (() => void) | undefined
   readonly onFinish?: ((result: FinishedEnrichment) => void) | undefined
 }) =>
@@ -104,7 +106,7 @@ const workflowLayer = (input: {
               return {
                 link: makeLink(),
                 metadata: makeMetadata(),
-                enrichment: makeEnrichment(),
+                enrichment: makeEnrichment(input.type),
                 job: makeJob(),
               }
             }),
@@ -142,9 +144,10 @@ const workflowLayer = (input: {
               input.aiTags ? Option.some(input.aiTags) : Option.none(),
             ),
           preview: () =>
-            Effect.succeed(
-              input.aiPreview ? Option.some(input.aiPreview) : Option.none(),
-            ),
+            Effect.sync(() => {
+              input.onPreview?.()
+              return input.aiPreview ? Option.some(input.aiPreview) : Option.none()
+            }),
         }),
       ),
     ),
@@ -215,6 +218,41 @@ describe("EnrichmentWorkflow", () => {
       ])
     }).pipe(
       Effect.provide(workflowLayer({
+        onFinish: (result) => {
+          finished = result
+        },
+      })),
+    )
+  })
+
+  // A post carries its own words, so summarizing it restates what the reader is
+  // about to read — in more words than the post used — and costs an AI call to do
+  // it. The stage is still recorded, so a job accounts for every stage.
+  it.effect("writes no Preview Summary for a post, even when the AI offers one", () => {
+    let finished: FinishedEnrichment | undefined
+    let previewAsked = false
+
+    return Effect.gen(function* () {
+      const workflow = yield* EnrichmentWorkflow
+      yield* workflow.enrich(linkId)
+
+      expect(finished?.enrichment.previewSummary).toBeUndefined()
+      expect(previewAsked).toBe(false)
+      expect(finished?.enrichment.status).toBe("enriched")
+      expect(finished?.job.status).toBe("succeeded")
+      expect(finished?.job.stages.map((stage) => `${stage.stage}:${stage.status}`)).toEqual([
+        "metadata:succeeded",
+        "tagging:succeeded",
+        "preview-summary:skipped",
+      ])
+    }).pipe(
+      Effect.provide(workflowLayer({
+        type: "post",
+        aiTags: ["ai"],
+        aiPreview: "A summary nobody asked for.",
+        onPreview: () => {
+          previewAsked = true
+        },
         onFinish: (result) => {
           finished = result
         },
