@@ -17,3 +17,18 @@ export const isIndexable = (profile: {
 }): boolean =>
   profile.publicSavedItemCount >= MIN_PUBLIC_SAVED_ITEMS &&
   Date.now() - profile.joinedAt.getTime() >= MIN_ACCOUNT_AGE_DAYS * DAY_MS
+
+// How many Handles the listing route hands out at once. A sitemap file holds at
+// most 50,000 URLs, so that is the ceiling a page may never cross; 1,000 divides
+// it exactly, so a page never straddles two sitemap files. The smaller number is
+// also what keeps one response small: this route needs no credentials, and a
+// body carrying 50,000 entries is megabytes anybody may ask for, sixty times a
+// minute.
+export const INDEXABLE_PROFILES_PAGE_SIZE = 1_000
+
+// How many Public Profiles one listing read looks at. `isIndexable` reads the
+// wall clock, so the rule cannot move into SQL without becoming a second copy of
+// itself; the query hands back public Handles and the rule filters them here.
+// That is only safe while the number of rows is bounded, and one sitemap file's
+// worth of URLs is the honest bound: nothing past it could be listed anyway.
+export const MAX_INDEXABLE_PROFILES = 50_000

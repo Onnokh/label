@@ -24,6 +24,9 @@ import {
   HandleConflictError,
   HandlePayload,
   HealthResponse,
+  IndexableProfileDto,
+  IndexableProfilesQuery,
+  IndexableProfilesResponse,
   InvalidFolderNameError,
   InvalidHandleError,
   InvalidUrlError,
@@ -77,6 +80,9 @@ export {
   HandleConflictError,
   HandlePayload,
   HealthResponse,
+  IndexableProfileDto,
+  IndexableProfilesQuery,
+  IndexableProfilesResponse,
   InvalidFolderNameError,
   InvalidHandleError,
   InvalidUrlError,
@@ -427,6 +433,17 @@ const publicProfilesGroup = HttpApiGroup.make("public-profiles")
       params: Schema.Struct({ handle: Schema.String }),
       success: ReadingActivityResponse,
       error: [PublicProfileNotFoundError, RateLimitExceeded],
+    }),
+  )
+  // Every Handle a search engine may be offered, so a crawler-facing document
+  // can name the Public Profiles that exist. This route carries no not-found
+  // error: no Handle is asked for, and a deployment with nothing worth indexing
+  // answers with an empty page rather than with a miss.
+  .add(
+    HttpApiEndpoint.get("listIndexable", "/v1/public/indexable-profiles", {
+      query: IndexableProfilesQuery,
+      success: IndexableProfilesResponse,
+      error: RateLimitExceeded,
     }),
   )
 

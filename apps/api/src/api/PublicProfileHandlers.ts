@@ -8,8 +8,13 @@ import {
   PUBLIC_SAVED_ITEMS_PAGE_SIZE,
   requestedPage,
 } from "../modules/profiles/PublicSavedItems.js"
-import { isIndexable } from "../modules/profiles/SearchIndexing.js"
 import {
+  INDEXABLE_PROFILES_PAGE_SIZE,
+  isIndexable,
+} from "../modules/profiles/SearchIndexing.js"
+import {
+  IndexableProfileDto,
+  IndexableProfilesResponse,
   PublicProfileDto,
   PublicProfileNotFoundError,
   PublicSavedItemsResponse,
@@ -80,6 +85,23 @@ export const publicProfilesGroupLive = HttpApiBuilder.group(
           from,
           to,
           days: days.map((day) => new ReadingActivityDay(day)),
+        })
+      }),
+    ).handle("listIndexable", ({ query }) =>
+      Effect.gen(function* () {
+        const repo = yield* PublicProfileRepository
+        // Page numbers are clamped by the same helper the published Saved Item
+        // pages use, so a hand-edited number answers with a page here too.
+        const page = requestedPage(query.page)
+        const { profiles, totalCount } = yield* repo
+          .listIndexableProfiles({ page, pageSize: INDEXABLE_PROFILES_PAGE_SIZE })
+          .pipe(Effect.orDie)
+
+        return new IndexableProfilesResponse({
+          profiles: profiles.map((profile) => new IndexableProfileDto(profile)),
+          page,
+          pageSize: INDEXABLE_PROFILES_PAGE_SIZE,
+          totalPages: pageCount(totalCount, INDEXABLE_PROFILES_PAGE_SIZE),
         })
       }),
     ),

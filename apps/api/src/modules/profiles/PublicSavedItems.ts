@@ -57,7 +57,11 @@ const MAX_PAGE = 1_000_000
 export const requestedPage = (asked: number | undefined): number =>
   asked === undefined ? 1 : Math.min(MAX_PAGE, Math.max(1, Math.trunc(asked)))
 
-// How many numbered pages a Public Profile has. A profile that publishes nothing
-// still has one page, so page 1 is always an address that answers.
-export const pageCount = (totalCount: number): number =>
-  Math.max(1, Math.ceil(totalCount / PUBLIC_SAVED_ITEMS_PAGE_SIZE))
+// How many numbered pages a listing has. A listing that carries nothing still
+// has one page, so page 1 is always an address that answers. The page size is a
+// parameter because the published Saved Items of one Handle and the Handles a
+// search engine may index are paged by different numbers but by the same rule.
+export const pageCount = (
+  totalCount: number,
+  pageSize: number = PUBLIC_SAVED_ITEMS_PAGE_SIZE,
+): number => Math.max(1, Math.ceil(totalCount / pageSize))

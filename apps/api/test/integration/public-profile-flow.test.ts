@@ -46,6 +46,16 @@ const listPublicSavedItems = (
     }),
   )
 
+const listIndexableProfiles = (
+  page: { readonly page: number; readonly pageSize: number } = { page: 1, pageSize: 50 },
+) =>
+  runIntegration(
+    Effect.gen(function* () {
+      const repo = yield* PublicProfileRepository
+      return yield* repo.listIndexableProfiles(page)
+    }),
+  )
+
 const withPool = async <A>(run: (pool: Pool) => Promise<A>) => {
   const pool = new Pool({ connectionString: testDatabaseUrl })
   try {
@@ -466,6 +476,107 @@ describe("public profile integration flow", () => {
     expect(savedMinutesAgo).toBeLessThan(62)
     expect(page.savedItems[1]?.originalUrl).toBe(enrichedTags)
     expect(page.savedItems[1]?.tags).toEqual(["design"])
+  })
+
+  // A public Account with enough published Saved Items to be worth indexing,
+  // built from the numbers the rule uses rather than from a magic constant.
+  const publishAccount = async (input: {
+    readonly handle: string
+    readonly accountAgeDays: number
+    readonly publishedCount: number
+  }) => {
+    const userId = `integration-user-${randomUUID()}` as UserId
+    await insertUser(userId, input.accountAgeDays)
+    await insertProfile(userId, input.handle, "public")
+    for (let index = 0; index < input.publishedCount; index += 1) {
+      // Every one of them past the one-hour boundary, so they all publish.
+      await insertSavedItem(userId, { ageMinutes: 61 + index * 60 })
+    }
+    return userId
+  }
+
+  test("lists only the Public Profiles a search engine may index", async () => {
+    const indexable = `a-indexable-${randomUUID().slice(0, 8)}`
+    const tooFewItems = `b-too-few-${randomUUID().slice(0, 8)}`
+    const tooYoung = `c-too-young-${randomUUID().slice(0, 8)}`
+    const notPublic = `d-not-public-${randomUUID().slice(0, 8)}`
+
+    await publishAccount({ handle: indexable, accountAgeDays: 40, publishedCount: 5 })
+
+    // Four published Saved Items, plus two the Public Profile withholds. The
+    // withheld ones would tip the count over the line if they counted, which is
+    // what pins the shared filter to this rule.
+    const shortUserId = await publishAccount({
+      handle: tooFewItems,
+      accountAgeDays: 40,
+      publishedCount: 4,
+    })
+    await insertSavedItem(shortUserId, { ageMinutes: 120, isPrivate: true })
+    await insertSavedItem(shortUserId, { ageMinutes: 30 })
+
+    await publishAccount({ handle: tooYoung, accountAgeDays: 6, publishedCount: 12 })
+
+    // Old enough and full enough, but Profile Visibility is private.
+    const privateUserId = `integration-user-${randomUUID()}` as UserId
+    await insertUser(privateUserId, 40)
+    await insertProfile(privateUserId, notPublic, "private")
+    for (let index = 0; index < 12; index += 1) {
+      await insertSavedItem(privateUserId, { ageMinutes: 61 + index * 60 })
+    }
+
+    const page = await listIndexableProfiles()
+
+    // Each of the other three is absent, with nothing standing in for it.
+    expect(page.profiles.map((profile) => profile.handle)).toEqual([indexable])
+    expect(page.totalCount).toBe(1)
+  })
+
+  test("dates a listed Public Profile by its newest published Saved Item", async () => {
+    const handle = `reader-${randomUUID().slice(0, 8)}`
+    const userId = `integration-user-${randomUUID()}` as UserId
+    await insertUser(userId, 40)
+    await insertProfile(userId, handle, "public")
+
+    // Four published Saved Items, the oldest of them saved again a minute ago
+    // the way Renewed Intent leaves a row.
+    await insertSavedItem(userId, { ageMinutes: 300, lastSavedAgeMinutes: 1 })
+    await insertSavedItem(userId, { ageMinutes: 240 })
+    await insertSavedItem(userId, { ageMinutes: 180 })
+    await insertSavedItem(userId, { ageMinutes: 120 })
+    // The newest published one: this is when the page last changed.
+    await insertSavedItem(userId, { ageMinutes: 61 })
+    // Newer, and withheld: a Private Saved Item and one still inside the first
+    // hour change nothing a crawler can see.
+    await insertSavedItem(userId, { ageMinutes: 45, isPrivate: true })
+    await insertSavedItem(userId, { ageMinutes: 5 })
+
+    const page = await listIndexableProfiles()
+
+    const [profile] = page.profiles
+    expect(profile?.handle).toBe(handle)
+    const changedMinutesAgo = (Date.now() - profile!.lastModifiedAt.getTime()) / 60_000
+    // The 61-minute-old published item, not the 5-minute-old withheld one and
+    // not the Duplicate Save a minute ago.
+    expect(changedMinutesAgo).toBeGreaterThan(60)
+    expect(changedMinutesAgo).toBeLessThan(62)
+  })
+
+  test("reads the indexable listing one numbered page at a time", async () => {
+    const first = `a-reader-${randomUUID().slice(0, 8)}`
+    const second = `b-reader-${randomUUID().slice(0, 8)}`
+    await publishAccount({ handle: first, accountAgeDays: 40, publishedCount: 5 })
+    await publishAccount({ handle: second, accountAgeDays: 40, publishedCount: 5 })
+
+    const pageOne = await listIndexableProfiles({ page: 1, pageSize: 1 })
+    const pageTwo = await listIndexableProfiles({ page: 2, pageSize: 1 })
+    const pageThree = await listIndexableProfiles({ page: 3, pageSize: 1 })
+
+    // Consecutive windows over one order: nothing repeats and nothing is
+    // skipped between the pages a crawler walks.
+    expect(pageOne.profiles.map((profile) => profile.handle)).toEqual([first])
+    expect(pageTwo.profiles.map((profile) => profile.handle)).toEqual([second])
+    expect(pageThree.profiles).toEqual([])
+    expect([pageOne.totalCount, pageTwo.totalCount, pageThree.totalCount]).toEqual([2, 2, 2])
   })
 
   test("reports the join date of the Account, not of the Public Profile record", async () => {

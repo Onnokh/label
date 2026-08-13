@@ -241,6 +241,46 @@ export namespace PublicSavedItemsQuery {
   export type Encoded = Schema.Codec.Encoded<typeof PublicSavedItemsQuery>
 }
 
+// One Public Profile a search engine may be offered. The Handle is the whole
+// address — a Public Profile lives at /u/{handle} — and `lastModifiedAt` is when
+// that page last changed, which is the creation time of the newest Saved Item it
+// publishes. A profile that is public but not yet indexable is absent, so a
+// caller lists what it finds here and decides nothing itself.
+export class IndexableProfileDto extends Schema.Class<IndexableProfileDto>(
+  "IndexableProfileDto",
+)({
+  handle: Schema.String,
+  lastModifiedAt: Schema.DateFromString,
+}) {}
+export namespace IndexableProfileDto {
+  export type Encoded = Schema.Codec.Encoded<typeof IndexableProfileDto>
+}
+
+// One page of indexable Handles. Paged like the published Saved Items of a
+// single Handle, and for the same reason: the caller is a crawler-facing
+// document builder that must be able to walk the whole list by number.
+export class IndexableProfilesResponse extends Schema.Class<IndexableProfilesResponse>(
+  "IndexableProfilesResponse",
+)({
+  profiles: Schema.Array(IndexableProfileDto),
+  page: Schema.Number,
+  pageSize: Schema.Number,
+  totalPages: Schema.Number,
+}) {}
+export namespace IndexableProfilesResponse {
+  export type Encoded = Schema.Codec.Encoded<typeof IndexableProfilesResponse>
+}
+
+export class IndexableProfilesQuery extends Schema.Class<IndexableProfilesQuery>(
+  "IndexableProfilesQuery",
+)({
+  // Omitted means the first page.
+  page: Schema.optional(Schema.FiniteFromString),
+}) {}
+export namespace IndexableProfilesQuery {
+  export type Encoded = Schema.Codec.Encoded<typeof IndexableProfilesQuery>
+}
+
 export class CaptureCreated extends Schema.Class<CaptureCreated>("CaptureCreated")({
   savedItem: SavedItemDto,
   captureResult: Schema.Literal("created"),

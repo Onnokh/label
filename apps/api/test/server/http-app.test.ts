@@ -24,6 +24,10 @@ import {
   PublicProfileRepository,
 } from "../../src/modules/profiles/PublicProfileRepository.js"
 import { PUBLIC_SAVED_ITEMS_PAGE_SIZE } from "../../src/modules/profiles/PublicSavedItems.js"
+import {
+  INDEXABLE_PROFILES_PAGE_SIZE,
+  isIndexable,
+} from "../../src/modules/profiles/SearchIndexing.js"
 import { ApiKeyRateLimiter } from "../../src/modules/rate-limit/ApiKeyRateLimiter.js"
 import { ConnectAuthorizeRateLimiter } from "../../src/modules/rate-limit/ConnectAuthorizeRateLimiter.js"
 import { ConnectExchangeRateLimiter } from "../../src/modules/rate-limit/ConnectExchangeRateLimiter.js"
@@ -123,6 +127,9 @@ const routeLayer = (input: {
     // a Public Profile shows is a database rule proven in the integration seam,
     // so the fixture here is already the published set.
     readonly savedItems?: ReadonlyArray<PublicSavedItem> | undefined
+    // When the published page last changed. Which Saved Item's creation time
+    // that is comes from Postgres and is proven in the integration seam.
+    readonly lastModifiedAt?: Date | undefined
   }> | undefined
   readonly publicRateLimitAllowed?: boolean | undefined
   readonly onPublicRateLimit?: ((key: string) => void) | undefined
@@ -347,6 +354,27 @@ const routeLayer = (input: {
             totalCount: savedItems.length,
           })
         }),
+      // Mirrors the repository: the query hands back every public Handle and
+      // `isIndexable` decides which of them a search engine may be offered.
+      // Which Handles Postgres hands back, and which Saved Item dates each one,
+      // is proven in the integration seam.
+      listIndexableProfiles: (
+        page: { readonly page: number; readonly pageSize: number },
+      ) =>
+        Effect.sync(() => {
+          const indexable = (input.publicProfiles ?? [])
+            .filter((profile) => profile.visibility === "public" && isIndexable(profile))
+            .map((profile) => ({
+              handle: profile.handle,
+              lastModifiedAt: profile.lastModifiedAt ?? now,
+            }))
+          const start = (page.page - 1) * page.pageSize
+          return {
+            profiles: indexable.slice(start, start + page.pageSize),
+            totalCount: indexable.length,
+          }
+        }),
+
       // The same lookup again, so Reading Activity cannot disagree with the other
       // two about which Handles exist.
       findReadingActivity: (handle: string) =>
@@ -636,6 +664,7 @@ describe("HttpApp", () => {
       expect(body.paths?.["/v1/public/profiles/{handle}"]).toBeDefined()
       expect(body.paths?.["/v1/public/profiles/{handle}/saved-items"]).toBeDefined()
       expect(body.paths?.["/v1/public/profiles/{handle}/activity"]).toBeDefined()
+      expect(body.paths?.["/v1/public/indexable-profiles"]).toBeDefined()
       expect(body.paths?.["/connect/authorize"]).toBeDefined()
       expect(body.paths?.["/connect/exchange"]).toBeDefined()
     }),
@@ -657,15 +686,18 @@ describe("HttpApp", () => {
       const publicRoute = body.paths["/v1/public/profiles/{handle}"]?.get
       const publicItemsRoute = body.paths["/v1/public/profiles/{handle}/saved-items"]?.get
       const activityRoute = body.paths["/v1/public/profiles/{handle}/activity"]?.get
+      const indexableRoute = body.paths["/v1/public/indexable-profiles"]?.get
       expect(publicRoute).toBeDefined()
       expect(publicItemsRoute).toBeDefined()
       expect(activityRoute).toBeDefined()
+      expect(indexableRoute).toBeDefined()
       // No API Key and no App Session: the routes carry no security scheme,
       // unlike every other v1 group.
       // An empty security list is OpenAPI for "no credentials required".
       expect(publicRoute?.security).toEqual([])
       expect(publicItemsRoute?.security).toEqual([])
       expect(activityRoute?.security).toEqual([])
+      expect(indexableRoute?.security).toEqual([])
       expect(
         body.paths["/v1/saved-items"]?.get?.security,
       ).toBeDefined()
@@ -2058,6 +2090,158 @@ describe("HttpApp", () => {
       )
     }),
   )
+
+  it.effect("lists only the Handles a search engine may be offered", () =>
+    Effect.gen(function* () {
+      const lastModifiedAt = new Date("2026-05-18T09:30:00.000Z")
+      const response = yield* request("/v1/public/indexable-profiles").pipe(
+        Effect.provide(routeLayer({
+          publicProfiles: [
+            // A second past both boundaries, so the comparison is tested rather
+            // than the clock ticking during the request.
+            {
+              handle: "old-and-full",
+              visibility: "public",
+              joinedAt: new Date(Date.now() - daysInMs(7) - 1_000),
+              publicSavedItemCount: 5,
+              lastModifiedAt,
+            },
+            {
+              handle: "too-few-items",
+              visibility: "public",
+              joinedAt: new Date(Date.now() - daysInMs(30)),
+              publicSavedItemCount: 4,
+            },
+            {
+              handle: "too-young",
+              visibility: "public",
+              joinedAt: new Date(Date.now() - daysInMs(6)),
+              publicSavedItemCount: 12,
+            },
+            // Public Profile turned off: never a candidate, however old and
+            // however full.
+            {
+              handle: "hidden",
+              visibility: "private",
+              joinedAt: new Date(Date.now() - daysInMs(400)),
+              publicSavedItemCount: 99,
+            },
+          ],
+        })),
+      )
+
+      // No credentials were sent and none were needed.
+      expect(response.status).toBe(200)
+      // A profile that is public but not yet indexable is absent, with no
+      // placeholder and no count standing in for it.
+      expect(yield* json(response)).toEqual({
+        profiles: [{
+          handle: "old-and-full",
+          lastModifiedAt: lastModifiedAt.toISOString(),
+        }],
+        page: 1,
+        pageSize: INDEXABLE_PROFILES_PAGE_SIZE,
+        totalPages: 1,
+      })
+      expect(response.headers.get("cache-control")).toBe("public, max-age=300")
+      expect(response.headers.get("ratelimit-limit")).toBe(
+        String(PUBLIC_PROFILE_REQUEST_LIMIT),
+      )
+    }),
+  )
+
+  it.effect("addresses indexable Handles by page number", () =>
+    Effect.gen(function* () {
+      // One layer for the whole test: inside a single test the first layer built
+      // wins for every later provide, so the cases share it.
+      const layer = routeLayer({
+        publicProfiles: Array.from(
+          { length: INDEXABLE_PROFILES_PAGE_SIZE + 3 },
+          (_unused, index) => ({
+            // Padded, so the fixture order is the order a Handle sort gives.
+            handle: `reader-${String(index).padStart(5, "0")}`,
+            visibility: "public" as const,
+            joinedAt: new Date(Date.now() - daysInMs(30)),
+            publicSavedItemCount: 12,
+          }),
+        ),
+      })
+
+      const pageAt = (query: string) =>
+        Effect.gen(function* () {
+          const response = yield* request(
+            `/v1/public/indexable-profiles${query}`,
+          ).pipe(Effect.provide(layer))
+          expect(response.status).toBe(200)
+          return yield* json<{
+            readonly profiles: ReadonlyArray<{ readonly handle: string }>
+            readonly page: number
+            readonly totalPages: number
+          }>(response)
+        })
+
+      const first = yield* pageAt("")
+      const second = yield* pageAt("?page=2")
+      const past = yield* pageAt("?page=3")
+
+      expect([first.profiles.length, second.profiles.length, past.profiles.length])
+        .toEqual([INDEXABLE_PROFILES_PAGE_SIZE, 3, 0])
+      expect([first.totalPages, second.totalPages, past.totalPages]).toEqual([2, 2, 2])
+      // Consecutive windows over one order: no Handle appears twice and none is
+      // skipped between the pages a crawler walks.
+      expect(first.profiles[0]?.handle).toBe("reader-00000")
+      expect(second.profiles[0]?.handle).toBe(
+        `reader-${String(INDEXABLE_PROFILES_PAGE_SIZE).padStart(5, "0")}`,
+      )
+
+      // A page number typed by hand still answers with a page, the way the
+      // published Saved Item pages do.
+      expect(yield* pageAt("?page=0")).toEqual(first)
+      expect(yield* pageAt("?page=2.7")).toEqual(second)
+      expect((yield* pageAt("?page=1e20")).profiles).toEqual([])
+    }),
+  )
+
+  it.effect("gives an empty page when no Public Profile is worth indexing yet", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/v1/public/indexable-profiles").pipe(
+        Effect.provide(routeLayer()),
+      )
+
+      // An empty list, not a not-found: this route is asked about the whole
+      // deployment rather than about one Handle.
+      expect(response.status).toBe(200)
+      expect(yield* json(response)).toEqual({
+        profiles: [],
+        page: 1,
+        pageSize: INDEXABLE_PROFILES_PAGE_SIZE,
+        totalPages: 1,
+      })
+    }),
+  )
+
+  it.effect("limits the indexable listing on the same per-IP budget", () => {
+    let seen: string | undefined
+
+    return Effect.gen(function* () {
+      const response = yield* request("/v1/public/indexable-profiles", {
+        headers: { "CF-Connecting-IP": "198.51.100.9" },
+      }).pipe(
+        Effect.provide(routeLayer({
+          publicRateLimitAllowed: false,
+          onPublicRateLimit: (key) => {
+            seen = key
+          },
+        })),
+      )
+
+      // It lives under /v1/public/, so it inherits the group's budget rather
+      // than bringing one of its own.
+      expect(seen).toBe("198.51.100.9")
+      expect(response.status).toBe(429)
+      expect(response.headers.get("retry-after")).toBe("42")
+    })
+  })
 
   it.effect("keeps the API Key Rate Limit away from the public group", () =>
     Effect.gen(function* () {

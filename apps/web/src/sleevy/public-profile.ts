@@ -60,3 +60,40 @@ export const fetchPublicSavedItems = (handle: string, page: number) =>
 
 export const fetchReadingActivity = (handle: string) =>
   publicFetch<ReadingActivity>(`${handlePath(handle)}/activity`)
+
+// One Public Profile a search engine may be offered, and when its page last
+// changed. Which profiles qualify is the API's decision, so the sitemap lists
+// what it is given and owns no part of the rule.
+export type IndexableProfile = {
+  readonly handle: string
+  readonly lastModifiedAt: string
+}
+
+export type IndexableProfiles = {
+  readonly profiles: ReadonlyArray<IndexableProfile>
+  readonly page: number
+  readonly pageSize: number
+  readonly totalPages: number
+}
+
+// Every Handle the API is willing to have indexed, walked page by page. This
+// route answers with an empty page rather than a not-found, so a 404 here means
+// the request was wrong; it is raised like any other failure and the caller
+// falls back.
+export const fetchIndexableProfiles = async (): Promise<ReadonlyArray<IndexableProfile>> => {
+  const profiles: IndexableProfile[] = []
+  let page = 1
+
+  for (;;) {
+    const answer = await publicFetch<IndexableProfiles>(
+      `/v1/public/indexable-profiles?page=${page}`,
+    )
+    if (answer === "not-found") {
+      throw new Error("Indexable profiles request answered not-found")
+    }
+
+    profiles.push(...answer.profiles)
+    if (page >= answer.totalPages) return profiles
+    page += 1
+  }
+}

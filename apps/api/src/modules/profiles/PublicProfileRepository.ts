@@ -12,6 +12,7 @@ import {
   user,
 } from "../persistence/schema.js"
 import { publicSavedItemFilter } from "./PublicSavedItems.js"
+import { isIndexable, MAX_INDEXABLE_PROFILES } from "./SearchIndexing.js"
 import {
   readingActivityDay,
   readingActivityDayText,
@@ -63,6 +64,20 @@ export type PublicSavedItemsPage = {
   readonly totalCount: number
 }
 
+// One Public Profile a search engine may be offered. `lastModifiedAt` is the
+// creation time of the newest Saved Item the profile publishes, because that is
+// when the page last changed: a withheld save changes nothing a crawler sees,
+// and a Duplicate Save changes nothing either.
+export type IndexableProfile = {
+  readonly handle: string
+  readonly lastModifiedAt: Date
+}
+
+export type IndexableProfilesPage = {
+  readonly profiles: ReadonlyArray<IndexableProfile>
+  readonly totalCount: number
+}
+
 export class PublicProfileRepository extends Context.Service<PublicProfileRepository>()(
   "@app/modules/profiles/PublicProfileRepository",
   {
@@ -84,6 +99,14 @@ export class PublicProfileRepository extends Context.Service<PublicProfileReposi
       // profilesTable.
       const publicSavedItemCount = sql<number>`(
         select count(*)::int from ${savedItemsTable}
+        where ${publicSavedItemFilter(profilesTable.userId)}
+      )`
+
+      // When the published page of the surrounding row last changed. The same
+      // filter decides it, so an item a Public Profile withholds cannot date a
+      // page it does not appear on. Null while the Account publishes nothing.
+      const lastPublicSavedItemAt = sql<Date | null>`(
+        select max(${savedItemsTable.createdAt}) from ${savedItemsTable}
         where ${publicSavedItemFilter(profilesTable.userId)}
       )`
 
@@ -129,6 +152,63 @@ export class PublicProfileRepository extends Context.Service<PublicProfileReposi
               })
             : Option.none<PublicProfileSummary>()
         }),
+
+        // The Handles a search engine may be offered, one numbered page at a
+        // time. Which of them qualify is `isIndexable`'s decision and is not
+        // restated here: that rule reads the wall clock, which SQL has no access
+        // to, so a WHERE clause could only be a second copy of it that drifts.
+        // The query therefore hands back every public Handle together with the
+        // two facts the rule needs, and the rule filters them.
+        listIndexableProfiles: Effect.fn("PublicProfileRepository.listIndexableProfiles")(
+          function* ({
+            page,
+            pageSize,
+          }: { readonly page: number; readonly pageSize: number }) {
+            const rows = yield* db
+              .select({
+                handle: profilesTable.handle,
+                // The Account's join date, not the profile record's: the rule
+                // counts how long the Account has existed.
+                joinedAt: user.createdAt,
+                publicSavedItemCount,
+                lastModifiedAt: lastPublicSavedItemAt,
+              })
+              .from(profilesTable)
+              .innerJoin(user, eq(user.id, profilesTable.userId))
+              // Profile Visibility, and nothing further: the rest is the rule's
+              // business. This clause is not what withholds a private profile —
+              // the shared filter already counts nothing for one, so the rule
+              // rejects it anyway. It keeps the row from being read at all, so
+              // a Handle nobody may resolve never enters application memory.
+              .where(eq(profilesTable.visibility, "public"))
+              // A stable order, so a crawler walking the numbered pages sees
+              // each Handle once.
+              .orderBy(profilesTable.handle)
+              .limit(MAX_INDEXABLE_PROFILES)
+
+            const indexable = rows
+              .map((row) => ({
+                handle: row.handle,
+                joinedAt: row.joinedAt,
+                publicSavedItemCount: Number(row.publicSavedItemCount),
+                lastModifiedAt: row.lastModifiedAt,
+              }))
+              // The date is required by the same rule that admits the row: a
+              // profile publishing at least five Saved Items always has a newest
+              // one. The narrowing is what keeps that a type, not a comment.
+              .filter((row): row is typeof row & { readonly lastModifiedAt: Date } =>
+                row.lastModifiedAt !== null && isIndexable(row),
+              )
+
+            const start = (page - 1) * pageSize
+            return {
+              profiles: indexable
+                .slice(start, start + pageSize)
+                .map(({ handle, lastModifiedAt }) => ({ handle, lastModifiedAt })),
+              totalCount: indexable.length,
+            } satisfies IndexableProfilesPage
+          },
+        ),
 
         // The Saved Items arrive through a left join, so a public Account that
         // saved nothing inside the window still answers with a row and its

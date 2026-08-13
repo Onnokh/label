@@ -661,6 +661,9 @@ _Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
 - A public Saved Item page is addressed by page number, and page 1 answers even when an Account publishes nothing, so every page of a **Public Profile** is a URL a crawler can reach.
 - A public Saved Item representation carries the **Original URL**, host, title, favicon variants, image, **Type**, **Effective Tags**, **Preview Summary**, and the Saved Item creation time, and nothing else.
 - **Search Indexability** is true only when the **Account** is at least 7 days old and has at least 5 public **Saved Items**.
+- `GET /v1/public/indexable-profiles` returns one page of the **Handles** whose **Public Profile** has **Search Indexability**, 1000 to a page, each with the creation time of the newest **Saved Item** that Public Profile shows.
+- A **Public Profile** without **Search Indexability** is absent from `GET /v1/public/indexable-profiles`, and the route answers with an empty page rather than a not-found when no Handle qualifies.
+- The **Web Companion** serves `/sitemap.xml` from that listing together with its own fixed marketing and documentation URLs, and serves the fixed URLs alone when the listing cannot be read.
 - Every **Public Profile Endpoint** is subject to the **Public Profile Rate Limit** rather than the **API Key Rate Limit**.
 - A request over the **Public Profile Rate Limit** receives a **Rate Limit Response**.
 - A successful **Public Profile Endpoint** response may be cached for five minutes; a not-found response is not cached.
