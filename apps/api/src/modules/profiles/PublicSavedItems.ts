@@ -1,4 +1,6 @@
-import { and, eq, sql, type SQLWrapper } from "drizzle-orm"
+import { aliasedTable } from "drizzle-orm/alias"
+import { and, eq, exists, sql, type SQLWrapper } from "drizzle-orm"
+import { QueryBuilder } from "drizzle-orm/pg-core"
 
 import type { UserId } from "../../domain/SavedItem.js"
 import { foldersTable, profilesTable, savedItemsTable } from "../persistence/schema.js"
@@ -11,25 +13,49 @@ import { foldersTable, profilesTable, savedItemsTable } from "../persistence/sch
 // can drift from the other. Reading Activity keeps only the Profile Visibility
 // part of it, for the reason given in ReadingActivity.ts.
 
+// Both inner tables are aliased because each is also an outer table somewhere:
+// `profiles` in the Handle lookup, `folders` wherever a listing joins it.
+const publishedFolder = aliasedTable(foldersTable, "published_folder")
+const ownerProfile = aliasedTable(profilesTable, "owner_profile")
+
+// A query builder with no connection behind it. These two subqueries are built
+// once, at module load, and only ever composed into someone else's query, so
+// there is nothing here to execute them with.
+const qb = new QueryBuilder()
+
 // `owner` is the Account whose Saved Items are counted or listed. It takes a
 // plain UserId for a direct query, or a column for a correlated subquery.
 export const publicSavedItemFilter = (owner: UserId | SQLWrapper) =>
   and(
     eq(savedItemsTable.userId, owner),
     // The Folder and Profile rules are subqueries rather than joins, so a
-    // caller cannot forget a join and silently publish withheld items. The
-    // inner tables are aliased because `profiles` is also the outer table of
-    // the profile lookup.
-    sql`exists (
-      select 1 from ${foldersTable} published_folder
-      where published_folder.id = ${savedItemsTable.folderId}
-        and published_folder.is_published
-    )`,
-    sql`exists (
-      select 1 from ${profilesTable} owner_profile
-      where owner_profile.user_id = ${savedItemsTable.userId}
-        and owner_profile.visibility = 'public'
-    )`,
+    // caller cannot forget a join and silently publish withheld items.
+    //
+    // They are built through the query builder rather than written as SQL text,
+    // so every column here is a real reference: renaming one stops the build
+    // instead of quietly producing a filter that matches the wrong rows.
+    exists(
+      qb
+        .select({ one: sql`1` })
+        .from(publishedFolder)
+        .where(
+          and(
+            eq(publishedFolder.id, savedItemsTable.folderId),
+            eq(publishedFolder.isPublished, true),
+          ),
+        ),
+    ),
+    exists(
+      qb
+        .select({ one: sql`1` })
+        .from(ownerProfile)
+        .where(
+          and(
+            eq(ownerProfile.userId, savedItemsTable.userId),
+            eq(ownerProfile.visibility, "public"),
+          ),
+        ),
+    ),
   )
 
 // A Public Profile is read one numbered page at a time, 50 Saved Items to a
