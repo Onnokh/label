@@ -1,8 +1,9 @@
 import { Effect } from "effect"
 
-import type { ApiKeyRateLimiterShape, RateLimitResult } from "../modules/rate-limit/ApiKeyRateLimiter.js"
+import type { ApiKeyRateLimiterShape } from "../modules/rate-limit/ApiKeyRateLimiter.js"
 import { webClientIp } from "../modules/rate-limit/ClientIp.js"
 import type { PublicProfileRateLimiterShape } from "../modules/rate-limit/PublicProfileRateLimiter.js"
+import type { RateLimitResult } from "../modules/rate-limit/RateLimiter.js"
 
 const API_KEY_LENGTH = 64
 

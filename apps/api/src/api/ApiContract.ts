@@ -401,7 +401,9 @@ const profileGroup = HttpApiGroup.make("profile")
 // purpose: a visitor reads a Public Profile without an App Session and without
 // an API Key, so it is bucketed on the client address instead (see
 // PublicProfileRateLimiter). Every route lives under /v1/public/, which is the
-// prefix the per-IP budget is applied to.
+// prefix the per-IP budget is applied to, and every route answers a Handle it
+// cannot resolve with the same not-found error, so the three disclose nothing
+// between them.
 const publicProfilesGroup = HttpApiGroup.make("public-profiles")
   .add(
     HttpApiEndpoint.get("get", "/v1/public/profiles/:handle", {
@@ -411,8 +413,7 @@ const publicProfilesGroup = HttpApiGroup.make("public-profiles")
     }),
   )
   // The published Saved Items of one Handle, newest first, one numbered page at
-  // a time. It answers a Handle it cannot resolve with the same not-found error
-  // as the profile route, so the pair discloses nothing between them.
+  // a time.
   .add(
     HttpApiEndpoint.get("listSavedItems", "/v1/public/profiles/:handle/saved-items", {
       params: Schema.Struct({ handle: Schema.String }),
@@ -421,10 +422,8 @@ const publicProfilesGroup = HttpApiGroup.make("public-profiles")
       error: [PublicProfileNotFoundError, RateLimitExceeded],
     }),
   )
-  // Reading Activity takes the same not-found error as the profile route, so an
-  // unknown Handle and a private one answer alike here too.
   .add(
-    HttpApiEndpoint.get("activity", "/v1/public/profiles/:handle/activity", {
+    HttpApiEndpoint.get("getActivity", "/v1/public/profiles/:handle/activity", {
       params: Schema.Struct({ handle: Schema.String }),
       success: ReadingActivityResponse,
       error: [PublicProfileNotFoundError, RateLimitExceeded],

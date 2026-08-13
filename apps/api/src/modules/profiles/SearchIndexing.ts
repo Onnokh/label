@@ -4,16 +4,16 @@
 // boolean, so the web layer renders a robots directive from a value and owns no
 // part of the rule.
 
-export const INDEXABLE_MIN_ACCOUNT_AGE_DAYS = 7
-export const INDEXABLE_MIN_PUBLIC_SAVED_ITEMS = 5
+const MIN_ACCOUNT_AGE_DAYS = 7
+const MIN_PUBLIC_SAVED_ITEMS = 5
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-export const isIndexable = (input: {
+// The wall clock is read here rather than passed in, the way the rest of the
+// codebase reads it. The boundaries are proven through the route.
+export const isIndexable = (profile: {
   readonly joinedAt: Date
   readonly publicSavedItemCount: number
-  readonly now: Date
 }): boolean =>
-  input.publicSavedItemCount >= INDEXABLE_MIN_PUBLIC_SAVED_ITEMS &&
-  input.now.getTime() - input.joinedAt.getTime() >=
-    INDEXABLE_MIN_ACCOUNT_AGE_DAYS * DAY_MS
+  profile.publicSavedItemCount >= MIN_PUBLIC_SAVED_ITEMS &&
+  Date.now() - profile.joinedAt.getTime() >= MIN_ACCOUNT_AGE_DAYS * DAY_MS

@@ -5,32 +5,15 @@ import { foldersTable, profilesTable, savedItemsTable } from "../persistence/sch
 
 // The one place that says which Saved Items a Public Profile shows. ADR 0016
 // fixes the rule: Profile Visibility is public, the item is not a Private Saved
-// Item, its Folder is not a Private Folder, and it was created more than one
-// hour ago. Every public read resolves it in SQL through this filter — the
-// profile count today, the item list and the Reading Activity grid later — so
-// no reader has to restate it and none of them can drift.
-//
+// Item, its Folder is not a Private Folder, and it was created more than an hour
+// ago. The published count and the published page both resolve it in SQL through
+// this filter, so neither can drift from the other. Reading Activity keeps only
+// the Profile Visibility part of it, for the reason given in ReadingActivity.ts.
+
 // Postgres owns the one-hour boundary. The codebase reads the wall clock
 // directly and has no injected clock, so `now()` in the database is the only
 // boundary a test can control by choosing row timestamps.
-export const PUBLIC_SAVED_ITEM_DELAY = "1 hour"
-
-// A Public Profile is read one numbered page at a time, 50 Saved Items to a
-// page. Page numbers rather than a cursor, because a crawler cannot reach
-// infinite scroll: every page has to be an address a visitor can share.
-export const PUBLIC_SAVED_ITEMS_PAGE_SIZE = 50
-
-// The page a request asks for. Page 1 is the newest page. A missing number, a
-// fractional one, and anything below the first page all read as the first page:
-// these URLs are typed and edited by hand, so a Public Profile answers with its
-// first page rather than with an error.
-export const publicPageNumber = (requested: number | undefined): number =>
-  requested === undefined ? 1 : Math.max(1, Math.trunc(requested))
-
-// How many numbered pages a Public Profile has. A profile that publishes nothing
-// still has one page, so page 1 is always an address that answers.
-export const publicPageCount = (totalCount: number, pageSize: number): number =>
-  Math.max(1, Math.ceil(totalCount / pageSize))
+const PUBLISH_DELAY = "1 hour"
 
 // `owner` is the Account whose Saved Items are counted or listed. It takes a
 // plain UserId for a direct query, or a column for a correlated subquery.
@@ -52,5 +35,22 @@ export const publicSavedItemFilter = (owner: UserId | SQLWrapper) =>
       where owner_profile.user_id = ${savedItemsTable.userId}
         and owner_profile.visibility = 'public'
     )`,
-    sql`${savedItemsTable.createdAt} < now() - interval '${sql.raw(PUBLIC_SAVED_ITEM_DELAY)}'`,
+    sql`${savedItemsTable.createdAt} < now() - interval '${sql.raw(PUBLISH_DELAY)}'`,
   )
+
+// A Public Profile is read one numbered page at a time, 50 Saved Items to a
+// page. Page numbers rather than a cursor, because a crawler cannot reach
+// infinite scroll: every page has to be an address a visitor can share.
+export const PUBLIC_SAVED_ITEMS_PAGE_SIZE = 50
+
+// The page a request asks for. Page 1 is the newest page. A missing number, a
+// fractional one, and anything below the first page all read as the first page:
+// these URLs are typed and edited by hand, so a Public Profile answers with its
+// first page rather than with an error.
+export const requestedPage = (asked: number | undefined): number =>
+  asked === undefined ? 1 : Math.max(1, Math.trunc(asked))
+
+// How many numbered pages a Public Profile has. A profile that publishes nothing
+// still has one page, so page 1 is always an address that answers.
+export const pageCount = (totalCount: number): number =>
+  Math.max(1, Math.ceil(totalCount / PUBLIC_SAVED_ITEMS_PAGE_SIZE))

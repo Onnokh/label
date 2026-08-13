@@ -2,8 +2,8 @@
 // `0-9`, `-`, and `_`, is stored lowercase, and may not take a name that a root
 // path already uses or may use later.
 
-export const HANDLE_MIN_LENGTH = 3
-export const HANDLE_MAX_LENGTH = 30
+const HANDLE_MIN_LENGTH = 3
+const HANDLE_MAX_LENGTH = 30
 
 const HANDLE_PATTERN = /^[a-z0-9_-]+$/
 

@@ -4,9 +4,9 @@ import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { normalizeHandle } from "../modules/profiles/Handle.js"
 import { PublicProfileRepository } from "../modules/profiles/PublicProfileRepository.js"
 import {
+  pageCount,
   PUBLIC_SAVED_ITEMS_PAGE_SIZE,
-  publicPageCount,
-  publicPageNumber,
+  requestedPage,
 } from "../modules/profiles/PublicSavedItems.js"
 import { isIndexable } from "../modules/profiles/SearchIndexing.js"
 import {
@@ -19,8 +19,9 @@ import {
   sleevyApi,
 } from "./ApiContract.js"
 
-// One constant message, built the same way for every miss, so the unknown-Handle
-// answer and the private-Public-Profile answer are the same bytes.
+// One constant message, built the same way for every miss on every route of the
+// group, so the unknown-Handle answer, the private-Public-Profile answer, and the
+// answer to a spelling no Handle may ever take are all the same bytes.
 const notFound = () => new PublicProfileNotFoundError({
   message: "No Public Profile exists for this Handle.",
 })
@@ -32,10 +33,6 @@ export const publicProfilesGroupLive = HttpApiBuilder.group(
     handlers.handle("get", ({ params }) =>
       Effect.gen(function* () {
         const repo = yield* PublicProfileRepository
-        // Every Handle takes one path. A Handle no Account holds, a Handle
-        // whose Profile Visibility is private, and a spelling no Handle may
-        // ever take all reach the same lookup and the same answer, so the
-        // response never discloses which Handles exist.
         const found = yield* repo
           .findPublicByHandle(normalizeHandle(params.handle))
           .pipe(Effect.orDie)
@@ -46,23 +43,17 @@ export const publicProfilesGroupLive = HttpApiBuilder.group(
           handle,
           joinedAt,
           publicSavedItemCount,
-          isIndexable: isIndexable({
-            joinedAt,
-            publicSavedItemCount,
-            now: new Date(),
-          }),
+          isIndexable: isIndexable({ joinedAt, publicSavedItemCount }),
         })
       }),
     ).handle("listSavedItems", ({ params, query }) =>
       Effect.gen(function* () {
         const repo = yield* PublicProfileRepository
-        const page = publicPageNumber(query.page)
-        // The same not-found answer as the profile route, for the same reason:
-        // the pair of routes must not disclose that a Handle is claimed.
+        const page = requestedPage(query.page)
         const found = yield* repo
           .listPublicSavedItems(normalizeHandle(params.handle), {
-            number: page,
-            size: PUBLIC_SAVED_ITEMS_PAGE_SIZE,
+            page,
+            pageSize: PUBLIC_SAVED_ITEMS_PAGE_SIZE,
           })
           .pipe(Effect.orDie)
         if (Option.isNone(found)) return yield* notFound()
@@ -72,14 +63,12 @@ export const publicProfilesGroupLive = HttpApiBuilder.group(
           savedItems: savedItems.map(publicSavedItemToDto),
           page,
           pageSize: PUBLIC_SAVED_ITEMS_PAGE_SIZE,
-          totalPages: publicPageCount(totalCount, PUBLIC_SAVED_ITEMS_PAGE_SIZE),
+          totalPages: pageCount(totalCount),
         })
       }),
-    ).handle("activity", ({ params }) =>
+    ).handle("getActivity", ({ params }) =>
       Effect.gen(function* () {
         const repo = yield* PublicProfileRepository
-        // The same lookup shape as the profile route, so Reading Activity
-        // discloses no more about which Handles exist than the profile does.
         const found = yield* repo
           .findReadingActivity(normalizeHandle(params.handle))
           .pipe(Effect.orDie)

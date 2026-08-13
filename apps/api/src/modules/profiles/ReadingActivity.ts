@@ -7,17 +7,13 @@ import { savedItemsTable } from "../persistence/schema.js"
 // the rule: first captures only, bucketed by Saved Item creation time in UTC,
 // over a rolling 52 weeks.
 //
-// Read PublicSavedItems.ts next to this, and note what is missing here. Of that
-// four-part public predicate only Profile Visibility still applies, and it
-// applies through the Handle lookup rather than through this filter: the grid
-// counts Private Saved Items, Saved Items inside Private Folders, and saves
-// from the last hour. A count is not a URL, and a grid restricted to the items
-// the list shows would be too empty to be worth drawing. There is no switch to
-// hide it.
-//
-// The consequence is visible and intended: the grid may show a save today while
-// the Saved Item list shows none, because the list withholds a save for its
-// first hour and the grid does not.
+// Of the four parts of publicSavedItemFilter only Profile Visibility survives
+// here, and it arrives through the Handle lookup rather than through this
+// filter: the grid counts Private Saved Items, Saved Items inside Private
+// Folders, and saves from the last hour. A count is not a URL, and a grid
+// restricted to the items the list shows would be too empty to be worth
+// drawing. There is no switch to hide it. So the grid may show a save today
+// while the item list still withholds it, which is intended.
 //
 // Every Saved Item row is one first capture. A Duplicate Save updates
 // `last_saved_at` on the row it found and inserts nothing, so counting rows by

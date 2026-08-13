@@ -70,13 +70,22 @@ export class PublicProfileRepository extends Context.Service<PublicProfileReposi
       const { db } = yield* PostgresClient
 
       // The one condition that resolves a Handle publicly. Profile Visibility
-      // sits inside it, so every public read of a Handle answers an unknown
-      // Handle and a private Public Profile the same way.
+      // sits inside it, so every public read below answers an unknown Handle and
+      // a private Public Profile the same way, after the same work, and no
+      // private row ever enters application memory.
       const publicProfileMatch = (handle: string) =>
         and(
           sql`lower(${profilesTable.handle}) = lower(${handle})`,
           eq(profilesTable.visibility, "public"),
         )
+
+      // Counts the Saved Items the Account of the surrounding row publishes.
+      // Correlated on `profiles.user_id`, so it works in any select over
+      // profilesTable.
+      const publicSavedItemCount = sql<number>`(
+        select count(*)::int from ${savedItemsTable}
+        where ${publicSavedItemFilter(profilesTable.userId)}
+      )`
 
       // The Account behind a Handle, plus how many Saved Items it publishes.
       // Private to the repository: the identifier is what the list query needs
@@ -86,10 +95,7 @@ export class PublicProfileRepository extends Context.Service<PublicProfileReposi
           const [row] = yield* db
             .select({
               userId: profilesTable.userId,
-              publicSavedItemCount: sql<number>`(
-                select count(*)::int from ${savedItemsTable}
-                where ${publicSavedItemFilter(profilesTable.userId)}
-              )`,
+              publicSavedItemCount,
             })
             .from(profilesTable)
             .where(publicProfileMatch(handle))
@@ -99,10 +105,6 @@ export class PublicProfileRepository extends Context.Service<PublicProfileReposi
         })
 
       return {
-        // One statement for every Handle. Profile Visibility is part of the
-        // WHERE clause, so an unknown Handle and a private Public Profile both
-        // leave this without a row after the same work — the caller cannot tell
-        // them apart, and a private row never enters application memory.
         findPublicByHandle: Effect.fn("PublicProfileRepository.findPublicByHandle")(function* (
           handle: string,
         ) {
@@ -112,10 +114,7 @@ export class PublicProfileRepository extends Context.Service<PublicProfileReposi
               // The join date is the Account's, not the Public Profile record's:
               // the indexing rule counts how long the Account has existed.
               joinedAt: user.createdAt,
-              publicSavedItemCount: sql<number>`(
-                select count(*)::int from ${savedItemsTable}
-                where ${publicSavedItemFilter(profilesTable.userId)}
-              )`,
+              publicSavedItemCount,
             })
             .from(profilesTable)
             .innerJoin(user, eq(user.id, profilesTable.userId))
@@ -131,11 +130,6 @@ export class PublicProfileRepository extends Context.Service<PublicProfileReposi
             : Option.none<PublicProfileSummary>()
         }),
 
-        // Reading Activity for a Handle, in one statement for the same reason as
-        // the lookup above: Profile Visibility sits in the WHERE clause, so a
-        // private Account leaves this without a row and cannot be told apart
-        // from a Handle nobody holds.
-        //
         // The Saved Items arrive through a left join, so a public Account that
         // saved nothing inside the window still answers with a row and its
         // window bounds instead of a not-found. Postgres groups and counts, so
@@ -171,15 +165,18 @@ export class PublicProfileRepository extends Context.Service<PublicProfileReposi
         }),
 
         // One page of the Saved Items a Public Profile shows. The Handle is
-        // resolved first, so a Handle nobody holds and a private Public Profile
-        // both leave without a page, exactly like the profile lookup — an empty
-        // page belongs to a public Account that publishes nothing.
+        // resolved first, so no page at all means a Handle nobody holds or a
+        // private Public Profile, while an empty page belongs to a public Account
+        // that publishes nothing.
         //
         // Which items appear is the shared filter's decision and is not restated
         // here. Ordering is by Saved Item creation time, not Last Saved At, so a
         // Duplicate Save cannot reorder a published page.
         listPublicSavedItems: Effect.fn("PublicProfileRepository.listPublicSavedItems")(
-          function* (handle: string, page: { readonly number: number; readonly size: number }) {
+          function* (
+            handle: string,
+            { page, pageSize }: { readonly page: number; readonly pageSize: number },
+          ) {
             const owner = yield* findPublicOwner(handle)
             if (!owner) return Option.none<PublicSavedItemsPage>()
 
@@ -206,8 +203,8 @@ export class PublicProfileRepository extends Context.Service<PublicProfileReposi
               // The identifier breaks ties without being selected, so two items
               // saved in the same instant keep one stable page boundary.
               .orderBy(desc(savedItemsTable.createdAt), desc(savedItemsTable.id))
-              .limit(page.size)
-              .offset((page.number - 1) * page.size)
+              .limit(pageSize)
+              .offset((page - 1) * pageSize)
 
             return Option.some<PublicSavedItemsPage>({
               savedItems: rows.map((row) => ({

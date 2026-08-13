@@ -37,7 +37,7 @@ const findPublicByHandle = (handle: string) =>
 
 const listPublicSavedItems = (
   handle: string,
-  page: { readonly number: number; readonly size: number },
+  page: { readonly page: number; readonly pageSize: number },
 ) =>
   runIntegration(
     Effect.gen(function* () {
@@ -164,10 +164,10 @@ const setVisibility = (userId: UserId, visibility: "private" | "public") =>
     ]),
   )
 
-// Runs the shared predicate on its own, the way the Saved Item list and the
-// Reading Activity grid will: given an Account, count what a Public Profile may
-// show. This is what pins the Profile Visibility clause, which the Handle
-// lookup would otherwise make look redundant.
+// Runs the shared filter on its own, the way the published count and the
+// published page do: given an Account, count what a Public Profile may show.
+// This is what pins the Profile Visibility clause, which the Handle lookup would
+// otherwise make look redundant.
 const dialect = new PgDialect()
 
 const countThroughSharedFilter = (userId: UserId) =>
@@ -313,7 +313,7 @@ describe("public profile integration flow", () => {
     await insertSavedItem(userId, { ageMinutes: 0, path: "saved-just-now" })
 
     const page = Option.getOrThrow(
-      await listPublicSavedItems(handle, { number: 1, size: 50 }),
+      await listPublicSavedItems(handle, { page: 1, pageSize: 50 }),
     )
 
     // Each withheld item is absent, with no placeholder standing in for it and
@@ -333,9 +333,9 @@ describe("public profile integration flow", () => {
     await insertProfile(userId, handle, "private")
     await insertSavedItem(userId, { ageMinutes: 120 })
 
-    const whilePrivate = await listPublicSavedItems(handle, { number: 1, size: 50 })
+    const whilePrivate = await listPublicSavedItems(handle, { page: 1, pageSize: 50 })
     await setVisibility(userId, "public")
-    const whilePublic = await listPublicSavedItems(handle, { number: 1, size: 50 })
+    const whilePublic = await listPublicSavedItems(handle, { page: 1, pageSize: 50 })
 
     // A private Public Profile has no page at all, which is what lets the route
     // answer it exactly like a Handle nobody holds.
@@ -353,7 +353,7 @@ describe("public profile integration flow", () => {
     await insertSavedItem(userId, { ageMinutes: 120, isPrivate: true })
 
     const page = Option.getOrThrow(
-      await listPublicSavedItems(handle, { number: 1, size: 50 }),
+      await listPublicSavedItems(handle, { page: 1, pageSize: 50 }),
     )
 
     expect(page.savedItems).toEqual([])
@@ -363,7 +363,7 @@ describe("public profile integration flow", () => {
   test("gives no page for a Handle nobody holds", async () => {
     const unknown = await listPublicSavedItems(
       `nobody-${randomUUID().slice(0, 8)}`,
-      { number: 1, size: 50 },
+      { page: 1, pageSize: 50 },
     )
 
     expect(Option.isNone(unknown)).toBe(true)
@@ -388,7 +388,7 @@ describe("public profile integration flow", () => {
     })
 
     const page = Option.getOrThrow(
-      await listPublicSavedItems(handle, { number: 1, size: 50 }),
+      await listPublicSavedItems(handle, { page: 1, pageSize: 50 }),
     )
 
     // Creation time orders the page, so the Duplicate Save stays where it was.
@@ -409,9 +409,9 @@ describe("public profile integration flow", () => {
     const second = await insertSavedItem(userId, { ageMinutes: 120, path: "page-item-2" })
     const first = await insertSavedItem(userId, { ageMinutes: 61, path: "page-item-1" })
 
-    const pageOne = Option.getOrThrow(await listPublicSavedItems(handle, { number: 1, size: 2 }))
-    const pageTwo = Option.getOrThrow(await listPublicSavedItems(handle, { number: 2, size: 2 }))
-    const pageThree = Option.getOrThrow(await listPublicSavedItems(handle, { number: 3, size: 2 }))
+    const pageOne = Option.getOrThrow(await listPublicSavedItems(handle, { page: 1, pageSize: 2 }))
+    const pageTwo = Option.getOrThrow(await listPublicSavedItems(handle, { page: 2, pageSize: 2 }))
+    const pageThree = Option.getOrThrow(await listPublicSavedItems(handle, { page: 3, pageSize: 2 }))
 
     // Consecutive windows over one order: nothing repeats and nothing is skipped.
     expect(pageOne.savedItems.map((item) => item.originalUrl)).toEqual([first, second])
@@ -442,7 +442,7 @@ describe("public profile integration flow", () => {
     })
 
     const page = Option.getOrThrow(
-      await listPublicSavedItems(handle, { number: 1, size: 50 }),
+      await listPublicSavedItems(handle, { page: 1, pageSize: 50 }),
     )
 
     const { savedAt, ...published } = page.savedItems[0]!

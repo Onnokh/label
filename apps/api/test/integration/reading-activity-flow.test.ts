@@ -352,7 +352,7 @@ describe("reading activity integration flow", () => {
     const claimedButPrivate = await findReadingActivity(handle)
     const unknown = await findReadingActivity(`nobody-${randomUUID().slice(0, 8)}`)
 
-    // Profile Visibility is the one part of the public predicate the grid keeps,
+    // Profile Visibility is the one part of the public filter the grid keeps,
     // and it makes the two Handles indistinguishable here.
     expect(Option.isNone(claimedButPrivate)).toBe(true)
     expect(Option.isNone(unknown)).toBe(true)

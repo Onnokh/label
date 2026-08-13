@@ -330,15 +330,15 @@ const routeLayer = (input: {
       // too and the route answers both Handles alike.
       listPublicSavedItems: (
         handle: string,
-        page: { readonly number: number; readonly size: number },
+        page: { readonly page: number; readonly pageSize: number },
       ) =>
         Effect.sync(() => {
           const found = findPublicProfile(handle)
           if (!found) return Option.none()
           const savedItems = found.savedItems ?? []
-          const start = (page.number - 1) * page.size
+          const start = (page.page - 1) * page.pageSize
           return Option.some({
-            savedItems: savedItems.slice(start, start + page.size),
+            savedItems: savedItems.slice(start, start + page.pageSize),
             totalCount: savedItems.length,
           })
         }),
