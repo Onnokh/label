@@ -35,6 +35,17 @@ const findPublicByHandle = (handle: string) =>
     }),
   )
 
+const listPublicSavedItems = (
+  handle: string,
+  page: { readonly number: number; readonly size: number },
+) =>
+  runIntegration(
+    Effect.gen(function* () {
+      const repo = yield* PublicProfileRepository
+      return yield* repo.listPublicSavedItems(handle, page)
+    }),
+  )
+
 const withPool = async <A>(run: (pool: Pool) => Promise<A>) => {
   const pool = new Pool({ connectionString: testDatabaseUrl })
   try {
@@ -79,26 +90,57 @@ const insertFolder = async (userId: UserId, name: string, isPrivate: boolean) =>
 }
 
 // One Saved Item with a chosen age, privacy, and Folder, written straight to
-// Postgres so the row timestamps decide what the query sees.
+// Postgres so the row timestamps decide what the query sees. The Link gets its
+// metadata and enrichment rows the way capture creates them, because the public
+// list reads all three. Returns the Original URL, which is how a test recognizes
+// the item in a published page.
 const insertSavedItem = (
   userId: UserId,
   input: {
     readonly ageMinutes: number
     readonly isPrivate?: boolean
     readonly folderId?: string | null
+    readonly path?: string
+    readonly title?: string
+    readonly previewSummary?: string
+    readonly tags?: ReadonlyArray<string>
+    readonly enrichmentTags?: ReadonlyArray<string>
+    // Set it apart from the creation time to write what a Duplicate Save leaves
+    // behind: the same row, saved again later.
+    readonly lastSavedAgeMinutes?: number
   },
 ) =>
   withPool(async (pool) => {
     const linkId = randomUUID()
-    const url = `https://example.com/${randomUUID()}`
+    const url = `https://example.com/${input.path ?? randomUUID()}`
     await pool.query(
       `insert into "links" (id, original_url, normalized_url, host) values ($1, $2, $2, $3)`,
       [linkId, url, "example.com"],
     )
     await pool.query(
+      `insert into "link_metadata" (link_id, title, favicon_url, image_url) values ($1, $2, $3, $4)`,
+      [
+        linkId,
+        input.title ?? null,
+        `${url}/favicon.ico`,
+        `${url}/cover.png`,
+      ],
+    )
+    await pool.query(
       `
-        insert into "saved_items" (id, user_id, link_id, folder_id, is_private, created_at)
-        values ($1, $2, $3, $4, $5, now() - ($6 || ' minutes')::interval)
+        insert into "link_enrichment" (link_id, type, tags, preview_summary, status)
+        values ($1, 'article', $2, $3, 'enriched')
+      `,
+      [linkId, input.enrichmentTags ?? [], input.previewSummary ?? null],
+    )
+    await pool.query(
+      `
+        insert into "saved_items" (id, user_id, link_id, folder_id, is_private, tags, created_at, last_saved_at)
+        values (
+          $1, $2, $3, $4, $5, $6,
+          now() - ($7 || ' minutes')::interval,
+          now() - ($8 || ' minutes')::interval
+        )
       `,
       [
         randomUUID(),
@@ -106,9 +148,12 @@ const insertSavedItem = (
         linkId,
         input.folderId ?? null,
         input.isPrivate ?? false,
+        input.tags ?? [],
         String(input.ageMinutes),
+        String(input.lastSavedAgeMinutes ?? input.ageMinutes),
       ],
     )
+    return url
   })
 
 const setVisibility = (userId: UserId, visibility: "private" | "public") =>
@@ -232,6 +277,195 @@ describe("public profile integration flow", () => {
     const found = await findPublicByHandle(handle.toUpperCase())
 
     expect(Option.getOrThrow(found).handle).toBe(handle)
+  })
+
+  test("lists only the Saved Items a Public Profile shows, newest first", async () => {
+    const userId = `integration-user-${randomUUID()}` as UserId
+    const handle = `reader-${randomUUID().slice(0, 8)}`
+    await insertUser(userId, 40)
+    await insertProfile(userId, handle, "public")
+
+    const privateFolderId = await insertFolder(userId, "Private work", true)
+    const publicFolderId = await insertFolder(userId, "Reading", false)
+
+    // Published.
+    const oldest = await insertSavedItem(userId, { ageMinutes: 240, path: "published-oldest" })
+    const inPublicFolder = await insertSavedItem(userId, {
+      ageMinutes: 120,
+      folderId: publicFolderId,
+      path: "published-in-a-folder",
+    })
+    // Published: just past the one-hour boundary Postgres owns.
+    const justPastTheHour = await insertSavedItem(userId, {
+      ageMinutes: 61,
+      path: "published-just-past-the-hour",
+    })
+    // Withheld: a Private Saved Item.
+    await insertSavedItem(userId, { ageMinutes: 120, isPrivate: true, path: "private-item" })
+    // Withheld: inside a Private Folder.
+    await insertSavedItem(userId, {
+      ageMinutes: 120,
+      folderId: privateFolderId,
+      path: "in-a-private-folder",
+    })
+    // Withheld: still inside the first hour.
+    await insertSavedItem(userId, { ageMinutes: 59, path: "inside-the-first-hour" })
+    await insertSavedItem(userId, { ageMinutes: 0, path: "saved-just-now" })
+
+    const page = Option.getOrThrow(
+      await listPublicSavedItems(handle, { number: 1, size: 50 }),
+    )
+
+    // Each withheld item is absent, with no placeholder standing in for it and
+    // nothing counting it.
+    expect(page.savedItems.map((item) => item.originalUrl)).toEqual([
+      justPastTheHour,
+      inPublicFolder,
+      oldest,
+    ])
+    expect(page.totalCount).toBe(3)
+  })
+
+  test("withholds every Saved Item while Profile Visibility is private", async () => {
+    const userId = `integration-user-${randomUUID()}` as UserId
+    const handle = `reader-${randomUUID().slice(0, 8)}`
+    await insertUser(userId, 40)
+    await insertProfile(userId, handle, "private")
+    await insertSavedItem(userId, { ageMinutes: 120 })
+
+    const whilePrivate = await listPublicSavedItems(handle, { number: 1, size: 50 })
+    await setVisibility(userId, "public")
+    const whilePublic = await listPublicSavedItems(handle, { number: 1, size: 50 })
+
+    // A private Public Profile has no page at all, which is what lets the route
+    // answer it exactly like a Handle nobody holds.
+    expect(Option.isNone(whilePrivate)).toBe(true)
+    expect(Option.getOrThrow(whilePublic).savedItems.length).toBe(1)
+  })
+
+  test("gives an empty page, not a not-found, while a public Account publishes nothing", async () => {
+    const userId = `integration-user-${randomUUID()}` as UserId
+    const handle = `reader-${randomUUID().slice(0, 8)}`
+    await insertUser(userId, 40)
+    await insertProfile(userId, handle, "public")
+    // Both are withheld, so the Account publishes nothing yet.
+    await insertSavedItem(userId, { ageMinutes: 30 })
+    await insertSavedItem(userId, { ageMinutes: 120, isPrivate: true })
+
+    const page = Option.getOrThrow(
+      await listPublicSavedItems(handle, { number: 1, size: 50 }),
+    )
+
+    expect(page.savedItems).toEqual([])
+    expect(page.totalCount).toBe(0)
+  })
+
+  test("gives no page for a Handle nobody holds", async () => {
+    const unknown = await listPublicSavedItems(
+      `nobody-${randomUUID().slice(0, 8)}`,
+      { number: 1, size: 50 },
+    )
+
+    expect(Option.isNone(unknown)).toBe(true)
+  })
+
+  test("keeps a Duplicate Save from reordering a published page", async () => {
+    const userId = `integration-user-${randomUUID()}` as UserId
+    const handle = `reader-${randomUUID().slice(0, 8)}`
+    await insertUser(userId, 40)
+    await insertProfile(userId, handle, "public")
+
+    // Created three days ago and saved again a minute ago, the way Renewed
+    // Intent leaves a row.
+    const savedAgainJustNow = await insertSavedItem(userId, {
+      ageMinutes: 3 * 24 * 60,
+      lastSavedAgeMinutes: 1,
+      path: "saved-again-just-now",
+    })
+    const createdLater = await insertSavedItem(userId, {
+      ageMinutes: 120,
+      path: "created-two-hours-ago",
+    })
+
+    const page = Option.getOrThrow(
+      await listPublicSavedItems(handle, { number: 1, size: 50 }),
+    )
+
+    // Creation time orders the page, so the Duplicate Save stays where it was.
+    expect(page.savedItems.map((item) => item.originalUrl)).toEqual([
+      createdLater,
+      savedAgainJustNow,
+    ])
+  })
+
+  test("reads a Public Profile one numbered page at a time", async () => {
+    const userId = `integration-user-${randomUUID()}` as UserId
+    const handle = `reader-${randomUUID().slice(0, 8)}`
+    await insertUser(userId, 40)
+    await insertProfile(userId, handle, "public")
+
+    const fourth = await insertSavedItem(userId, { ageMinutes: 240, path: "page-item-4" })
+    const third = await insertSavedItem(userId, { ageMinutes: 180, path: "page-item-3" })
+    const second = await insertSavedItem(userId, { ageMinutes: 120, path: "page-item-2" })
+    const first = await insertSavedItem(userId, { ageMinutes: 61, path: "page-item-1" })
+
+    const pageOne = Option.getOrThrow(await listPublicSavedItems(handle, { number: 1, size: 2 }))
+    const pageTwo = Option.getOrThrow(await listPublicSavedItems(handle, { number: 2, size: 2 }))
+    const pageThree = Option.getOrThrow(await listPublicSavedItems(handle, { number: 3, size: 2 }))
+
+    // Consecutive windows over one order: nothing repeats and nothing is skipped.
+    expect(pageOne.savedItems.map((item) => item.originalUrl)).toEqual([first, second])
+    expect(pageTwo.savedItems.map((item) => item.originalUrl)).toEqual([third, fourth])
+    expect(pageThree.savedItems).toEqual([])
+    expect([pageOne.totalCount, pageTwo.totalCount, pageThree.totalCount]).toEqual([4, 4, 4])
+  })
+
+  test("publishes the Saved Metadata and Effective Tags of a listed Saved Item", async () => {
+    const userId = `integration-user-${randomUUID()}` as UserId
+    const handle = `reader-${randomUUID().slice(0, 8)}`
+    await insertUser(userId, 40)
+    await insertProfile(userId, handle, "public")
+
+    const ownTags = await insertSavedItem(userId, {
+      ageMinutes: 61,
+      path: "with-saved-item-tags",
+      title: "Saved Item Tags win",
+      previewSummary: "One sentence a visitor reads before opening the Link.",
+      tags: ["backend"],
+      enrichmentTags: ["tools"],
+    })
+    const enrichedTags = await insertSavedItem(userId, {
+      ageMinutes: 120,
+      path: "with-enrichment-tags-only",
+      title: "Enrichment Tags stand in",
+      enrichmentTags: ["design"],
+    })
+
+    const page = Option.getOrThrow(
+      await listPublicSavedItems(handle, { number: 1, size: 50 }),
+    )
+
+    const { savedAt, ...published } = page.savedItems[0]!
+    expect(published).toEqual({
+      originalUrl: ownTags,
+      host: "example.com",
+      title: "Saved Item Tags win",
+      faviconUrl: `${ownTags}/favicon.ico`,
+      faviconLightUrl: undefined,
+      faviconDarkUrl: undefined,
+      imageUrl: `${ownTags}/cover.png`,
+      type: "article",
+      // Saved Item Tags win over Enrichment Tags.
+      tags: ["backend"],
+      previewSummary: "One sentence a visitor reads before opening the Link.",
+    })
+    // The save date is the row's creation time, which is also why this item is
+    // past the one-hour boundary.
+    const savedMinutesAgo = (Date.now() - savedAt.getTime()) / 60_000
+    expect(savedMinutesAgo).toBeGreaterThan(60)
+    expect(savedMinutesAgo).toBeLessThan(62)
+    expect(page.savedItems[1]?.originalUrl).toBe(enrichedTags)
+    expect(page.savedItems[1]?.tags).toEqual(["design"])
   })
 
   test("reports the join date of the Account, not of the Public Profile record", async () => {

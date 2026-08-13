@@ -15,6 +15,23 @@ import { foldersTable, profilesTable, savedItemsTable } from "../persistence/sch
 // boundary a test can control by choosing row timestamps.
 export const PUBLIC_SAVED_ITEM_DELAY = "1 hour"
 
+// A Public Profile is read one numbered page at a time, 50 Saved Items to a
+// page. Page numbers rather than a cursor, because a crawler cannot reach
+// infinite scroll: every page has to be an address a visitor can share.
+export const PUBLIC_SAVED_ITEMS_PAGE_SIZE = 50
+
+// The page a request asks for. Page 1 is the newest page. A missing number, a
+// fractional one, and anything below the first page all read as the first page:
+// these URLs are typed and edited by hand, so a Public Profile answers with its
+// first page rather than with an error.
+export const publicPageNumber = (requested: number | undefined): number =>
+  requested === undefined ? 1 : Math.max(1, Math.trunc(requested))
+
+// How many numbered pages a Public Profile has. A profile that publishes nothing
+// still has one page, so page 1 is always an address that answers.
+export const publicPageCount = (totalCount: number, pageSize: number): number =>
+  Math.max(1, Math.ceil(totalCount / pageSize))
+
 // `owner` is the Account whose Saved Items are counted or listed. It takes a
 // plain UserId for a direct query, or a column for a correlated subquery.
 export const publicSavedItemFilter = (owner: UserId | SQLWrapper) =>

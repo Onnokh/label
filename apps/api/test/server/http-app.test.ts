@@ -1,5 +1,5 @@
 import { SUPPORTED_PROTOCOL_VERSIONS } from "@modelcontextprotocol/sdk/types.js"
-import { captureChannels } from "@sleevy/contract"
+import { captureChannels, type PublicSavedItemsResponse } from "@sleevy/contract"
 import { describe, expect } from "bun:test"
 import { Effect, Layer, Option } from "effect"
 
@@ -19,7 +19,11 @@ import { FolderRepository } from "../../src/modules/folders/FolderRepository.js"
 import { McpTools } from "../../src/modules/mcp/McpTools.js"
 import { RESERVED_HANDLES } from "../../src/modules/profiles/Handle.js"
 import { ProfileRepository } from "../../src/modules/profiles/ProfileRepository.js"
-import { PublicProfileRepository } from "../../src/modules/profiles/PublicProfileRepository.js"
+import {
+  type PublicSavedItem,
+  PublicProfileRepository,
+} from "../../src/modules/profiles/PublicProfileRepository.js"
+import { PUBLIC_SAVED_ITEMS_PAGE_SIZE } from "../../src/modules/profiles/PublicSavedItems.js"
 import { ApiKeyRateLimiter } from "../../src/modules/rate-limit/ApiKeyRateLimiter.js"
 import { ConnectAuthorizeRateLimiter } from "../../src/modules/rate-limit/ConnectAuthorizeRateLimiter.js"
 import { ConnectExchangeRateLimiter } from "../../src/modules/rate-limit/ConnectExchangeRateLimiter.js"
@@ -115,6 +119,10 @@ const routeLayer = (input: {
       readonly date: string
       readonly count: number
     }> | undefined
+    // The Saved Items this Public Profile publishes, newest first. Which items
+    // a Public Profile shows is a database rule proven in the integration seam,
+    // so the fixture here is already the published set.
+    readonly savedItems?: ReadonlyArray<PublicSavedItem> | undefined
   }> | undefined
   readonly publicRateLimitAllowed?: boolean | undefined
   readonly onPublicRateLimit?: ((key: string) => void) | undefined
@@ -159,8 +167,8 @@ const routeLayer = (input: {
 
   // Stands in for the SQL lookup of the public group, which filters on Profile
   // Visibility in its WHERE clause: a private Public Profile leaves every public
-  // route without a row, exactly like a Handle no Account holds. Both public
-  // reads go through this one function, so neither can drift from the other.
+  // route without a row, exactly like a Handle no Account holds. All three public
+  // reads go through this one function, so none can drift from the others.
   const findPublicProfile = (handle: string) =>
     (input.publicProfiles ?? []).find(
       (profile) =>
@@ -318,8 +326,24 @@ const routeLayer = (input: {
               })
             : Option.none()
         }),
-      // The same lookup as above, so a private Handle leaves this without a row
+      // The same lookup as above, so a private Handle leaves this without a page
       // too and the route answers both Handles alike.
+      listPublicSavedItems: (
+        handle: string,
+        page: { readonly number: number; readonly size: number },
+      ) =>
+        Effect.sync(() => {
+          const found = findPublicProfile(handle)
+          if (!found) return Option.none()
+          const savedItems = found.savedItems ?? []
+          const start = (page.number - 1) * page.size
+          return Option.some({
+            savedItems: savedItems.slice(start, start + page.size),
+            totalCount: savedItems.length,
+          })
+        }),
+      // The same lookup again, so Reading Activity cannot disagree with the other
+      // two about which Handles exist.
       findReadingActivity: (handle: string) =>
         Effect.sync(() => {
           const found = findPublicProfile(handle)
@@ -453,6 +477,40 @@ const makeSavedItem = (
   },
 })
 
+// A published Saved Item with every allow-listed property filled, so the served
+// body can be compared property by property.
+const publicSavedItem: PublicSavedItem = {
+  originalUrl: "https://example.com/articles/published",
+  host: "example.com",
+  title: "Published Article",
+  faviconUrl: "https://example.com/favicon.ico",
+  faviconLightUrl: "https://example.com/favicon-light.png",
+  faviconDarkUrl: "https://example.com/favicon-dark.png",
+  imageUrl: "https://example.com/cover.png",
+  type: "article",
+  tags: ["backend"],
+  previewSummary: "One sentence a visitor reads before opening the Link.",
+  savedAt: now,
+}
+
+// The same item without any enrichment, which is what a Basic Link publishes.
+const basicPublicSavedItem: PublicSavedItem = {
+  originalUrl: "https://example.com/basic",
+  host: "example.com",
+  type: "website",
+  tags: [],
+  savedAt: now,
+}
+
+// One published Saved Item per index, newest first, so a page can be recognized
+// by which items it carries.
+const publicSavedItemsPage = (count: number): ReadonlyArray<PublicSavedItem> =>
+  Array.from({ length: count }, (_unused, index) => ({
+    ...basicPublicSavedItem,
+    originalUrl: `https://example.com/published/${index}`,
+    savedAt: new Date(now.getTime() - index * 60_000),
+  }))
+
 const request = (url: string, init?: RequestInit) =>
   Effect.gen(function* () {
     const handler = yield* makeApiWebHandler
@@ -571,13 +629,14 @@ describe("HttpApp", () => {
       expect(body.paths?.["/v1/profile/handle-availability"]).toBeDefined()
       expect(body.paths?.["/v1/profile/visibility"]).toBeDefined()
       expect(body.paths?.["/v1/public/profiles/{handle}"]).toBeDefined()
+      expect(body.paths?.["/v1/public/profiles/{handle}/saved-items"]).toBeDefined()
       expect(body.paths?.["/v1/public/profiles/{handle}/activity"]).toBeDefined()
       expect(body.paths?.["/connect/authorize"]).toBeDefined()
       expect(body.paths?.["/connect/exchange"]).toBeDefined()
     }),
   )
 
-  it.effect("describes the public profile route without a security requirement", () =>
+  it.effect("describes the public profile routes without a security requirement", () =>
     Effect.gen(function* () {
       const response = yield* request("/openapi.json").pipe(
         Effect.provide(routeLayer()),
@@ -591,13 +650,16 @@ describe("HttpApp", () => {
       }>(response)
 
       const publicRoute = body.paths["/v1/public/profiles/{handle}"]?.get
+      const publicItemsRoute = body.paths["/v1/public/profiles/{handle}/saved-items"]?.get
       const activityRoute = body.paths["/v1/public/profiles/{handle}/activity"]?.get
       expect(publicRoute).toBeDefined()
+      expect(publicItemsRoute).toBeDefined()
       expect(activityRoute).toBeDefined()
-      // No API Key and no App Session: the route carries no security scheme,
+      // No API Key and no App Session: the routes carry no security scheme,
       // unlike every other v1 group.
       // An empty security list is OpenAPI for "no credentials required".
       expect(publicRoute?.security).toEqual([])
+      expect(publicItemsRoute?.security).toEqual([])
       expect(activityRoute?.security).toEqual([])
       expect(
         body.paths["/v1/saved-items"]?.get?.security,
@@ -1783,6 +1845,205 @@ describe("HttpApp", () => {
       })
     })
   })
+
+  it.effect("serves one page of public Saved Items to an anonymous visitor", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/v1/public/profiles/ReaderOne/saved-items").pipe(
+        Effect.provide(routeLayer({
+          publicProfiles: [{
+            handle: "readerone",
+            visibility: "public",
+            joinedAt: new Date(Date.now() - daysInMs(30)),
+            publicSavedItemCount: 2,
+            savedItems: [publicSavedItem, basicPublicSavedItem],
+          }],
+        })),
+      )
+
+      // No credentials were sent and none were needed.
+      expect(response.status).toBe(200)
+      // Read loosely on purpose: a Link without that piece of Saved Metadata
+      // publishes the property as null, the way the private Saved Item
+      // representation already serves one.
+      const body = yield* json<{
+        readonly savedItems: ReadonlyArray<Record<string, unknown>>
+        readonly page: number
+        readonly pageSize: number
+        readonly totalPages: number
+      }>(response)
+      expect(body).toEqual({
+        savedItems: [
+          {
+            originalUrl: "https://example.com/articles/published",
+            host: "example.com",
+            title: "Published Article",
+            faviconUrl: "https://example.com/favicon.ico",
+            faviconLightUrl: "https://example.com/favicon-light.png",
+            faviconDarkUrl: "https://example.com/favicon-dark.png",
+            imageUrl: "https://example.com/cover.png",
+            type: "article",
+            tags: ["backend"],
+            previewSummary: "One sentence a visitor reads before opening the Link.",
+            savedAt: now.toISOString(),
+          },
+          {
+            originalUrl: "https://example.com/basic",
+            host: "example.com",
+            title: null,
+            faviconUrl: null,
+            faviconLightUrl: null,
+            faviconDarkUrl: null,
+            imageUrl: null,
+            type: "website",
+            tags: [],
+            previewSummary: null,
+            savedAt: now.toISOString(),
+          },
+        ],
+        page: 1,
+        pageSize: PUBLIC_SAVED_ITEMS_PAGE_SIZE,
+        totalPages: 1,
+      })
+      // What a visitor receives carries the allow-list and nothing beside it.
+      // A Basic Link, which has no enrichment yet, carries the same properties
+      // with an empty value rather than a different shape.
+      const publishedProperties = [
+        "faviconDarkUrl",
+        "faviconLightUrl",
+        "faviconUrl",
+        "host",
+        "imageUrl",
+        "originalUrl",
+        "previewSummary",
+        "savedAt",
+        "tags",
+        "title",
+        "type",
+      ]
+      expect(Object.keys(body.savedItems[0] ?? {}).sort()).toEqual(publishedProperties)
+      expect(Object.keys(body.savedItems[1] ?? {}).sort()).toEqual(publishedProperties)
+      expect(response.headers.get("cache-control")).toBe("public, max-age=300")
+      expect(response.headers.get("ratelimit-limit")).toBe(
+        String(PUBLIC_PROFILE_REQUEST_LIMIT),
+      )
+    }),
+  )
+
+  it.effect("addresses public Saved Items by page number, 50 to a page", () =>
+    Effect.gen(function* () {
+      // One layer for the whole test: inside a single test the first layer built
+      // wins for every later provide, so the cases share it and differ by the
+      // page they ask for.
+      const layer = routeLayer({
+        publicProfiles: [{
+          handle: "readerone",
+          visibility: "public",
+          joinedAt: new Date(Date.now() - daysInMs(30)),
+          publicSavedItemCount: 120,
+          savedItems: publicSavedItemsPage(120),
+        }],
+      })
+
+      const pageAt = (query: string) =>
+        Effect.gen(function* () {
+          const response = yield* request(
+            `/v1/public/profiles/readerone/saved-items${query}`,
+          ).pipe(Effect.provide(layer))
+          expect(response.status).toBe(200)
+          return yield* json<PublicSavedItemsResponse.Encoded>(response)
+        })
+
+      const first = yield* pageAt("")
+      const second = yield* pageAt("?page=2")
+      const third = yield* pageAt("?page=3")
+      const past = yield* pageAt("?page=4")
+
+      // 120 published items fill two whole pages and a third that is short.
+      expect([
+        first.savedItems.length,
+        second.savedItems.length,
+        third.savedItems.length,
+        past.savedItems.length,
+      ]).toEqual([50, 50, 20, 0])
+      expect([first.page, second.page, third.page, past.page]).toEqual([1, 2, 3, 4])
+      expect([first.totalPages, second.totalPages, past.totalPages]).toEqual([3, 3, 3])
+
+      // Each numbered page is a different window over the same order, so no
+      // item appears twice and none is skipped between pages.
+      expect(first.savedItems[0]?.originalUrl).toBe("https://example.com/published/0")
+      expect(first.savedItems.at(-1)?.originalUrl).toBe("https://example.com/published/49")
+      expect(second.savedItems[0]?.originalUrl).toBe("https://example.com/published/50")
+      expect(third.savedItems.at(-1)?.originalUrl).toBe("https://example.com/published/119")
+
+      // Page numbers a visitor typed by hand still answer with a page: anything
+      // below the first page reads as the first, and a fraction reads as the
+      // page it falls inside.
+      const beforeFirst = yield* pageAt("?page=0")
+      const negative = yield* pageAt("?page=-7")
+      const fractional = yield* pageAt("?page=2.7")
+      expect(beforeFirst).toEqual(first)
+      expect(negative).toEqual(first)
+      expect(fractional).toEqual(second)
+    }),
+  )
+
+  it.effect("gives an empty page rather than a placeholder when nothing is published", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/v1/public/profiles/readerone/saved-items").pipe(
+        Effect.provide(routeLayer({
+          publicProfiles: [{
+            handle: "readerone",
+            visibility: "public",
+            joinedAt: new Date(Date.now() - daysInMs(30)),
+            publicSavedItemCount: 0,
+            savedItems: [],
+          }],
+        })),
+      )
+
+      expect(response.status).toBe(200)
+      // No placeholder row and no count of what is withheld: the page is empty
+      // and page 1 still answers.
+      expect(yield* json(response)).toEqual({
+        savedItems: [],
+        page: 1,
+        pageSize: PUBLIC_SAVED_ITEMS_PAGE_SIZE,
+        totalPages: 1,
+      })
+    }),
+  )
+
+  it.effect("answers an unknown Handle and a private one with the same item-list response", () =>
+    Effect.gen(function* () {
+      const layer = routeLayer({
+        publicProfiles: [{
+          handle: "hidden",
+          visibility: "private",
+          joinedAt: new Date(Date.now() - daysInMs(400)),
+          publicSavedItemCount: 99,
+          savedItems: [publicSavedItem],
+        }],
+      })
+
+      const privateHandle = yield* snapshot(
+        yield* request("/v1/public/profiles/hidden/saved-items").pipe(
+          Effect.provide(layer),
+        ),
+      )
+      const unknownHandle = yield* snapshot(
+        yield* request("/v1/public/profiles/nobody-holds-this/saved-items").pipe(
+          Effect.provide(layer),
+        ),
+      )
+
+      expect(privateHandle.status).toBe(404)
+      expect(unknownHandle).toEqual(privateHandle)
+      // The same error the profile route answers with, not a second one.
+      expect(privateHandle.body).toBe(
+        '{"_tag":"PublicProfileNotFoundError","message":"No Public Profile exists for this Handle."}',
+      )
+    }),
+  )
 
   it.effect("keeps the API Key Rate Limit away from the public group", () =>
     Effect.gen(function* () {

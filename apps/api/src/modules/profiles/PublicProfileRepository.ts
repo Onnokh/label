@@ -1,8 +1,16 @@
-import { and, eq, sql } from "drizzle-orm"
+import { and, desc, eq, sql } from "drizzle-orm"
 import { Context, Effect, Layer, Option } from "effect"
 
+import { effectiveTags, type LinkType, type Topic } from "../../domain/SavedItem.js"
 import { PostgresClient } from "../persistence/PostgresClient.js"
-import { profilesTable, savedItemsTable, user } from "../persistence/schema.js"
+import {
+  linkEnrichmentTable,
+  linkMetadataTable,
+  linksTable,
+  profilesTable,
+  savedItemsTable,
+  user,
+} from "../persistence/schema.js"
 import { publicSavedItemFilter } from "./PublicSavedItems.js"
 import {
   readingActivityDay,
@@ -31,11 +39,64 @@ export type ReadingActivitySummary = {
   readonly days: ReadonlyArray<{ readonly date: string; readonly count: number }>
 }
 
+// One published Saved Item. The withheld fields are not selected at all, so the
+// Folder name, the Source name, the Capture Channel, the Read State, and the
+// Saved Item identifier never enter application memory on a public read.
+export type PublicSavedItem = {
+  readonly originalUrl: string
+  readonly host: string
+  readonly title?: string | undefined
+  readonly faviconUrl?: string | undefined
+  readonly faviconLightUrl?: string | undefined
+  readonly faviconDarkUrl?: string | undefined
+  readonly imageUrl?: string | undefined
+  readonly type: LinkType
+  readonly tags: ReadonlyArray<Topic>
+  readonly previewSummary?: string | undefined
+  readonly savedAt: Date
+}
+
+export type PublicSavedItemsPage = {
+  readonly savedItems: ReadonlyArray<PublicSavedItem>
+  // Counts published Saved Items only. Withheld items add nothing here, so the
+  // page total never advertises what a Public Profile hides.
+  readonly totalCount: number
+}
+
 export class PublicProfileRepository extends Context.Service<PublicProfileRepository>()(
   "@app/modules/profiles/PublicProfileRepository",
   {
     make: Effect.gen(function* () {
       const { db } = yield* PostgresClient
+
+      // The one condition that resolves a Handle publicly. Profile Visibility
+      // sits inside it, so every public read of a Handle answers an unknown
+      // Handle and a private Public Profile the same way.
+      const publicProfileMatch = (handle: string) =>
+        and(
+          sql`lower(${profilesTable.handle}) = lower(${handle})`,
+          eq(profilesTable.visibility, "public"),
+        )
+
+      // The Account behind a Handle, plus how many Saved Items it publishes.
+      // Private to the repository: the identifier is what the list query needs
+      // and what nothing above may see.
+      const findPublicOwner = (handle: string) =>
+        Effect.gen(function* () {
+          const [row] = yield* db
+            .select({
+              userId: profilesTable.userId,
+              publicSavedItemCount: sql<number>`(
+                select count(*)::int from ${savedItemsTable}
+                where ${publicSavedItemFilter(profilesTable.userId)}
+              )`,
+            })
+            .from(profilesTable)
+            .where(publicProfileMatch(handle))
+            .limit(1)
+
+          return row
+        })
 
       return {
         // One statement for every Handle. Profile Visibility is part of the
@@ -58,12 +119,7 @@ export class PublicProfileRepository extends Context.Service<PublicProfileReposi
             })
             .from(profilesTable)
             .innerJoin(user, eq(user.id, profilesTable.userId))
-            .where(
-              and(
-                sql`lower(${profilesTable.handle}) = lower(${handle})`,
-                eq(profilesTable.visibility, "public"),
-              ),
-            )
+            .where(publicProfileMatch(handle))
             .limit(1)
 
           return row
@@ -97,12 +153,7 @@ export class PublicProfileRepository extends Context.Service<PublicProfileReposi
             })
             .from(profilesTable)
             .leftJoin(savedItemsTable, readingActivityFilter(profilesTable.userId))
-            .where(
-              and(
-                sql`lower(${profilesTable.handle}) = lower(${handle})`,
-                eq(profilesTable.visibility, "public"),
-              ),
-            )
+            .where(publicProfileMatch(handle))
             .groupBy(profilesTable.handle, readingActivityDay)
             .orderBy(readingActivityDay)
 
@@ -118,6 +169,64 @@ export class PublicProfileRepository extends Context.Service<PublicProfileReposi
               .map((row) => ({ date: row.date, count: Number(row.count) })),
           })
         }),
+
+        // One page of the Saved Items a Public Profile shows. The Handle is
+        // resolved first, so a Handle nobody holds and a private Public Profile
+        // both leave without a page, exactly like the profile lookup — an empty
+        // page belongs to a public Account that publishes nothing.
+        //
+        // Which items appear is the shared filter's decision and is not restated
+        // here. Ordering is by Saved Item creation time, not Last Saved At, so a
+        // Duplicate Save cannot reorder a published page.
+        listPublicSavedItems: Effect.fn("PublicProfileRepository.listPublicSavedItems")(
+          function* (handle: string, page: { readonly number: number; readonly size: number }) {
+            const owner = yield* findPublicOwner(handle)
+            if (!owner) return Option.none<PublicSavedItemsPage>()
+
+            const rows = yield* db
+              .select({
+                originalUrl: linksTable.originalUrl,
+                host: linksTable.host,
+                title: linkMetadataTable.title,
+                faviconUrl: linkMetadataTable.faviconUrl,
+                faviconLightUrl: linkMetadataTable.faviconLightUrl,
+                faviconDarkUrl: linkMetadataTable.faviconDarkUrl,
+                imageUrl: linkMetadataTable.imageUrl,
+                type: linkEnrichmentTable.type,
+                savedItemTags: savedItemsTable.tags,
+                enrichmentTags: linkEnrichmentTable.tags,
+                previewSummary: linkEnrichmentTable.previewSummary,
+                savedAt: savedItemsTable.createdAt,
+              })
+              .from(savedItemsTable)
+              .innerJoin(linksTable, eq(savedItemsTable.linkId, linksTable.id))
+              .innerJoin(linkMetadataTable, eq(linksTable.id, linkMetadataTable.linkId))
+              .innerJoin(linkEnrichmentTable, eq(linksTable.id, linkEnrichmentTable.linkId))
+              .where(publicSavedItemFilter(owner.userId))
+              // The identifier breaks ties without being selected, so two items
+              // saved in the same instant keep one stable page boundary.
+              .orderBy(desc(savedItemsTable.createdAt), desc(savedItemsTable.id))
+              .limit(page.size)
+              .offset((page.number - 1) * page.size)
+
+            return Option.some<PublicSavedItemsPage>({
+              savedItems: rows.map((row) => ({
+                originalUrl: row.originalUrl,
+                host: row.host,
+                title: row.title ?? undefined,
+                faviconUrl: row.faviconUrl ?? undefined,
+                faviconLightUrl: row.faviconLightUrl ?? undefined,
+                faviconDarkUrl: row.faviconDarkUrl ?? undefined,
+                imageUrl: row.imageUrl ?? undefined,
+                type: row.type,
+                tags: effectiveTags(row.savedItemTags, row.enrichmentTags) as ReadonlyArray<Topic>,
+                previewSummary: row.previewSummary ?? undefined,
+                savedAt: row.savedAt,
+              })),
+              totalCount: Number(owner.publicSavedItemCount),
+            })
+          },
+        ),
       }
     }),
   },

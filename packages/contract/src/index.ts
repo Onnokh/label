@@ -188,6 +188,59 @@ export namespace ReadingActivityResponse {
   export type Encoded = Schema.Codec.Encoded<typeof ReadingActivityResponse>
 }
 
+// One published Saved Item, defined as an allow-list instead of a projection of
+// SavedItemDto. Only these properties may reach an anonymous visitor: Original
+// URL, host, title, favicon variants, image, Type, Tags, Preview Summary, and
+// the save date. The Folder, the Source name, the Capture Channel, the Read
+// State, the Saved Item identifier, and the update timestamps are withheld.
+// Reusing SavedItemDto is rejected on purpose: the private representation keeps
+// growing, and every field added to it later would publish itself by default.
+// The contract test asserts this property list exactly, so widening it can only
+// happen deliberately.
+export class PublicSavedItemDto extends Schema.Class<PublicSavedItemDto>("PublicSavedItemDto")({
+  originalUrl: Schema.String,
+  host: Schema.String,
+  title: Schema.optional(Schema.String),
+  faviconUrl: Schema.optional(Schema.String),
+  faviconLightUrl: Schema.optional(Schema.String),
+  faviconDarkUrl: Schema.optional(Schema.String),
+  imageUrl: Schema.optional(Schema.String),
+  type: LinkType,
+  tags: Schema.Array(Topic),
+  previewSummary: Schema.optional(Schema.String),
+  // The Saved Item creation time, not Last Saved At: a Duplicate Save must not
+  // reorder a published page.
+  savedAt: Schema.DateFromString,
+}) {}
+export namespace PublicSavedItemDto {
+  export type Encoded = Schema.Codec.Encoded<typeof PublicSavedItemDto>
+}
+
+// One page of a Public Profile's Saved Items. Pages carry their own number and
+// the total, because a Public Profile is addressed by page number rather than by
+// cursor: every page must be a real URL a crawler can reach.
+export class PublicSavedItemsResponse extends Schema.Class<PublicSavedItemsResponse>(
+  "PublicSavedItemsResponse",
+)({
+  savedItems: Schema.Array(PublicSavedItemDto),
+  page: Schema.Number,
+  pageSize: Schema.Number,
+  totalPages: Schema.Number,
+}) {}
+export namespace PublicSavedItemsResponse {
+  export type Encoded = Schema.Codec.Encoded<typeof PublicSavedItemsResponse>
+}
+
+export class PublicSavedItemsQuery extends Schema.Class<PublicSavedItemsQuery>(
+  "PublicSavedItemsQuery",
+)({
+  // Omitted means the first page.
+  page: Schema.optional(Schema.FiniteFromString),
+}) {}
+export namespace PublicSavedItemsQuery {
+  export type Encoded = Schema.Codec.Encoded<typeof PublicSavedItemsQuery>
+}
+
 export class CaptureCreated extends Schema.Class<CaptureCreated>("CaptureCreated")({
   savedItem: SavedItemDto,
   captureResult: Schema.Literal("created"),

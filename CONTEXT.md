@@ -656,6 +656,9 @@ _Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
 - `GET /v1/public/profiles/{handle}` returns the **Handle**, the Account join date, the public Saved Item count, and **Search Indexability**.
 - `GET /v1/public/profiles/{handle}/activity` returns the **Handle**, the inclusive first and last UTC day of the **Reading Activity** window, and one count for every day inside it that has a save.
 - The Account join date on a **Public Profile** is when the **Account** was created, not when its **Handle** was claimed.
+- `GET /v1/public/profiles/{handle}/saved-items` returns one page of that Account's public **Saved Items**, newest first by Saved Item creation time, 50 to a page.
+- A public Saved Item page is addressed by page number, and page 1 answers even when an Account publishes nothing, so every page of a **Public Profile** is a URL a crawler can reach.
+- A public Saved Item representation carries the **Original URL**, host, title, favicon variants, image, **Type**, **Effective Tags**, **Preview Summary**, and the Saved Item creation time, and nothing else.
 - **Search Indexability** is true only when the **Account** is at least 7 days old and has at least 5 public **Saved Items**.
 - Every **Public Profile Endpoint** is subject to the **Public Profile Rate Limit** rather than the **API Key Rate Limit**.
 - A request over the **Public Profile Rate Limit** receives a **Rate Limit Response**.
@@ -730,4 +733,6 @@ These record the reasoning behind decisions that are not obvious from the defini
 - **Reading Activity** day buckets use UTC, not the viewer timezone; resolved: per-viewer bucketing would make every response unique and prevent shared caching.
 - **Reading Activity** counts private saves; resolved: a count is not a URL, and a grid restricted to public Saved Items would be too empty to be worth showing.
 - Public Saved Item responses are not the Saved Item REST representation; resolved: the public shape is an allow-list, so fields added to the private representation later cannot leak.
+- A public Saved Item page is not ordered by **Last Saved At**; resolved: Saved Item creation time orders it, so a **Duplicate Save** cannot reorder a published page.
+- A public Saved Item page is not addressed by cursor; resolved: numbered pages give every page a shareable URL, which a crawler can reach and infinite scroll cannot.
 - The first publish has no review step; resolved: opt-in confirmation copy states the item count and the automatic future behavior, and Sleevy accepts that an existing library publishes in full at that moment.

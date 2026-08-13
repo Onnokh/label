@@ -3,10 +3,17 @@ import { HttpApiBuilder } from "effect/unstable/httpapi"
 
 import { normalizeHandle } from "../modules/profiles/Handle.js"
 import { PublicProfileRepository } from "../modules/profiles/PublicProfileRepository.js"
+import {
+  PUBLIC_SAVED_ITEMS_PAGE_SIZE,
+  publicPageCount,
+  publicPageNumber,
+} from "../modules/profiles/PublicSavedItems.js"
 import { isIndexable } from "../modules/profiles/SearchIndexing.js"
 import {
   PublicProfileDto,
   PublicProfileNotFoundError,
+  PublicSavedItemsResponse,
+  publicSavedItemToDto,
   ReadingActivityDay,
   ReadingActivityResponse,
   sleevyApi,
@@ -44,6 +51,28 @@ export const publicProfilesGroupLive = HttpApiBuilder.group(
             publicSavedItemCount,
             now: new Date(),
           }),
+        })
+      }),
+    ).handle("listSavedItems", ({ params, query }) =>
+      Effect.gen(function* () {
+        const repo = yield* PublicProfileRepository
+        const page = publicPageNumber(query.page)
+        // The same not-found answer as the profile route, for the same reason:
+        // the pair of routes must not disclose that a Handle is claimed.
+        const found = yield* repo
+          .listPublicSavedItems(normalizeHandle(params.handle), {
+            number: page,
+            size: PUBLIC_SAVED_ITEMS_PAGE_SIZE,
+          })
+          .pipe(Effect.orDie)
+        if (Option.isNone(found)) return yield* notFound()
+
+        const { savedItems, totalCount } = found.value
+        return new PublicSavedItemsResponse({
+          savedItems: savedItems.map(publicSavedItemToDto),
+          page,
+          pageSize: PUBLIC_SAVED_ITEMS_PAGE_SIZE,
+          totalPages: publicPageCount(totalCount, PUBLIC_SAVED_ITEMS_PAGE_SIZE),
         })
       }),
     ).handle("activity", ({ params }) =>

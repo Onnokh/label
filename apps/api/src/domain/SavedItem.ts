@@ -95,6 +95,14 @@ export class SavedItem extends Schema.Class<SavedItem>("SavedItem")({
   updatedAt: Schema.Date,
 }) {}
 
+// Effective Tags: the Tags a client sees. Saved Item Tags win when the Account
+// supplied any, and Enrichment Tags are used otherwise. Every representation
+// that publishes `tags` — private and public alike — resolves them here.
+export const effectiveTags = <A>(
+  savedItemTags: ReadonlyArray<A>,
+  enrichmentTags: ReadonlyArray<A>,
+): ReadonlyArray<A> => (savedItemTags.length > 0 ? savedItemTags : enrichmentTags)
+
 export type SavedItemWithLink = {
   readonly savedItem: SavedItem
   readonly link: Link

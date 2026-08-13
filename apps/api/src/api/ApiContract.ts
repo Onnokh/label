@@ -32,6 +32,9 @@ import {
   ProfileVisibilityPayload,
   PublicProfileDto,
   PublicProfileNotFoundError,
+  PublicSavedItemDto,
+  PublicSavedItemsQuery,
+  PublicSavedItemsResponse,
   RateLimitExceeded,
   ReadingActivityDay,
   ReadingActivityResponse,
@@ -45,9 +48,16 @@ import {
 } from "@sleevy/contract"
 
 import type { Profile } from "../domain/Profile.js"
-import { FolderId, SavedItemId, type SavedItemWithLink, type UserId } from "../domain/SavedItem.js"
+import {
+  effectiveTags,
+  FolderId,
+  SavedItemId,
+  type SavedItemWithLink,
+  type UserId,
+} from "../domain/SavedItem.js"
 import { AuthContext, V1_SCOPES } from "../modules/auth/Scopes.js"
 import { CONNECT_CLIENT_IDS } from "../modules/connect/ConnectClients.js"
+import type { PublicSavedItem } from "../modules/profiles/PublicProfileRepository.js"
 
 // Re-export the contract schemas so existing API consumers can keep importing
 // from ApiContract while the source of truth lives in @sleevy/contract.
@@ -75,6 +85,9 @@ export {
   ProfileVisibilityPayload,
   PublicProfileDto,
   PublicProfileNotFoundError,
+  PublicSavedItemDto,
+  PublicSavedItemsQuery,
+  PublicSavedItemsResponse,
   RateLimitExceeded,
   ReadingActivityDay,
   ReadingActivityResponse,
@@ -103,7 +116,7 @@ export const savedItemToDto = ({
   source,
   folder,
 }: SavedItemWithLink) => {
-  const tags = savedItem.tags.length > 0 ? savedItem.tags : enrichment.tags
+  const tags = effectiveTags(savedItem.tags, enrichment.tags)
 
   return new SavedItemDto({
     id: savedItem.id,
@@ -138,6 +151,24 @@ export const savedItemToDto = ({
     updatedAt: savedItem.updatedAt,
   })
 }
+
+// Every property is named here rather than spread from the row, so a field
+// added to the repository shape cannot publish itself. This is the second guard
+// on the allow-list; the first is the repository's select list.
+export const publicSavedItemToDto = (item: PublicSavedItem) =>
+  new PublicSavedItemDto({
+    originalUrl: item.originalUrl,
+    host: item.host,
+    title: item.title,
+    faviconUrl: item.faviconUrl,
+    faviconLightUrl: item.faviconLightUrl,
+    faviconDarkUrl: item.faviconDarkUrl,
+    imageUrl: item.imageUrl,
+    type: item.type,
+    tags: item.tags,
+    previewSummary: item.previewSummary,
+    savedAt: item.savedAt,
+  })
 
 export class CurrentUser extends Context.Service<CurrentUser, UserId>()(
   "@app/api/CurrentUser",
@@ -376,6 +407,17 @@ const publicProfilesGroup = HttpApiGroup.make("public-profiles")
     HttpApiEndpoint.get("get", "/v1/public/profiles/:handle", {
       params: Schema.Struct({ handle: Schema.String }),
       success: PublicProfileDto,
+      error: [PublicProfileNotFoundError, RateLimitExceeded],
+    }),
+  )
+  // The published Saved Items of one Handle, newest first, one numbered page at
+  // a time. It answers a Handle it cannot resolve with the same not-found error
+  // as the profile route, so the pair discloses nothing between them.
+  .add(
+    HttpApiEndpoint.get("listSavedItems", "/v1/public/profiles/:handle/saved-items", {
+      params: Schema.Struct({ handle: Schema.String }),
+      query: PublicSavedItemsQuery,
+      success: PublicSavedItemsResponse,
       error: [PublicProfileNotFoundError, RateLimitExceeded],
     }),
   )
