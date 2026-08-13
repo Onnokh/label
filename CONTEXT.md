@@ -16,6 +16,10 @@ _Avoid_: Saved Item, user bookmark, per-account URL copy
 Fetched descriptive data for a Link, such as title, image, favicon, canonical URL, and site name.
 _Avoid_: AI enrichment, Saved Item metadata
 
+**Link Author**:
+The writer of what a Link points at, as a name, a handle, and an avatar address, stated by a provider rather than read from page markup. Known for a Post and absent for most other Links.
+_Avoid_: Site Name, Account, Handle, byline text
+
 **Link Enrichment**:
 Generated or derived classification data for a Link, such as Type, Tag, Preview Summary, and Enrichment Status.
 _Avoid_: Saved Item override, raw fetched metadata
@@ -208,8 +212,12 @@ The client-side update where a newly saved item gains enriched metadata after in
 _Avoid_: Refresh, reload
 
 **Type**:
-A content kind assigned from hard rules, such as Video, Website, Article, or Repository, where Website is the fallback.
+A content kind assigned from hard rules, such as Video, Website, Article, Repository, or Post, where Website is the fallback.
 _Avoid_: Category, user tag, folder
+
+**Post**:
+A Type for one short message on a social platform, where the Link Metadata title holds the words themselves rather than a headline for them. Only a platform a provider can resolve is classified this way.
+_Avoid_: Tweet, status, social link, Website
 
 **Type Icon**:
 A small visual indicator for a Saved Item's Type.
@@ -419,6 +427,14 @@ _Avoid_: Per-item share, account privacy settings
 A Folder its Account chose to show on its Public Profile. Every Saved Item inside it is public while Profile Visibility is public, and a Folder is unpublished until its Account says otherwise.
 _Avoid_: Private Folder, shared folder, public collection, hidden navigation destination
 
+**Post Card**:
+How a Public Profile shows a Saved Item whose Type is Post: the Link Author, then the message at reading size with its own line breaks kept. It carries no Preview Summary, because the message is already the words the reader came for.
+_Avoid_: Embed, platform widget, quote block, headline
+
+**Link Card**:
+How a Public Profile shows every other Saved Item: the title first, because there a title is a headline for something else, with the Preview Summary under it and the image beside it.
+_Avoid_: Row, list item, tile
+
 **Reading Activity**:
 Per-day counts of first captures for an Account, shown on a Public Profile as a rolling 52-week grid.
 _Avoid_: Read history, reading time, streak, contribution graph
@@ -430,6 +446,10 @@ _Avoid_: Session endpoint, API Key endpoint, account administration
 **Public Profile Rate Limit**:
 A single per-address request budget of 60 requests per minute applied across every Public Profile Endpoint.
 _Avoid_: API Key Rate Limit, per-endpoint quota, per-Account budget
+
+**Render Token**:
+The secret the web server states to identify a request as its own render of a public page rather than a call from a public API client. A stated Render Token takes no Public Profile Rate Limit budget, so a visitor who opens a page always gets the page.
+_Avoid_: API Key, session token, bearer credential, CF-Connecting-IP
 
 **Search Indexability**:
 The server-computed boolean that tells a client whether a Public Profile may be offered to search engines.
@@ -649,12 +669,17 @@ _Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
 - A Saved Item outside a **Published Folder** is absent from a Public Profile without a placeholder or a count.
 - Publishing and unpublishing a **Folder** takes effect at once, so unpublishing is how an Account withdraws content.
 - A **Public Profile** withholds the Folder name, **Source** name, **Capture Channel**, and **Read State** of every listed Saved Item.
-- A **Public Profile** shows a **Handle** only, without a display name, biography, or avatar.
+- A **Public Profile** shows a **Handle** only, without a display name, biography, or avatar. The **Link Author** of a **Post** is a property of the Link, not of the Account, and is shown.
+- A **Public Profile** shows a Saved Item whose **Type** is **Post** as a **Post Card**, and every other Saved Item as a **Link Card**.
+- A **Post** is served as markup the Public Profile itself renders, never as a platform embed, so a crawler reads the same words a visitor does.
+- **Link Enrichment** writes no **Preview Summary** for a **Post**, because the message is already what the reader came for. A Post is still tagged.
 - **Reading Activity** counts first captures only, bucketed by Saved Item creation time in UTC, and counts every Saved Item, including those outside a **Published Folder**.
 - **Reading Activity** covers a rolling 52 weeks ending on the current UTC day.
 - A **Duplicate Save** adds no **Reading Activity**.
 - A **Public Profile** becomes eligible for search indexing when its Account is at least 7 days old and has at least 5 public Saved Items.
 - A **Public Profile** marks every outbound Saved Item link `rel="ugc nofollow"`.
+- A request that states the **Render Token** is the web server rendering a public page, and takes no **Public Profile Rate Limit** budget. A request without it, or with a wrong one, is a public API client and is counted.
+- What bounds the render path is the edge cache on the Public Profile page, not a budget on the **Public Profile Endpoints** behind it.
 - A request for an unknown **Handle** and a request for a private **Public Profile** return the same not-found response.
 - Every **Public Profile Endpoint** lives under `/v1/public/`, beginning with `GET /v1/public/profiles/{handle}`.
 - A **Public Profile Endpoint** requires no **App Session** and no **API Key**.
