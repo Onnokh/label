@@ -19,9 +19,14 @@ import { FolderRepository } from "../../src/modules/folders/FolderRepository.js"
 import { McpTools } from "../../src/modules/mcp/McpTools.js"
 import { RESERVED_HANDLES } from "../../src/modules/profiles/Handle.js"
 import { ProfileRepository } from "../../src/modules/profiles/ProfileRepository.js"
+import { PublicProfileRepository } from "../../src/modules/profiles/PublicProfileRepository.js"
 import { ApiKeyRateLimiter } from "../../src/modules/rate-limit/ApiKeyRateLimiter.js"
 import { ConnectAuthorizeRateLimiter } from "../../src/modules/rate-limit/ConnectAuthorizeRateLimiter.js"
 import { ConnectExchangeRateLimiter } from "../../src/modules/rate-limit/ConnectExchangeRateLimiter.js"
+import {
+  PUBLIC_PROFILE_REQUEST_LIMIT,
+  PublicProfileRateLimiter,
+} from "../../src/modules/rate-limit/PublicProfileRateLimiter.js"
 import { SavedItemRepository } from "../../src/modules/saved-items/SavedItemRepository.js"
 import { savedItemsTable } from "../../src/modules/persistence/schema.js"
 import { AppConfig } from "../../src/runtime/Config.js"
@@ -94,6 +99,16 @@ const routeLayer = (input: {
     readonly limiter: "authorize" | "exchange"
     readonly key: string
   }) => void) | undefined
+  // Public Profiles the stub repository knows about, private ones included, so
+  // the unknown-Handle case and the private-Handle case can be compared.
+  readonly publicProfiles?: ReadonlyArray<{
+    readonly handle: string
+    readonly visibility: "private" | "public"
+    readonly joinedAt: Date
+    readonly publicSavedItemCount: number
+  }> | undefined
+  readonly publicRateLimitAllowed?: boolean | undefined
+  readonly onPublicRateLimit?: ((key: string) => void) | undefined
 } = {}) => {
   // The connect limiters deny every request, so a connect request stops at the
   // limiter and reports the key it was bucketed on.
@@ -271,6 +286,39 @@ const routeLayer = (input: {
           return Option.some(profile)
         }),
     } as never)),
+    // Stands in for the SQL lookup, which filters on Profile Visibility in its
+    // WHERE clause: a private Public Profile leaves the caller without a row,
+    // exactly like a Handle no Account holds.
+    Layer.succeed(PublicProfileRepository, PublicProfileRepository.of({
+      findPublicByHandle: (handle: string) =>
+        Effect.sync(() => {
+          const found = (input.publicProfiles ?? []).find(
+            (profile) =>
+              profile.handle.toLowerCase() === handle.toLowerCase() &&
+              profile.visibility === "public",
+          )
+          return found
+            ? Option.some({
+                handle: found.handle,
+                joinedAt: found.joinedAt,
+                publicSavedItemCount: found.publicSavedItemCount,
+              })
+            : Option.none()
+        }),
+    } as never)),
+    Layer.succeed(PublicProfileRateLimiter, PublicProfileRateLimiter.of({
+      check: (key: string) =>
+        Effect.sync(() => {
+          input.onPublicRateLimit?.(key)
+          const allowed = input.publicRateLimitAllowed ?? true
+          return {
+            allowed,
+            limit: PUBLIC_PROFILE_REQUEST_LIMIT,
+            remaining: allowed ? PUBLIC_PROFILE_REQUEST_LIMIT - 1 : 0,
+            resetSeconds: 42,
+          }
+        }),
+    })),
     Layer.succeed(SavedItemRepository, SavedItemRepository.of({
       findByUserAndId: () => Effect.succeed(Option.none()),
       listByUser: (requestedUserId: UserId) =>
@@ -392,6 +440,20 @@ const json = <T>(response: Response) =>
 const text = (response: Response) =>
   Effect.promise(() => response.text())
 
+const daysInMs = (days: number) => days * 24 * 60 * 60 * 1000
+
+// Everything a client can see of a response, so two answers can be compared for
+// being the same bytes rather than merely both being 404.
+const snapshot = (response: Response) =>
+  Effect.gen(function* () {
+    return {
+      status: response.status,
+      statusText: response.statusText,
+      headers: [...response.headers.entries()].sort(),
+      body: yield* text(response),
+    }
+  })
+
 const jsonRequest = (method: string, path: string, body: unknown) =>
   request(path, {
     method,
@@ -481,8 +543,34 @@ describe("HttpApp", () => {
       expect(body.paths?.["/v1/profile/handle"]).toBeDefined()
       expect(body.paths?.["/v1/profile/handle-availability"]).toBeDefined()
       expect(body.paths?.["/v1/profile/visibility"]).toBeDefined()
+      expect(body.paths?.["/v1/public/profiles/{handle}"]).toBeDefined()
       expect(body.paths?.["/connect/authorize"]).toBeDefined()
       expect(body.paths?.["/connect/exchange"]).toBeDefined()
+    }),
+  )
+
+  it.effect("describes the public profile route without a security requirement", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/openapi.json").pipe(
+        Effect.provide(routeLayer()),
+      )
+
+      const body = yield* json<{
+        readonly paths: Record<
+          string,
+          Record<string, { readonly security?: ReadonlyArray<unknown> }>
+        >
+      }>(response)
+
+      const publicRoute = body.paths["/v1/public/profiles/{handle}"]?.get
+      expect(publicRoute).toBeDefined()
+      // No API Key and no App Session: the route carries no security scheme,
+      // unlike every other v1 group.
+      // An empty security list is OpenAPI for "no credentials required".
+      expect(publicRoute?.security).toEqual([])
+      expect(
+        body.paths["/v1/saved-items"]?.get?.security,
+      ).toBeDefined()
     }),
   )
 
@@ -1425,6 +1513,170 @@ describe("HttpApp", () => {
         _tag: "Unauthorized",
         message: "Sign in required.",
       })
+    }),
+  )
+
+  it.effect("serves a Public Profile to an anonymous visitor", () =>
+    Effect.gen(function* () {
+      const joinedAt = new Date(Date.now() - daysInMs(30))
+      const response = yield* request("/v1/public/profiles/ReaderOne").pipe(
+        Effect.provide(routeLayer({
+          publicProfiles: [{
+            handle: "readerone",
+            visibility: "public",
+            joinedAt,
+            publicSavedItemCount: 12,
+          }],
+        })),
+      )
+
+      // No credentials were sent and none were needed.
+      expect(response.status).toBe(200)
+      expect(yield* json(response)).toEqual({
+        handle: "readerone",
+        joinedAt: joinedAt.toISOString(),
+        publicSavedItemCount: 12,
+        isIndexable: true,
+      })
+      expect(response.headers.get("cache-control")).toBe("public, max-age=300")
+      expect(response.headers.get("ratelimit-limit")).toBe(
+        String(PUBLIC_PROFILE_REQUEST_LIMIT),
+      )
+    }),
+  )
+
+  it.effect("answers an unknown Handle and a private one with the same response", () =>
+    Effect.gen(function* () {
+      const layer = routeLayer({
+        publicProfiles: [{
+          handle: "hidden",
+          visibility: "private",
+          joinedAt: new Date(Date.now() - daysInMs(400)),
+          publicSavedItemCount: 99,
+        }],
+      })
+
+      const privateHandle = yield* snapshot(
+        yield* request("/v1/public/profiles/hidden").pipe(Effect.provide(layer)),
+      )
+      const unknownHandle = yield* snapshot(
+        yield* request("/v1/public/profiles/nobody-holds-this").pipe(
+          Effect.provide(layer),
+        ),
+      )
+
+      expect(privateHandle.status).toBe(404)
+      // Status line, headers, and body are the same bytes, so the response
+      // never discloses that the Handle "hidden" is claimed.
+      expect(unknownHandle).toEqual(privateHandle)
+      expect(privateHandle.body).toBe(
+        '{"_tag":"PublicProfileNotFoundError","message":"No Public Profile exists for this Handle."}',
+      )
+    }),
+  )
+
+  it.effect("gives a Handle no Account may ever hold the same not-found response", () =>
+    Effect.gen(function* () {
+      const layer = routeLayer()
+
+      const unusable = yield* snapshot(
+        // Too short for a Handle, so no Account can ever hold it.
+        yield* request("/v1/public/profiles/ab").pipe(Effect.provide(layer)),
+      )
+      const unknown = yield* snapshot(
+        yield* request("/v1/public/profiles/nobody-holds-this").pipe(
+          Effect.provide(layer),
+        ),
+      )
+
+      expect(unusable.status).toBe(404)
+      expect(unusable).toEqual(unknown)
+    }),
+  )
+
+  it.effect("marks a Public Profile indexable only at 7 days and 5 public Saved Items", () =>
+    Effect.gen(function* () {
+      const cases = [
+        { handle: "old-and-full", days: 30, count: 12, isIndexable: true },
+        { handle: "just-past-both", days: 7, count: 5, isIndexable: true },
+        { handle: "too-few-items", days: 30, count: 4, isIndexable: false },
+        { handle: "too-young", days: 6, count: 12, isIndexable: false },
+        { handle: "young-and-empty", days: 6, count: 4, isIndexable: false },
+      ] as const
+
+      const layer = routeLayer({
+        publicProfiles: cases.map((profile) => ({
+          handle: profile.handle,
+          visibility: "public" as const,
+          // A second past the boundary, so the comparison itself is tested
+          // rather than the clock ticking during the request.
+          joinedAt: new Date(Date.now() - daysInMs(profile.days) - 1_000),
+          publicSavedItemCount: profile.count,
+        })),
+      })
+
+      for (const { handle, isIndexable } of cases) {
+        const response = yield* request(`/v1/public/profiles/${handle}`).pipe(
+          Effect.provide(layer),
+        )
+
+        expect(response.status).toBe(200)
+        expect(yield* json<{ readonly isIndexable: boolean }>(response))
+          .toMatchObject({ handle, isIndexable })
+      }
+    }),
+  )
+
+  it.effect("limits the public group on the Cloudflare connecting IP", () => {
+    let seen: string | undefined
+
+    return Effect.gen(function* () {
+      const response = yield* request("/v1/public/profiles/readerone", {
+        headers: {
+          "CF-Connecting-IP": "198.51.100.9",
+          "X-Forwarded-For": "203.0.113.7, 70.41.3.18",
+        },
+      }).pipe(
+        Effect.provide(routeLayer({
+          publicRateLimitAllowed: false,
+          onPublicRateLimit: (key) => {
+            seen = key
+          },
+        })),
+      )
+
+      expect(seen).toBe("198.51.100.9")
+      expect(response.status).toBe(429)
+      expect(response.headers.get("retry-after")).toBe("42")
+      expect(response.headers.get("ratelimit-limit")).toBe(
+        String(PUBLIC_PROFILE_REQUEST_LIMIT),
+      )
+      expect(yield* json(response)).toEqual({
+        _tag: "RateLimitExceeded",
+        message: "Public profile rate limit exceeded.",
+      })
+    })
+  })
+
+  it.effect("keeps the API Key Rate Limit away from the public group", () =>
+    Effect.gen(function* () {
+      // An API Key over its budget still reads a Public Profile: the public
+      // group has its own per-IP budget and never consults the key.
+      const response = yield* request("/v1/public/profiles/readerone", {
+        headers: { authorization: `Bearer ${apiKey}` },
+      }).pipe(
+        Effect.provide(routeLayer({
+          apiKeyAllowed: false,
+          publicProfiles: [{
+            handle: "readerone",
+            visibility: "public",
+            joinedAt: new Date(Date.now() - daysInMs(30)),
+            publicSavedItemCount: 12,
+          }],
+        })),
+      )
+
+      expect(response.status).toBe(200)
     }),
   )
 })

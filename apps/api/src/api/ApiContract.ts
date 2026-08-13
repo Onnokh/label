@@ -30,6 +30,8 @@ import {
   ProfileDto,
   ProfileNotFoundError,
   ProfileVisibilityPayload,
+  PublicProfileDto,
+  PublicProfileNotFoundError,
   RateLimitExceeded,
   SavedItemDto,
   SavedItemNotFoundError,
@@ -69,6 +71,8 @@ export {
   ProfileDto,
   ProfileNotFoundError,
   ProfileVisibilityPayload,
+  PublicProfileDto,
+  PublicProfileNotFoundError,
   RateLimitExceeded,
   SavedItemDto,
   SavedItemNotFoundError,
@@ -358,6 +362,20 @@ const profileGroup = HttpApiGroup.make("profile")
   )
   .middleware(SessionOnlyAuth)
 
+// The public half of Public Profiles. This group takes no middleware on
+// purpose: a visitor reads a Public Profile without an App Session and without
+// an API Key, so it is bucketed on the client address instead (see
+// PublicProfileRateLimiter). Every route lives under /v1/public/, which is the
+// prefix the per-IP budget is applied to.
+const publicProfilesGroup = HttpApiGroup.make("public-profiles")
+  .add(
+    HttpApiEndpoint.get("get", "/v1/public/profiles/:handle", {
+      params: Schema.Struct({ handle: Schema.String }),
+      success: PublicProfileDto,
+      error: [PublicProfileNotFoundError, RateLimitExceeded],
+    }),
+  )
+
 const connectAuthorizeGroup = HttpApiGroup.make("connect-authorize")
   .add(
     HttpApiEndpoint.post("authorize", "/connect/authorize", {
@@ -390,5 +408,6 @@ export const sleevyApi = HttpApi.make("SleevyApi")
   .add(savedItemsGroup)
   .add(foldersGroup)
   .add(profileGroup)
+  .add(publicProfilesGroup)
   .add(connectAuthorizeGroup)
   .add(connectExchangeGroup)

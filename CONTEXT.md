@@ -423,6 +423,18 @@ _Avoid_: Public folder flag, published collection, hidden navigation destination
 Per-day counts of first captures for an Account, shown on a Public Profile as a rolling 52-week grid.
 _Avoid_: Read history, reading time, streak, contribution graph
 
+**Public Profile Endpoint**:
+An unauthenticated REST API operation under `/v1/public/` that serves one part of a Public Profile to an anonymous visitor.
+_Avoid_: Session endpoint, API Key endpoint, account administration
+
+**Public Profile Rate Limit**:
+A single per-address request budget of 60 requests per minute applied across every Public Profile Endpoint.
+_Avoid_: API Key Rate Limit, per-endpoint quota, per-Account budget
+
+**Search Indexability**:
+The server-computed boolean that tells a client whether a Public Profile may be offered to search engines.
+_Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
+
 ## Relationships
 
 - A **Read-Later App** contains many **Saved Items**.
@@ -638,6 +650,15 @@ _Avoid_: Read history, reading time, streak, contribution graph
 - A **Public Profile** becomes eligible for search indexing when its Account is at least 7 days old and has at least 5 public Saved Items.
 - A **Public Profile** marks every outbound Saved Item link `rel="ugc nofollow"`.
 - A request for an unknown **Handle** and a request for a private **Public Profile** return the same not-found response.
+- Every **Public Profile Endpoint** lives under `/v1/public/`, beginning with `GET /v1/public/profiles/{handle}`.
+- A **Public Profile Endpoint** requires no **App Session** and no **API Key**.
+- `GET /v1/public/profiles/{handle}` returns the **Handle**, the Account join date, the public Saved Item count, and **Search Indexability**.
+- The Account join date on a **Public Profile** is when the **Account** was created, not when its **Handle** was claimed.
+- **Search Indexability** is true only when the **Account** is at least 7 days old and has at least 5 public **Saved Items**.
+- Every **Public Profile Endpoint** is subject to the **Public Profile Rate Limit** rather than the **API Key Rate Limit**.
+- A request over the **Public Profile Rate Limit** receives a **Rate Limit Response**.
+- A successful **Public Profile Endpoint** response may be cached for five minutes; a not-found response is not cached.
+- The public **Saved Item** rule is resolved in SQL and owned by Postgres, which decides the one-hour boundary.
 - A signed-in visitor may capture a listed Saved Item into their own Account through the `public-profile` **Capture Channel**.
 - Marking a Saved Item or a Folder private is a **Web Companion** action in v1.
 

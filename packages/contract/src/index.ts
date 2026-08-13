@@ -144,6 +144,21 @@ export namespace HandleAvailabilityResponse {
   export type Encoded = Schema.Codec.Encoded<typeof HandleAvailabilityResponse>
 }
 
+// The public half of a Public Profile: everything an anonymous visitor may read
+// for a Handle. Identity is the Handle alone — no display name, no biography,
+// and no avatar. `isIndexable` carries the search-indexing decision as a value
+// the API computed, so the web layer renders a robots directive from a boolean
+// and owns no part of the rule.
+export class PublicProfileDto extends Schema.Class<PublicProfileDto>("PublicProfileDto")({
+  handle: Schema.String,
+  joinedAt: Schema.DateFromString,
+  publicSavedItemCount: Schema.Number,
+  isIndexable: Schema.Boolean,
+}) {}
+export namespace PublicProfileDto {
+  export type Encoded = Schema.Codec.Encoded<typeof PublicProfileDto>
+}
+
 export class CaptureCreated extends Schema.Class<CaptureCreated>("CaptureCreated")({
   savedItem: SavedItemDto,
   captureResult: Schema.Literal("created"),
@@ -356,6 +371,20 @@ export namespace ProfileNotFoundError {
   export type Encoded = Schema.Codec.Encoded<typeof ProfileNotFoundError>
 }
 
+// The single not-found answer of the public group. An unknown Handle and a
+// Handle whose Profile Visibility is private both get this exact response, so
+// the API never discloses which Handles exist. It carries no Handle field for
+// the same reason: the body must not vary with the request.
+export class PublicProfileNotFoundError extends Schema.ErrorClass<PublicProfileNotFoundError>(
+  "PublicProfileNotFoundError",
+)({
+  _tag: Schema.tag("PublicProfileNotFoundError"),
+  message: Schema.String,
+}, { httpApiStatus: 404 }) {}
+export namespace PublicProfileNotFoundError {
+  export type Encoded = Schema.Codec.Encoded<typeof PublicProfileNotFoundError>
+}
+
 export type ApiErrorEncoded =
   | Unauthorized.Encoded
   | RateLimitExceeded.Encoded
@@ -367,3 +396,4 @@ export type ApiErrorEncoded =
   | InvalidHandleError.Encoded
   | HandleConflictError.Encoded
   | ProfileNotFoundError.Encoded
+  | PublicProfileNotFoundError.Encoded

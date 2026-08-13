@@ -9,9 +9,11 @@ import { EnrichmentWorkflow } from "../modules/enrichment/EnrichmentWorkflow.js"
 import { FolderRepository } from "../modules/folders/FolderRepository.js";
 import { McpTools } from "../modules/mcp/McpTools.js";
 import { ProfileRepository } from "../modules/profiles/ProfileRepository.js";
+import { PublicProfileRepository } from "../modules/profiles/PublicProfileRepository.js";
 import { ApiKeyRateLimiter } from "../modules/rate-limit/ApiKeyRateLimiter.js";
 import { ConnectAuthorizeRateLimiter } from "../modules/rate-limit/ConnectAuthorizeRateLimiter.js";
 import { ConnectExchangeRateLimiter } from "../modules/rate-limit/ConnectExchangeRateLimiter.js";
+import { PublicProfileRateLimiter } from "../modules/rate-limit/PublicProfileRateLimiter.js";
 import { SavedItemRepository } from "../modules/saved-items/SavedItemRepository.js";
 import { AppConfig } from "./Config.js";
 
@@ -39,5 +41,7 @@ export const appLayer = Layer.mergeAll(
   FolderRepository.defaultLayer,
   McpTools.defaultLayer,
   ProfileRepository.defaultLayer,
+  PublicProfileRateLimiter.defaultLayer,
+  PublicProfileRepository.defaultLayer,
   SavedItemRepository.defaultLayer,
 );
