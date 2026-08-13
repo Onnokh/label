@@ -187,6 +187,10 @@ _Avoid_: AI enrichment, manual categorization
 Server-side Enrichment that uses an AI provider to generate a Preview Summary and Tag.
 _Avoid_: On-device AI, manual categorization
 
+**Extracted Page Content**:
+The prose of a fetched page, without the site chrome, given to AI Enrichment so a Preview Summary and Tag can rest on what the page says.
+_Avoid_: Reading text, article body, scraped text, full text
+
 **Enrichment Job**:
 An asynchronous backend task that performs Enrichment for a Link after capture.
 _Avoid_: Save request, synchronous enrichment
@@ -528,7 +532,8 @@ _Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
 - **Saved Metadata** may include a **Preview Summary**.
 - Saved Item list rows use **Stable Row Height**, showing **Preview Summary** when available without changing row rhythm.
 - **Saved Metadata** may include an **External Image URL** loaded directly by iOS and web clients.
-- Extracted page content may be used during **Enrichment** but is not persisted in v1.
+- **Extracted Page Content** may be used during **Enrichment** but is not persisted in v1.
+- A **Preview Summary** conveys what the page says. It never describes the page as an object, and it is absent rather than filler when the page yields nothing to say.
 - A **Link** may later receive AI-generated categorization and summarization.
 - A **Saved Item** records which **Capture Channel** created it.
 - A **Capture Channel** creates **Saved Items** through **One-Tap Capture**.
@@ -579,6 +584,7 @@ _Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
 - **Enrichment** may assign a **Type** and **Enrichment Tags** to a **Link**.
 - **Type** is assigned by hard rules in v1, not by **AI Enrichment**.
 - **Enrichment Tags** are chosen by **AI Enrichment** in v1 without hard-rule hints.
+- **AI Enrichment** asks for **Enrichment Tags** and the **Preview Summary** in one request, so the **Extracted Page Content** is sent once. The tagging and preview-summary stages of the **Enrichment Job** report on that one request: they fail together, and each is skipped on its own when the provider returns nothing for it.
 - **Type** is assigned with **Hard Metadata** during capture rather than waiting for an **Enrichment Job**.
 - Saved Item list rows may show a calm **Type Icon** for the **Type**.
 - A newly captured **Saved Item** appears immediately and later receives **Hydration** as **Enrichment** completes.

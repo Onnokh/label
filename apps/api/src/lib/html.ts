@@ -58,6 +58,42 @@ export const getTitle = (document: HtmlDocument): string | undefined => {
   return collapsed.length > 0 ? collapsed : undefined
 }
 
+const CHROME_SELECTOR =
+  "script, style, noscript, template, svg, iframe, form, nav, header, footer, aside, " +
+  "[role=navigation], [role=banner], [role=contentinfo], [aria-hidden=true]"
+
+const MAIN_SELECTORS = ["article", "main", "[role=main]", "body"] as const
+
+/**
+ * Read the visible body text of a page as one whitespace-collapsed string,
+ * truncated to `maxChars`. Site chrome (scripts, navigation, headers, footers)
+ * is removed first, and the densest of `article` / `main` / `body` wins, so the
+ * result is the page's own prose rather than the menu labels around it.
+ *
+ * The document is mutated, so pass a document that is not reused afterwards.
+ */
+export const extractPageContent = (
+  document: HtmlDocument,
+  maxChars: number,
+): string | undefined => {
+  for (const node of document.querySelectorAll(CHROME_SELECTOR)) {
+    node.remove()
+  }
+
+  let best = ""
+  for (const selector of MAIN_SELECTORS) {
+    const text = collapseWhitespace(
+      document.querySelector(selector)?.textContent ?? "",
+    )
+    if (text.length > best.length) best = text
+    // An article or main region is authoritative once it carries real prose.
+    if (best.length > 600) break
+  }
+
+  if (best.length === 0) return undefined
+  return best.length > maxChars ? `${best.slice(0, maxChars).trimEnd()}…` : best
+}
+
 /**
  * Decode HTML entities in a plain-text string. Use only when you have a string
  * extracted from outside the DOM (e.g. JSON payload). Anything coming out of
