@@ -14,8 +14,20 @@ import {
 } from "./ApiContract.js"
 import { gated } from "./AuthMiddleware.js"
 
-const toDto = (folder: { readonly id: string; readonly name: string; readonly emoji: string | null; readonly color: string | null }) =>
-  new FolderDto({ id: folder.id, name: folder.name, emoji: folder.emoji, color: folder.color })
+const toDto = (folder: {
+  readonly id: string
+  readonly name: string
+  readonly emoji: string | null
+  readonly color: string | null
+  readonly isPrivate: boolean
+}) =>
+  new FolderDto({
+    id: folder.id,
+    name: folder.name,
+    emoji: folder.emoji,
+    color: folder.color,
+    isPrivate: folder.isPrivate,
+  })
 
 const validateName = (name: string) => {
   const normalized = name.trim()
@@ -61,21 +73,43 @@ export const foldersGroupLive = HttpApiBuilder.group(sleevyApi, "folders", (hand
         return toDto(created.value)
       }),
     ))
-    .handle("rename", gated("folders:write", ({ params, payload }) =>
+    .handle("update", gated("folders:write", ({ params, payload }) =>
       Effect.gen(function* () {
         const repo = yield* FolderRepository
         const analytics = yield* Analytics
         const userId = yield* CurrentUser
         const found = yield* repo.findByUserAndId(userId, params.id).pipe(Effect.orDie)
         if (found._tag === "None") return yield* notFound(params.id)
-        const name = yield* validateName(payload.name)
-        const existing = yield* repo.findByNormalizedName(userId, name, params.id).pipe(Effect.orDie)
-        if (existing._tag === "Some") return yield* conflict()
-        const updated = yield* repo.rename(userId, params.id, name, payload.emoji, payload.color).pipe(Effect.orDie)
+        // The name is validated and checked for conflicts only when the caller
+        // sends one, so a payload that carries the Private Folder flag alone
+        // leaves the name as it is.
+        let name: string | undefined
+        if (payload.name !== undefined) {
+          name = yield* validateName(payload.name)
+          const existing = yield* repo.findByNormalizedName(userId, name, params.id).pipe(Effect.orDie)
+          if (existing._tag === "Some") return yield* conflict()
+        }
+        const updated = yield* repo.update(userId, params.id, {
+          ...(name !== undefined ? { name } : {}),
+          ...(payload.emoji !== undefined ? { emoji: payload.emoji } : {}),
+          ...(payload.color !== undefined ? { color: payload.color } : {}),
+          ...(payload.isPrivate !== undefined ? { isPrivate: payload.isPrivate } : {}),
+        }).pipe(Effect.orDie)
         if (updated._tag === "None") return yield* notFound(params.id)
-        yield* analytics
-          .track({ name: "folder_renamed", userId })
-          .pipe(Effect.forkDetach)
+        if (name !== undefined) {
+          yield* analytics
+            .track({ name: "folder_renamed", userId })
+            .pipe(Effect.forkDetach)
+        }
+        if (payload.isPrivate !== undefined) {
+          yield* analytics
+            .track({
+              name: "folder_privacy_changed",
+              userId,
+              properties: { is_private: payload.isPrivate },
+            })
+            .pipe(Effect.forkDetach)
+        }
         return toDto(updated.value)
       }),
     ))

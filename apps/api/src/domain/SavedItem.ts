@@ -75,6 +75,7 @@ export class Folder extends Schema.Class<Folder>("Folder")({
   name: Schema.String,
   emoji: Schema.NullOr(Schema.String),
   color: Schema.NullOr(Schema.String),
+  isPrivate: Schema.Boolean,
   createdAt: Schema.Date,
   updatedAt: Schema.Date,
 }) {}
@@ -88,6 +89,7 @@ export class SavedItem extends Schema.Class<SavedItem>("SavedItem")({
   captureChannel: Schema.optional(CaptureChannel),
   tags: Schema.Array(Topic),
   isRead: Schema.Boolean,
+  isPrivate: Schema.Boolean,
   lastSavedAt: Schema.Date,
   createdAt: Schema.Date,
   updatedAt: Schema.Date,

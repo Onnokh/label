@@ -172,6 +172,9 @@ export const foldersTable = pgTable(
     name: text("name").notNull(),
     emoji: text("emoji"),
     color: text("color"),
+    // A Private Folder withholds every Saved Item inside it from the Public
+    // Profile. Public by default, so existing Folders keep their meaning.
+    isPrivate: boolean("is_private").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -233,6 +236,9 @@ export const savedItemsTable = pgTable(
     captureChannel: captureChannelEnum("capture_channel").$type<CaptureChannel>(),
     tags: text("tags").array().notNull().default([]),
     isRead: boolean("is_read").notNull().default(false),
+    // A Private Saved Item is withheld from the Public Profile. Public by
+    // default, so existing Saved Items keep their meaning.
+    isPrivate: boolean("is_private").notNull().default(false),
     lastSavedAt: timestamp("last_saved_at", { withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

@@ -52,6 +52,7 @@ export type FolderDto = {
   readonly name: string;
   readonly emoji: string | null;
   readonly color: string | null;
+  readonly isPrivate: boolean;
 };
 
 export type FoldersResponse = {
@@ -60,6 +61,7 @@ export type FoldersResponse = {
     readonly name: string;
     readonly emoji: string | null;
     readonly color: string | null;
+    readonly isPrivate: boolean;
   }[];
 };
 
@@ -84,8 +86,10 @@ export type SavedItemDto = {
     readonly name: string;
     readonly emoji: string | null;
     readonly color: string | null;
+    readonly isPrivate: boolean;
   } | null;
   readonly isRead: boolean;
+  readonly isPrivate: boolean;
   readonly lastSavedAt: string;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -131,8 +135,10 @@ export type SavedItemsResponse = {
       readonly name: string;
       readonly emoji: string | null;
       readonly color: string | null;
+      readonly isPrivate: boolean;
     } | null;
     readonly isRead: boolean;
+    readonly isPrivate: boolean;
     readonly lastSavedAt: string;
     readonly createdAt: string;
     readonly updatedAt: string;
@@ -179,8 +185,10 @@ export type CaptureCreated = {
       readonly name: string;
       readonly emoji: string | null;
       readonly color: string | null;
+      readonly isPrivate: boolean;
     } | null;
     readonly isRead: boolean;
+    readonly isPrivate: boolean;
     readonly lastSavedAt: string;
     readonly createdAt: string;
     readonly updatedAt: string;
@@ -228,8 +236,10 @@ export type CaptureUpdated = {
       readonly name: string;
       readonly emoji: string | null;
       readonly color: string | null;
+      readonly isPrivate: boolean;
     } | null;
     readonly isRead: boolean;
+    readonly isPrivate: boolean;
     readonly lastSavedAt: string;
     readonly createdAt: string;
     readonly updatedAt: string;
@@ -280,6 +290,7 @@ export type CapturePayload = {
       )[]
     | undefined;
   readonly folderId?: string | null | undefined;
+  readonly isPrivate?: boolean | undefined;
 };
 
 export type SavedItemReadStatePayload = { readonly isRead: boolean };

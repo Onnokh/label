@@ -27,6 +27,7 @@ const savedItem: SavedItemWithLink = {
     linkId,
     tags: [],
     isRead: false,
+    isPrivate: false,
     lastSavedAt: now,
     createdAt: now,
     updatedAt: now,
@@ -94,6 +95,30 @@ describe("CaptureService", () => {
       expect(seen?.captureChannel).toBe("api")
       expect(seen?.folderId).toBe(folderId)
       expect("tags" in (seen ?? {})).toBe(false)
+      // An omitted private flag stays omitted, so the store can tell "leave the
+      // Saved Item as it is" from "make it public".
+      expect("isPrivate" in (seen ?? {})).toBe(false)
+    }).pipe(
+      Effect.provide(captureServiceLayer({
+        onSave: (command) => {
+          seen = command
+        },
+      })),
+    )
+  })
+
+  it.effect("passes the private flag to the store when the caller sends one", () => {
+    let seen: SaveCaptureCommand | undefined
+
+    return Effect.gen(function* () {
+      const capture = yield* CaptureService
+      yield* capture.save({
+        userId,
+        url: "https://example.com/articles/effect-api",
+        isPrivate: true,
+      }).pipe(Effect.exit)
+
+      expect(seen?.isPrivate).toBe(true)
     }).pipe(
       Effect.provide(captureServiceLayer({
         onSave: (command) => {

@@ -23,6 +23,7 @@ const makeSavedItem = (
     linkId,
     tags,
     isRead: false,
+    isPrivate: false,
     lastSavedAt: now,
     createdAt: now,
     updatedAt: now,

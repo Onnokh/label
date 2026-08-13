@@ -18,6 +18,7 @@ import {
   FolderNamePayload,
   FolderNotFoundError,
   FoldersResponse,
+  FolderUpdatePayload,
   HandleAvailabilityQuery,
   HandleAvailabilityResponse,
   HandleConflictError,
@@ -32,6 +33,7 @@ import {
   RateLimitExceeded,
   SavedItemDto,
   SavedItemNotFoundError,
+  SavedItemPrivacyPayload,
   SavedItemReadStatePayload,
   SavedItemsQuery,
   SavedItemsResponse,
@@ -55,6 +57,7 @@ export {
   FolderNamePayload,
   FolderNotFoundError,
   FoldersResponse,
+  FolderUpdatePayload,
   HandleAvailabilityQuery,
   HandleAvailabilityResponse,
   HandleConflictError,
@@ -69,6 +72,7 @@ export {
   RateLimitExceeded,
   SavedItemDto,
   SavedItemNotFoundError,
+  SavedItemPrivacyPayload,
   SavedItemReadStatePayload,
   SavedItemsQuery,
   SavedItemsResponse,
@@ -117,8 +121,10 @@ export const savedItemToDto = ({
       name: folder.name,
       emoji: folder.emoji,
       color: folder.color,
+      isPrivate: folder.isPrivate,
     }) : null,
     isRead: savedItem.isRead,
+    isPrivate: savedItem.isPrivate,
     lastSavedAt: savedItem.lastSavedAt,
     createdAt: savedItem.createdAt,
     updatedAt: savedItem.updatedAt,
@@ -257,6 +263,14 @@ const savedItemsGroup = HttpApiGroup.make("saved-items")
     }),
   )
   .add(
+    HttpApiEndpoint.put("setPrivate", "/v1/saved-items/:id/private", {
+      params: Schema.Struct({ id: SavedItemId }),
+      payload: SavedItemPrivacyPayload,
+      success: SavedItemDto,
+      error: [SavedItemNotFoundError, RateLimitExceeded],
+    }),
+  )
+  .add(
     HttpApiEndpoint.put("setFolder", "/v1/saved-items/:id/folder", {
       params: Schema.Struct({ id: SavedItemId }),
       payload: FolderAssignmentPayload,
@@ -288,9 +302,9 @@ const foldersGroup = HttpApiGroup.make("folders")
     }),
   )
   .add(
-    HttpApiEndpoint.patch("rename", "/v1/folders/:id", {
+    HttpApiEndpoint.patch("update", "/v1/folders/:id", {
       params: Schema.Struct({ id: FolderId }),
-      payload: FolderNamePayload,
+      payload: FolderUpdatePayload,
       success: FolderDto,
       error: [InvalidFolderNameError, FolderNotFoundError, FolderNameConflictError, RateLimitExceeded],
     }),

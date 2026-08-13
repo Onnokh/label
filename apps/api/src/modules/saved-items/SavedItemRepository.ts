@@ -240,6 +240,21 @@ export class SavedItemRepository extends Context.Service<SavedItemRepository>()(
           return Option.some(toSavedItemWithLink(row, joined.link, joined.metadata, joined.enrichment, sourceRow, folderRow))
         }),
 
+        setPrivate: Effect.fn("SavedItemRepository.setPrivate")(function* (userId: UserId, id: SavedItem["id"], isPrivate: boolean) {
+          const [row] = yield* db
+            .update(savedItemsTable)
+            .set({ isPrivate, updatedAt: new Date() })
+            .where(and(eq(savedItemsTable.userId, userId), eq(savedItemsTable.id, id)))
+            .returning()
+
+          if (!row) return Option.none<SavedItemWithLink>()
+
+          const rows = yield* selectSavedItemWithLink(
+            and(eq(savedItemsTable.userId, userId), eq(savedItemsTable.id, id)),
+          ).limit(1)
+          return rows[0] ? Option.some(toAggregate(rows[0])) : Option.none<SavedItemWithLink>()
+        }),
+
         setFolder: Effect.fn("SavedItemRepository.setFolder")(function* (userId: UserId, id: SavedItem["id"], folderId: FolderId | null) {
           const [row] = yield* db
             .update(savedItemsTable)

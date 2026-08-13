@@ -47,6 +47,7 @@ POST /v1/saved-items/{id}/open
 POST /v1/saved-items/{id}/read
 POST /v1/saved-items/{id}/unread
 POST /v1/saved-items/{id}/read-state
+PUT /v1/saved-items/{id}/private
 PUT /v1/saved-items/{id}/folder
 DELETE /v1/saved-items/{id}
 ```
@@ -63,6 +64,10 @@ curl -X POST "$SLEEVY_API_URL/v1/captures" \
 Capture `tags` are optional. When provided, they are stored on the Saved Item for the authenticated Account and must use the v1 Tag vocabulary: `ai`, `tools`, `typescript`, `security`, `design`, `backend`, or `front-end`.
 
 Capture `folderId` is optional on the wire for older clients. When supplied with a Folder id, capture files the Saved Item there. When `folderId` is `null` or omitted, capture files the Saved Item in the Library root, including a duplicate capture.
+
+Capture `isPrivate` is optional and makes the Saved Item a Private Saved Item, which a Public Profile withholds. Omitted on a first capture it creates a public Saved Item. Omitted on a Duplicate Save it keeps the stored value, so re-saving a private link never republishes it. `PUT /v1/saved-items/{id}/private` with `{"isPrivate": true|false}` changes the flag afterwards and needs the `saved-items:write` scope.
+
+`PATCH /v1/folders/{id}` accepts `name`, `emoji`, `color`, and `isPrivate`, all optional. An omitted field keeps its stored value, so a name-only request works exactly as before. A Folder with `isPrivate` true is a Private Folder, and a Public Profile withholds every Saved Item inside it.
 
 Folder Views use Saved Item listing with a folder selector:
 

@@ -20,6 +20,7 @@ export type CaptureInput = {
   readonly captureChannel?: CaptureChannel
   readonly tags?: readonly Topic[]
   readonly folderId?: FolderId | null
+  readonly isPrivate?: boolean
 }
 
 export type CaptureServiceError = InvalidUrl
@@ -91,6 +92,7 @@ export class CaptureService extends Context.Service<CaptureService>()(
             ...(input.sourceName !== undefined ? { sourceName: input.sourceName } : {}),
             ...(input.captureChannel !== undefined ? { captureChannel: input.captureChannel } : {}),
             ...(input.tags !== undefined ? { tags: input.tags } : {}),
+            ...(input.isPrivate !== undefined ? { isPrivate: input.isPrivate } : {}),
             ...(input.folderId !== undefined ? { folderId: input.folderId } : {}),
           })
         }),

@@ -87,6 +87,7 @@ const routeLayer = (input: {
     readonly userId: UserId
     readonly url: string
     readonly captureChannel?: CaptureChannel | undefined
+    readonly isPrivate?: boolean | undefined
   }) => void) | undefined
   readonly onConnectRateLimit?: ((input: {
     readonly limiter: "authorize" | "exchange"
@@ -101,6 +102,19 @@ const routeLayer = (input: {
     remaining: 0,
     resetSeconds: 42,
   } as const
+
+  // One in-memory Folder, fresh for every layer build, so the widened Folder
+  // update can be read back field by field.
+  const folder = {
+    id: "route-folder-1",
+    userId,
+    name: "Research",
+    emoji: null as string | null,
+    color: null as string | null,
+    isPrivate: false,
+    createdAt: now,
+    updatedAt: now,
+  }
 
   // One in-memory profile record per Account, fresh for every layer build. It
   // stands in for Postgres, so it also refuses two Handles that differ only by
@@ -169,11 +183,14 @@ const routeLayer = (input: {
             userId: captureInput.userId,
             url: captureInput.url,
             captureChannel: captureInput.captureChannel,
+            isPrivate: captureInput.isPrivate,
           })
 
           return {
             savedItem: makeSavedItem(captureInput.userId, {
               captureChannel: captureInput.captureChannel,
+              // A capture without the flag lands as a public Saved Item.
+              isPrivate: captureInput.isPrivate ?? false,
             }),
             captureResult: "created" as const,
             enrichment: { _tag: "start" as const, linkId },
@@ -185,7 +202,8 @@ const routeLayer = (input: {
     } as never)),
     Layer.succeed(FolderRepository, FolderRepository.of({
       listByUser: () => Effect.succeed([]),
-      findByUserAndId: () => Effect.succeed(Option.none()),
+      findByUserAndId: (_userId: UserId, id: string) =>
+        Effect.sync(() => (id === folder.id ? Option.some(folder) : Option.none())),
       findByNormalizedName: () => Effect.succeed(Option.none()),
       create: (_userId: UserId, name: string, emoji: string | null, color: string | null) =>
         Effect.succeed(Option.some({
@@ -194,9 +212,26 @@ const routeLayer = (input: {
           name,
           emoji,
           color,
+          isPrivate: false,
           createdAt: now,
           updatedAt: now,
         })),
+      // Applies only the fields the request carried, the way the repository
+      // does, so a name-only caller cannot clear the Private Folder flag.
+      update: (_userId: UserId, id: string, changes: {
+        readonly name?: string
+        readonly emoji?: string | null
+        readonly color?: string | null
+        readonly isPrivate?: boolean
+      }) =>
+        Effect.sync(() => {
+          if (id !== folder.id) return Option.none()
+          if (changes.name !== undefined) folder.name = changes.name
+          if (changes.emoji !== undefined) folder.emoji = changes.emoji
+          if (changes.color !== undefined) folder.color = changes.color
+          if (changes.isPrivate !== undefined) folder.isPrivate = changes.isPrivate
+          return Option.some(folder)
+        }),
       deleteByUserAndId: () => Effect.succeed(true),
     } as never)),
     Layer.succeed(ProfileRepository, ProfileRepository.of({
@@ -253,6 +288,12 @@ const routeLayer = (input: {
             : { items: [], nextCursor: null },
         ),
       setReadState: () => Effect.succeed(Option.none()),
+      setPrivate: (_userId: UserId, id: SavedItemId, isPrivate: boolean) =>
+        Effect.sync(() =>
+          id === savedItemId
+            ? Option.some(makeSavedItem(userId, { isPrivate }))
+            : Option.none(),
+        ),
       deleteByUserAndId: () => ({
         execute: () => Promise.resolve({}),
         comment: () => undefined,
@@ -298,6 +339,7 @@ const makeSavedItem = (
   savedByUserId: UserId,
   input: {
     readonly captureChannel?: CaptureChannel | undefined
+    readonly isPrivate?: boolean | undefined
   } = {},
 ): SavedItemWithLink => ({
   savedItem: {
@@ -307,6 +349,7 @@ const makeSavedItem = (
     captureChannel: input.captureChannel,
     tags: ["backend"],
     isRead: false,
+    isPrivate: input.isPrivate ?? false,
     lastSavedAt: now,
     createdAt: now,
     updatedAt: now,
@@ -348,7 +391,7 @@ const json = <T>(response: Response) =>
 const text = (response: Response) =>
   Effect.promise(() => response.text())
 
-const profileRequest = (method: string, path: string, body: unknown) =>
+const jsonRequest = (method: string, path: string, body: unknown) =>
   request(path, {
     method,
     headers: { "content-type": "application/json" },
@@ -429,6 +472,7 @@ describe("HttpApp", () => {
       expect(body.paths?.["/v1/saved-items/{id}/read"]).toBeDefined()
       expect(body.paths?.["/v1/saved-items/{id}/unread"]).toBeDefined()
       expect(body.paths?.["/v1/saved-items/{id}/read-state"]).toBeDefined()
+      expect(body.paths?.["/v1/saved-items/{id}/private"]).toBeDefined()
       expect(body.paths?.["/v1/saved-items/{id}/folder"]).toBeDefined()
       expect(body.paths?.["/v1/folders"]).toBeDefined()
       expect(body.paths?.["/v1/folders/{id}"]).toBeDefined()
@@ -913,6 +957,151 @@ describe("HttpApp", () => {
     })
   })
 
+  it.effect("captures a Private Saved Item when the payload carries the flag", () => {
+    let seenIsPrivate: boolean | undefined
+
+    return Effect.gen(function* () {
+      const response = yield* jsonRequest("POST", "/v1/captures", {
+        url: "https://example.com/articles/route-test",
+        isPrivate: true,
+      }).pipe(
+        Effect.provide(routeLayer({
+          sessionUserId: userId,
+          onCapture: (captureInput) => {
+            seenIsPrivate = captureInput.isPrivate
+          },
+        })),
+      )
+
+      expect(response.status).toBe(201)
+      expect(seenIsPrivate).toBe(true)
+      expect(yield* json<{ readonly savedItem: { readonly isPrivate: boolean } }>(response))
+        .toMatchObject({ savedItem: { isPrivate: true } })
+    })
+  })
+
+  it.effect("captures a public Saved Item when the payload omits the flag", () => {
+    let seenIsPrivate: boolean | undefined = true
+
+    return Effect.gen(function* () {
+      const response = yield* jsonRequest("POST", "/v1/captures", {
+        url: "https://example.com/articles/route-test",
+      }).pipe(
+        Effect.provide(routeLayer({
+          sessionUserId: userId,
+          onCapture: (captureInput) => {
+            seenIsPrivate = captureInput.isPrivate
+          },
+        })),
+      )
+
+      expect(response.status).toBe(201)
+      // The capture passes no flag on, which is what lets a Duplicate Save keep
+      // the stored value.
+      expect(seenIsPrivate).toBeUndefined()
+      expect(yield* json<{ readonly savedItem: { readonly isPrivate: boolean } }>(response))
+        .toMatchObject({ savedItem: { isPrivate: false } })
+    })
+  })
+
+  it.effect("marks a Saved Item private and public again", () =>
+    Effect.gen(function* () {
+      const layer = routeLayer({ sessionUserId: userId })
+
+      const marked = yield* jsonRequest(
+        "PUT",
+        `/v1/saved-items/${savedItemId}/private`,
+        { isPrivate: true },
+      ).pipe(Effect.provide(layer))
+
+      expect(marked.status).toBe(200)
+      expect(yield* json<{ readonly id: string; readonly isPrivate: boolean }>(marked))
+        .toMatchObject({ id: savedItemId, isPrivate: true })
+
+      const restored = yield* jsonRequest(
+        "PUT",
+        `/v1/saved-items/${savedItemId}/private`,
+        { isPrivate: false },
+      ).pipe(Effect.provide(layer))
+
+      expect(restored.status).toBe(200)
+      expect(yield* json<{ readonly isPrivate: boolean }>(restored))
+        .toMatchObject({ isPrivate: false })
+    }),
+  )
+
+  it.effect("returns not found when the Saved Item to mark private is unknown", () =>
+    Effect.gen(function* () {
+      const response = yield* jsonRequest(
+        "PUT",
+        "/v1/saved-items/route-saved-item-unknown/private",
+        { isPrivate: true },
+      ).pipe(Effect.provide(routeLayer({ sessionUserId: userId })))
+
+      expect(response.status).toBe(404)
+      expect(yield* json<{ readonly _tag: string }>(response)).toMatchObject({
+        _tag: "SavedItemNotFoundError",
+      })
+    }),
+  )
+
+  it.effect("refuses the private action without the saved-items write scope", () =>
+    Effect.gen(function* () {
+      const response = yield* request(`/v1/saved-items/${savedItemId}/private`, {
+        method: "PUT",
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+        },
+        body: globalThis.JSON.stringify({ isPrivate: true }),
+      }).pipe(
+        Effect.provide(routeLayer({ apiKeyPermissions: { "saved-items": ["read"] } })),
+      )
+
+      expect(response.status).toBe(401)
+      expect(yield* json<{ readonly message: string }>(response)).toMatchObject({
+        message: "Missing required scope: saved-items:write.",
+      })
+    }),
+  )
+
+  it.effect("marks a Folder private through the widened update", () =>
+    Effect.gen(function* () {
+      const layer = routeLayer({ sessionUserId: userId })
+
+      const marked = yield* jsonRequest("PATCH", "/v1/folders/route-folder-1", {
+        isPrivate: true,
+      }).pipe(Effect.provide(layer))
+
+      expect(marked.status).toBe(200)
+      expect(yield* json<{ readonly name: string; readonly isPrivate: boolean }>(marked))
+        .toMatchObject({ name: "Research", isPrivate: true })
+
+      // A name-only caller keeps working and leaves the Private Folder flag as
+      // it is.
+      const renamed = yield* jsonRequest("PATCH", "/v1/folders/route-folder-1", {
+        name: "Reading",
+      }).pipe(Effect.provide(layer))
+
+      expect(renamed.status).toBe(200)
+      expect(yield* json<{ readonly name: string; readonly isPrivate: boolean }>(renamed))
+        .toMatchObject({ name: "Reading", isPrivate: true })
+    }),
+  )
+
+  it.effect("rejects an empty Folder name on the widened update", () =>
+    Effect.gen(function* () {
+      const response = yield* jsonRequest("PATCH", "/v1/folders/route-folder-1", {
+        name: "   ",
+      }).pipe(Effect.provide(routeLayer({ sessionUserId: userId })))
+
+      expect(response.status).toBe(400)
+      expect(yield* json<{ readonly _tag: string }>(response)).toMatchObject({
+        _tag: "InvalidFolderNameError",
+      })
+    }),
+  )
+
   it.effect("returns rate-limit responses before protected handlers run", () =>
     Effect.gen(function* () {
       const response = yield* request("/v1/saved-items", {
@@ -1013,7 +1202,7 @@ describe("HttpApp", () => {
     Effect.gen(function* () {
       const layer = routeLayer({ sessionUserId: userId })
 
-      const claimed = yield* profileRequest("POST", "/v1/profile/handle", {
+      const claimed = yield* jsonRequest("POST", "/v1/profile/handle", {
         handle: "Reader_One",
       }).pipe(Effect.provide(layer))
 
@@ -1049,7 +1238,7 @@ describe("HttpApp", () => {
   it.effect("rejects Handles outside the allowed length and character set", () =>
     Effect.gen(function* () {
       for (const handle of ["ab", "a".repeat(31), "reader one", "reader.one", "réader"]) {
-        const response = yield* profileRequest("POST", "/v1/profile/handle", {
+        const response = yield* jsonRequest("POST", "/v1/profile/handle", {
           handle,
         }).pipe(Effect.provide(routeLayer({ sessionUserId: userId })))
 
@@ -1064,7 +1253,7 @@ describe("HttpApp", () => {
   it.effect("rejects reserved Handles", () =>
     Effect.gen(function* () {
       for (const handle of RESERVED_HANDLES) {
-        const response = yield* profileRequest("POST", "/v1/profile/handle", {
+        const response = yield* jsonRequest("POST", "/v1/profile/handle", {
           handle,
         }).pipe(Effect.provide(routeLayer({ sessionUserId: userId })))
 
@@ -1075,7 +1264,7 @@ describe("HttpApp", () => {
 
   it.effect("refuses a Handle another Account holds in a different case", () =>
     Effect.gen(function* () {
-      const response = yield* profileRequest("POST", "/v1/profile/handle", {
+      const response = yield* jsonRequest("POST", "/v1/profile/handle", {
         handle: "ReaderOne",
       }).pipe(Effect.provide(routeLayer({
         sessionUserId: userId,
@@ -1118,7 +1307,7 @@ describe("HttpApp", () => {
         claimedHandle: { userId, handle: "readerone" },
       })
 
-      const renamed = yield* profileRequest("PATCH", "/v1/profile/handle", {
+      const renamed = yield* jsonRequest("PATCH", "/v1/profile/handle", {
         handle: "Reader-Two",
       }).pipe(Effect.provide(layer))
 
@@ -1136,7 +1325,7 @@ describe("HttpApp", () => {
         claimedHandle: { userId, handle: "readerone" },
       })
 
-      const published = yield* profileRequest("PUT", "/v1/profile/visibility", {
+      const published = yield* jsonRequest("PUT", "/v1/profile/visibility", {
         visibility: "public",
       }).pipe(Effect.provide(layer))
 
@@ -1145,7 +1334,7 @@ describe("HttpApp", () => {
         visibility: "public",
       })
 
-      const hidden = yield* profileRequest("PUT", "/v1/profile/visibility", {
+      const hidden = yield* jsonRequest("PUT", "/v1/profile/visibility", {
         visibility: "private",
       }).pipe(Effect.provide(layer))
 
