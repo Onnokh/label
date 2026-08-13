@@ -53,10 +53,10 @@ const makeMetadata = () =>
     updatedAt: now,
   })
 
-const makeEnrichment = () =>
+const makeEnrichment = (type: LinkEnrichment["type"] = "article") =>
   new LinkEnrichment({
     linkId,
-    type: "article",
+    type,
     tags: [],
     status: "pending",
     updatedAt: now,
@@ -92,6 +92,7 @@ const makePage = (url: string) =>
 
 const workflowLayer = (input: {
   readonly status?: LinkEnrichment["status"] | undefined
+  readonly type?: LinkEnrichment["type"] | undefined
   readonly aiTags?: readonly Topic[] | undefined
   readonly aiPreview?: string | undefined
   readonly aiFails?: boolean | undefined
@@ -113,7 +114,7 @@ const workflowLayer = (input: {
               return {
                 link: makeLink(),
                 metadata: makeMetadata(),
-                enrichment: makeEnrichment(),
+                enrichment: makeEnrichment(input.type),
                 job: makeJob(),
               }
             }),
@@ -289,6 +290,44 @@ describe("EnrichmentWorkflow", () => {
       ])
     }).pipe(
       Effect.provide(workflowLayer({
+        onFinish: (result) => {
+          finished = result
+        },
+      })),
+    )
+  })
+
+  // A post carries its own words, so summarizing it restates what the reader is
+  // about to read, in more words than the post used. Tags and the summary come
+  // from one AI call, so a post is still tagged: what is dropped is the summary,
+  // not the call, and the stage is recorded as skipped either way.
+  it.effect("writes no Preview Summary for a post, even when the AI offers one", () => {
+    let finished: FinishedEnrichment | undefined
+    let asked = false
+
+    return Effect.gen(function* () {
+      const workflow = yield* EnrichmentWorkflow
+      yield* workflow.enrich(linkId)
+
+      expect(finished?.enrichment.previewSummary).toBeUndefined()
+      // The Tags from that same call are kept.
+      expect(finished?.enrichment.tags).toEqual(["ai"])
+      expect(asked).toBe(true)
+      expect(finished?.enrichment.status).toBe("enriched")
+      expect(finished?.job.status).toBe("succeeded")
+      expect(finished?.job.stages.map((stage) => `${stage.stage}:${stage.status}`)).toEqual([
+        "metadata:succeeded",
+        "tagging:succeeded",
+        "preview-summary:skipped",
+      ])
+    }).pipe(
+      Effect.provide(workflowLayer({
+        type: "post",
+        aiTags: ["ai"],
+        aiPreview: "A summary nobody asked for.",
+        onAiInput: () => {
+          asked = true
+        },
         onFinish: (result) => {
           finished = result
         },

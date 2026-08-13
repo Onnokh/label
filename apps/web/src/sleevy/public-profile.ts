@@ -17,6 +17,15 @@ const apiBaseUrl = internalApiBaseUrl ??
   import.meta.env.VITE_API_BASE_URL ??
   "http://localhost:4001"
 
+// The secret this server states to identify itself as the renderer of a public
+// page. Read from the process environment at startup, like the internal API
+// address above, so it never reaches the browser bundle.
+const renderToken = import.meta.env.SSR
+  ? (globalThis as {
+      readonly process?: { readonly env?: Record<string, string | undefined> }
+    }).process?.env?.INTERNAL_RENDER_TOKEN
+  : undefined
+
 // The address of the visitor this request is made for, named the way the API
 // reads it.
 //
@@ -33,6 +42,14 @@ const apiBaseUrl = internalApiBaseUrl ??
 // therefore adds no new rule to the API side.
 const visitorAddressHeaders = async (): Promise<Record<string, string>> => {
   if (import.meta.env.SSR) {
+    // A render must always be able to serve the page it was asked for, so it
+    // identifies itself and is left out of the Public Profile Rate Limit. The
+    // address is still passed on: it is what the API logs and what every other
+    // budget in the API buckets on.
+    const renderHeaders: Record<string, string> = renderToken
+      ? { "X-Sleevy-Render": renderToken }
+      : {}
+
     try {
       const { getRequestHeader, getRequestIP } = await import(
         "@tanstack/react-start/server"
@@ -42,15 +59,18 @@ const visitorAddressHeaders = async (): Promise<Record<string, string>> => {
 
       // No address to be had — send none rather than one made up, and let the
       // API fall back the way it already does.
-      return address ? { "CF-Connecting-IP": address } : {}
+      return address
+        ? { ...renderHeaders, "CF-Connecting-IP": address }
+        : renderHeaders
     } catch {
       // Called with no page request in hand, so there is no visitor to name.
-      return {}
+      return renderHeaders
     }
   }
 
   // A loader runs in the browser too, on a client-side navigation. There the
-  // header would be a claim rather than a fact, so it is never sent.
+  // header would be a claim rather than a fact, so it is never sent — and the
+  // Render Token is not in the bundle to send.
   return {}
 }
 
@@ -71,6 +91,10 @@ export type PublicSavedItem = {
   readonly faviconLightUrl?: string | null
   readonly faviconDarkUrl?: string | null
   readonly imageUrl?: string | null
+  // The Link Author, filled for a post and absent for most other Links.
+  readonly authorName?: string | null
+  readonly authorHandle?: string | null
+  readonly authorAvatarUrl?: string | null
   readonly type: string
   readonly tags: ReadonlyArray<string>
   readonly previewSummary?: string | null

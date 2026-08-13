@@ -103,6 +103,37 @@ describe("CaptureService", () => {
     )
   })
 
+  // A tweet is classified at capture, from the URL alone, so a client can lay it
+  // out as a post without re-reading the address. Only a URL that names one
+  // message counts: a profile or the platform's home page is a plain Link.
+  it.effect("recognizes a post by its URL", () => {
+    const seen: Array<string | undefined> = []
+
+    return Effect.gen(function* () {
+      const capture = yield* CaptureService
+
+      for (
+        const url of [
+          "https://x.com/thdxr/status/2087945880863191162",
+          "https://twitter.com/thdxr/status/2087945880863191162",
+          "https://www.x.com/thdxr/status/2087945880863191162?s=12",
+          "https://x.com/thdxr",
+          "https://x.com/",
+        ]
+      ) {
+        yield* capture.save({ userId, url }).pipe(Effect.exit)
+      }
+
+      expect(seen).toEqual(["post", "post", "post", "website", "website"])
+    }).pipe(
+      Effect.provide(captureServiceLayer({
+        onSave: (command) => {
+          seen.push(command.url.type)
+        },
+      })),
+    )
+  })
+
   // A capture decides where a Saved Item is filed, never who may read it. The
   // Folder it lands in is the only thing that can publish it, so the command a
   // capture hands the store must carry no audience flag of its own. This test

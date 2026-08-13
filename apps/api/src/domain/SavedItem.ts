@@ -47,6 +47,11 @@ export class LinkMetadata extends Schema.Class<LinkMetadata>("LinkMetadata")({
   faviconDarkUrl: Schema.optional(Schema.String),
   imageUrl: Schema.optional(Schema.String),
   canonicalUrl: Schema.optional(Schema.String),
+  // The Link Author: who wrote what the Link points at. Filled for a post, where
+  // the writer matters as much as the words, and empty for most other Links.
+  authorName: Schema.optional(Schema.String),
+  authorHandle: Schema.optional(Schema.String),
+  authorAvatarUrl: Schema.optional(Schema.String),
   fetchedAt: Schema.Date,
   updatedAt: Schema.Date,
 }) {}

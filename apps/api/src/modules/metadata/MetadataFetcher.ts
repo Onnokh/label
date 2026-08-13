@@ -22,6 +22,12 @@ export class Metadata extends Schema.Class<Metadata>("Metadata")({
   faviconDarkUrl: Schema.optional(Schema.String),
   imageUrl: Schema.optional(Schema.String),
   canonicalUrl: Schema.optional(Schema.String),
+  // The Link Author. Only a provider that states the writer fills these in; page
+  // markup is not read for them, because the common author meta tags carry a
+  // profile URL as often as a name.
+  authorName: Schema.optional(Schema.String),
+  authorHandle: Schema.optional(Schema.String),
+  authorAvatarUrl: Schema.optional(Schema.String),
 }) { }
 
 /**

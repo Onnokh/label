@@ -173,12 +173,25 @@ export class EnrichmentWorkflow extends Context.Service<EnrichmentWorkflow>()(
           }
 
           {
-            const result = yield* runStage(
+            // A post already carries its own words: its Link Metadata title is
+            // the message itself, so a Preview Summary would restate what the
+            // reader is about to read, in more words than the post used.
+            //
+            // Tags and the summary come from one AI call, so this skips the
+            // summary rather than the call — a post still gets Tags. The stage is
+            // recorded as skipped rather than dropped, so a job accounts for every
+            // stage either way.
+            const result = yield* runStage<string>(
               "preview-summary",
-              aiStage(
-                (value) => value.summary,
-                "AI preview summary is disabled or no input was available.",
-              ),
+              linkEnrichment.type === "post"
+                ? Effect.succeed<StageResult<string>>({
+                  _tag: "skip",
+                  message: "A post is its own preview, so it takes no Preview Summary.",
+                })
+                : aiStage(
+                  (value) => value.summary,
+                  "AI preview summary is disabled or no input was available.",
+                ),
               stages,
             )
 
@@ -337,6 +350,9 @@ const applyMetadata = (
     faviconDarkUrl: metadata.faviconDarkUrl,
     imageUrl: metadata.imageUrl,
     canonicalUrl: metadata.canonicalUrl,
+    authorName: metadata.authorName,
+    authorHandle: metadata.authorHandle,
+    authorAvatarUrl: metadata.authorAvatarUrl,
     fetchedAt: new Date(),
     updatedAt: new Date(),
   })

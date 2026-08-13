@@ -169,7 +169,7 @@ export const makeApiWebHandler = Effect.gen(function* () {
     // instead of the API Key Rate Limit.
     if (pathname.startsWith(PUBLIC_API_PREFIX)) {
       return withCors(request, config.auth.trustedOrigins, (request) =>
-        withPublicRateLimit(request, publicRateLimiter, apiFetch),
+        withPublicRateLimit(request, publicRateLimiter, config.render.token, apiFetch),
       )
     }
 

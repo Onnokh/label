@@ -8,6 +8,9 @@ type ProviderMetadata = {
   readonly siteName?: string | undefined
   readonly imageUrl?: string | undefined
   readonly description?: string | undefined
+  readonly authorName?: string | undefined
+  readonly authorHandle?: string | undefined
+  readonly authorAvatarUrl?: string | undefined
 }
 
 type ProviderResolver = (url: string) => Promise<ProviderMetadata | undefined>
@@ -65,6 +68,7 @@ type FxTwitterResponse = {
     readonly author?: {
       readonly name?: unknown
       readonly screen_name?: unknown
+      readonly avatar_url?: unknown
     }
     readonly media?: {
       readonly photos?: ReadonlyArray<{ readonly url?: unknown }>
@@ -92,8 +96,14 @@ const twitterResolver: ProviderResolver = async (url) => {
 
   return {
     title,
+    // The Site Name stays the author handle. It is what the iOS app and the
+    // Library already show as the source of a saved tweet, and the Link Author
+    // below is additive rather than a replacement for it.
     siteName: handle ? `@${handle}` : "X",
     imageUrl: asString(photo) ?? asString(videoThumb),
+    authorName,
+    authorHandle: handle ? `@${handle}` : undefined,
+    authorAvatarUrl: asString(tweet.author?.avatar_url),
   }
 }
 
@@ -167,6 +177,9 @@ export class OEmbedFetcher extends Context.Service<OEmbedFetcher>()(
               description: fields.description,
               siteName: fields.siteName,
               imageUrl: fields.imageUrl,
+              authorName: fields.authorName,
+              authorHandle: fields.authorHandle,
+              authorAvatarUrl: fields.authorAvatarUrl,
             }),
           )
         })
