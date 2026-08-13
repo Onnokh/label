@@ -104,6 +104,15 @@ export function useCapture(initialUrl = "") {
   return { url, setUrl, formError, isPending: mutation.isPending, submit, captureUrl, reset }
 }
 
+// A save taken from someone else's Public Profile. The reads on that page carry
+// no credentials so the API may cache them for everyone, but this is a signed-in
+// action for one visitor, so it goes through `apiFetch` and sends the session.
+export const capturePublicProfileLink = (url: string) =>
+  apiFetch<CaptureResponseJson>("/v1/captures", {
+    method: "POST",
+    body: JSON.stringify({ url, captureChannel: "public-profile" as const }),
+  })
+
 export function useMarkAsRead() {
   const queryClient = useQueryClient()
 

@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router"
 
+import { SaveToLibraryButton } from "../components/public-profile/save-to-library-button"
 import type {
   PublicProfile,
   PublicSavedItem,
@@ -109,6 +110,10 @@ const SavedItemRow = ({ item }: { readonly item: PublicSavedItem }) => {
           ))}
         </div>
       </div>
+      {/* A signed-in visitor may take this Link into their own Library without
+          leaving the profile. The button attaches on the client only, so the
+          cached server-rendered HTML stays the same for every viewer. */}
+      <SaveToLibraryButton url={item.originalUrl} name={item.title ?? item.originalUrl} />
     </li>
   )
 }
