@@ -32,6 +32,7 @@ export const captureChannels = [
   "raycast",
   "web-companion",
   "api",
+  "public-profile",
 ] as const;
 export type CaptureChannel =
   | "chrome-extension"
@@ -39,7 +40,8 @@ export type CaptureChannel =
   | "ios-share-extension"
   | "raycast"
   | "web-companion"
-  | "api";
+  | "api"
+  | "public-profile";
 
 export const enrichmentStatuses = ["pending", "enriched", "failed"] as const;
 export type EnrichmentStatus = "pending" | "enriched" | "failed";
@@ -110,6 +112,7 @@ export type SavedItemDto = {
     | "raycast"
     | "web-companion"
     | "api"
+    | "public-profile"
     | undefined;
 };
 
@@ -159,6 +162,7 @@ export type SavedItemsResponse = {
       | "raycast"
       | "web-companion"
       | "api"
+      | "public-profile"
       | undefined;
   }[];
 };
@@ -209,6 +213,7 @@ export type CaptureCreated = {
       | "raycast"
       | "web-companion"
       | "api"
+      | "public-profile"
       | undefined;
   };
   readonly captureResult: "created";
@@ -260,6 +265,7 @@ export type CaptureUpdated = {
       | "raycast"
       | "web-companion"
       | "api"
+      | "public-profile"
       | undefined;
   };
   readonly captureResult: "updated";
@@ -277,6 +283,7 @@ export type CapturePayload = {
     | "raycast"
     | "web-companion"
     | "api"
+    | "public-profile"
     | undefined;
   readonly tags?:
     | readonly (

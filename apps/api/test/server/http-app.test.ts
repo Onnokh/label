@@ -1,4 +1,5 @@
 import { SUPPORTED_PROTOCOL_VERSIONS } from "@modelcontextprotocol/sdk/types.js"
+import { captureChannels } from "@sleevy/contract"
 import { describe, expect } from "bun:test"
 import { Effect, Layer, Option } from "effect"
 
@@ -1101,6 +1102,67 @@ describe("HttpApp", () => {
       })
     }),
   )
+
+  it.effect("posts a capture through the public-profile Capture Channel", () => {
+    let seenChannel: CaptureChannel | undefined
+
+    return Effect.gen(function* () {
+      const response = yield* jsonRequest("POST", "/v1/captures", {
+        url: "https://example.com/articles/route-test",
+        captureChannel: "public-profile",
+      }).pipe(
+        Effect.provide(routeLayer({
+          sessionUserId: userId,
+          onCapture: (captureInput) => {
+            seenChannel = captureInput.captureChannel
+          },
+        })),
+      )
+
+      expect(response.status).toBe(201)
+      expect(seenChannel).toBe("public-profile")
+
+      const body = yield* json<{
+        readonly savedItem: { readonly captureChannel?: string }
+      }>(response)
+
+      expect(body.savedItem.captureChannel).toBe("public-profile")
+    })
+  })
+
+  it.effect("posts captures from every Capture Channel", () => {
+    const seenChannels: Array<CaptureChannel | undefined> = []
+
+    return Effect.gen(function* () {
+      const layer = routeLayer({
+        sessionUserId: userId,
+        onCapture: (captureInput) => {
+          seenChannels.push(captureInput.captureChannel)
+        },
+      })
+
+      for (const captureChannel of captureChannels) {
+        const response = yield* request("/v1/captures", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: globalThis.JSON.stringify({
+            url: "https://example.com/articles/route-test",
+            captureChannel,
+          }),
+        }).pipe(Effect.provide(layer))
+
+        expect(response.status).toBe(201)
+
+        const body = yield* json<{
+          readonly savedItem: { readonly captureChannel?: string }
+        }>(response)
+
+        expect(body.savedItem.captureChannel).toBe(captureChannel)
+      }
+
+      expect(seenChannels).toEqual([...captureChannels])
+    })
+  })
 
   it.effect("returns rate-limit responses before protected handlers run", () =>
     Effect.gen(function* () {

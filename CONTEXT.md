@@ -92,7 +92,7 @@ A named device or environment from which a user captures URLs, used as a recall 
 _Avoid_: Capture Channel, integration, client type
 
 **Capture Channel**:
-A way a user sends a URL into the app. Stored as a closed enum on each Saved Item: `chrome-extension`, `ios-app`, `ios-share-extension`, `raycast`, `web-companion`, `api`.
+A way a user sends a URL into the app. Stored as a closed enum on each Saved Item: `chrome-extension`, `ios-app`, `ios-share-extension`, `raycast`, `web-companion`, `api`, `public-profile`.
 _Avoid_: Integration, source, device
 
 **Chrome Extension**:

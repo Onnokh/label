@@ -46,6 +46,7 @@ export const captureChannels = [
   "raycast",
   "web-companion",
   "api",
+  "public-profile",
 ] as const
 export const CaptureChannel = Schema.Literals(captureChannels)
 export type CaptureChannel = typeof CaptureChannel.Type

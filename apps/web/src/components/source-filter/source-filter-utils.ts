@@ -7,6 +7,7 @@ const channelGroups: Record<string, string> = {
   "web-companion": "Browser",
   "raycast": "Raycast",
   "api": "API",
+  "public-profile": "Public Profile",
 }
 
 function getChannelGroup(channel?: string): string | undefined {
