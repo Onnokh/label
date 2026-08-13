@@ -22,10 +22,9 @@ All events are `type: "custom_event"`. `user_id` is the authenticated Account's 
 | `item_opened` | `markOpened` handler in `SavedItemsHandlers.ts` | `CurrentUser` | — |
 | `item_deleted` | `remove` handler in `SavedItemsHandlers.ts` | `CurrentUser` | — |
 | `item_moved` | `setFolder` handler in `SavedItemsHandlers.ts` | `CurrentUser` | `destination` (`folder`\|`none`) |
-| `item_privacy_changed` | `setPrivate` handler in `SavedItemsHandlers.ts` | `CurrentUser` | `is_private` (boolean) |
 | `folder_created` | `create` handler in `FoldersHandlers.ts` | `CurrentUser` | — |
 | `folder_renamed` | `update` handler in `FoldersHandlers.ts`, only when the request carries a name | `CurrentUser` | — |
-| `folder_privacy_changed` | `update` handler in `FoldersHandlers.ts`, only when the request carries the private flag | `CurrentUser` | `is_private` (boolean) |
+| `folder_publish_changed` | `update` handler in `FoldersHandlers.ts`, only when the request carries the publish flag | `CurrentUser` | `is_published` (boolean) |
 | `folder_deleted` | `remove` handler in `FoldersHandlers.ts` | `CurrentUser` | — |
 | `client_connected` | `exchange` handler in `ConnectHandlers.ts` (API key minted) | `record.userId` | `client`, `scopes_count` |
 
