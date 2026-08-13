@@ -1883,6 +1883,33 @@ describe("HttpApp", () => {
     })
   })
 
+  // The web app renders a Public Profile page on its server, so the request the
+  // API sees comes from the web container rather than from the visitor. It
+  // passes the visitor address on as CF-Connecting-IP, which the resolver
+  // already reads, and that is what keeps one bucket per visitor. A caller that
+  // names no address is the case that used to describe every rendered page.
+  it.effect("gives a forwarded visitor address its own budget, and only an unnamed caller the shared one", () => {
+    const seen: string[] = []
+
+    return Effect.gen(function* () {
+      const layer = routeLayer({
+        onPublicRateLimit: (key) => {
+          seen.push(key)
+        },
+      })
+
+      yield* request("/v1/public/profiles/readerone", {
+        headers: { "CF-Connecting-IP": "198.51.100.9" },
+      }).pipe(Effect.provide(layer))
+      yield* request("/v1/public/profiles/readerone", {
+        headers: { "CF-Connecting-IP": "203.0.113.7" },
+      }).pipe(Effect.provide(layer))
+      yield* request("/v1/public/profiles/readerone").pipe(Effect.provide(layer))
+
+      expect(seen).toEqual(["198.51.100.9", "203.0.113.7", "unknown"])
+    })
+  })
+
   it.effect("serves one page of public Saved Items to an anonymous visitor", () =>
     Effect.gen(function* () {
       const response = yield* request("/v1/public/profiles/ReaderOne/saved-items").pipe(

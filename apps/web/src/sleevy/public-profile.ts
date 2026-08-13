@@ -1,4 +1,58 @@
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4001"
+// The address of the API. A browser must use the public one, which is baked
+// into the bundle as a build argument. A server-side render must not: that
+// request would leave the container, travel out through Cloudflare and Caddy,
+// and come back, rather than crossing the deployment network. So the server
+// prefers INTERNAL_API_BASE_URL, which names the API service inside that
+// network and is read from the process environment at startup.
+//
+// `import.meta.env.SSR` is replaced at build time, so the branch below is gone
+// from the browser bundle and no `process` is looked for where there is none.
+const internalApiBaseUrl = import.meta.env.SSR
+  ? (globalThis as {
+      readonly process?: { readonly env?: Record<string, string | undefined> }
+    }).process?.env?.INTERNAL_API_BASE_URL
+  : undefined
+
+const apiBaseUrl = internalApiBaseUrl ??
+  import.meta.env.VITE_API_BASE_URL ??
+  "http://localhost:4001"
+
+// The address of the visitor this request is made for, named the way the API
+// reads it.
+//
+// Every Public Profile Endpoint is bucketed by client address. A server-side
+// render carries the web container's address instead of the visitor's, which
+// would put every render in the world in one bucket and spend the whole Public
+// Profile Rate Limit on a handful of pages. So the incoming page request is
+// asked who it came from, and the answer is passed on.
+//
+// The web server may be trusted to state this: it sits inside the deployment
+// network, reachable only through the proxy chain that sets the header in the
+// first place, and the API already treats CF-Connecting-IP as the only
+// trustworthy client address behind that chain (ADR 0016). Passing it on
+// therefore adds no new rule to the API side.
+const visitorAddressHeaders = async (): Promise<Record<string, string>> => {
+  if (import.meta.env.SSR) {
+    try {
+      const { getRequestHeader, getRequestIP } = await import(
+        "@tanstack/react-start/server"
+      )
+      const address = getRequestHeader("cf-connecting-ip") ??
+        getRequestIP({ xForwardedFor: true })
+
+      // No address to be had — send none rather than one made up, and let the
+      // API fall back the way it already does.
+      return address ? { "CF-Connecting-IP": address } : {}
+    } catch {
+      // Called with no page request in hand, so there is no visitor to name.
+      return {}
+    }
+  }
+
+  // A loader runs in the browser too, on a client-side navigation. There the
+  // header would be a claim rather than a fact, so it is never sent.
+  return {}
+}
 
 export type PublicProfile = {
   readonly handle: string
@@ -41,7 +95,9 @@ export type ReadingActivity = {
 // do not send them. `credentials: "include"` would make every response vary per
 // viewer and defeat the shared cache the API sets.
 const publicFetch = async <T>(path: string): Promise<T | "not-found"> => {
-  const response = await fetch(`${apiBaseUrl}${path}`)
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    headers: await visitorAddressHeaders(),
+  })
   // An unknown Handle and a private one answer alike, so both land here and the
   // page cannot tell them apart either.
   if (response.status === 404) return "not-found"
