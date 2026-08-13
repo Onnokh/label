@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as MarketingRouteImport } from './routes/_marketing'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AppConnectRouteImport } from './routes/_app/connect'
 import { Route as AppInboxRouteImport } from './routes/_app/inbox'
 import { Route as AppLibraryRouteImport } from './routes/_app/library'
@@ -47,6 +48,11 @@ const AppRoute = AppRouteImport.update({
 } as any)
 const MarketingRoute = MarketingRouteImport.update({
   id: '/_marketing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppConnectRoute = AppConnectRouteImport.update({
@@ -174,6 +180,7 @@ const AppLibraryFoldersFolderIdRoute =
 export interface FileRoutesByFullPath {
   '/$': typeof SplatRoute
   '/': typeof MarketingIndexRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/connect': typeof AppConnectRoute
   '/inbox': typeof AppInboxRoute
   '/library': typeof AppLibraryRoute
@@ -200,6 +207,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/$': typeof SplatRoute
   '/': typeof MarketingIndexRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/connect': typeof AppConnectRoute
   '/inbox': typeof AppInboxRoute
   '/library': typeof AppLibraryRoute
@@ -228,6 +236,7 @@ export interface FileRoutesById {
   '/$': typeof SplatRoute
   '/_app': typeof AppRouteWithChildren
   '/_marketing': typeof MarketingRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_app/connect': typeof AppConnectRoute
   '/_app/inbox': typeof AppInboxRoute
   '/_app/library': typeof AppLibraryRoute
@@ -257,6 +266,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/$'
     | '/'
+    | '/sitemap.xml'
     | '/connect'
     | '/inbox'
     | '/library'
@@ -283,6 +293,7 @@ export interface FileRouteTypes {
   to:
     | '/$'
     | '/'
+    | '/sitemap.xml'
     | '/connect'
     | '/inbox'
     | '/library'
@@ -310,6 +321,7 @@ export interface FileRouteTypes {
     | '/$'
     | '/_app'
     | '/_marketing'
+    | '/sitemap.xml'
     | '/_app/connect'
     | '/_app/inbox'
     | '/_app/library'
@@ -339,6 +351,7 @@ export interface RootRouteChildren {
   SplatRoute: typeof SplatRoute
   AppRoute: typeof AppRouteWithChildren
   MarketingRoute: typeof MarketingRouteWithChildren
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiSearchRoute: typeof ApiSearchRoute
   DocsSplatRoute: typeof DocsSplatRoute
   DocsChar123Char125DotmdRoute: typeof DocsChar123Char125DotmdRoute
@@ -367,6 +380,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof MarketingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/connect': {
@@ -594,6 +614,7 @@ const rootRouteChildren: RootRouteChildren = {
   SplatRoute: SplatRoute,
   AppRoute: AppRouteWithChildren,
   MarketingRoute: MarketingRouteWithChildren,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiSearchRoute: ApiSearchRoute,
   DocsSplatRoute: DocsSplatRoute,
   DocsChar123Char125DotmdRoute: DocsChar123Char125DotmdRoute,

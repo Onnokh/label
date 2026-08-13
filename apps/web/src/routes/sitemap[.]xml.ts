@@ -29,7 +29,7 @@ const sitemapUrls = async () => {
 // The file name escapes the dot as `[.]`, so this route is served at
 // /sitemap.xml. The path argument is left out and filled in by the route
 // generator, because src/routeTree.gen.ts does not name this route yet.
-export const Route = createFileRoute()({
+export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: async () =>
