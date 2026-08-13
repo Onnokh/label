@@ -18,9 +18,6 @@ import {
   withTestDatabaseUrl,
 } from "../lib/postgres.js"
 
-let databaseAvailable = false
-let setupError: unknown
-
 // Each service now provides its own dependencies via `defaultLayer`
 // (PostgresClient + AppConfig are shared across them by layer-identity
 // memoization), so the test wiring is a flat, order-independent merge.
@@ -52,32 +49,18 @@ const insertUser = async (userId: UserId) => {
   }
 }
 
+// No skip guard: an unreachable database must fail the suite. Swallowing the
+// error here let the run report green having asserted nothing at all.
 beforeAll(async () => {
-  try {
-    await setupTestDatabase()
-    databaseAvailable = true
-  } catch (error) {
-    setupError = error
-    databaseAvailable = false
-  }
+  await setupTestDatabase()
 })
 
 beforeEach(async () => {
-  if (databaseAvailable) {
-    await cleanTestDatabase()
-  }
+  await cleanTestDatabase()
 })
 
 describe("saved item integration flow", () => {
   test("captures, updates, enriches, and serves a saved item", async () => {
-    if (!databaseAvailable) {
-      console.warn(
-        `Skipping Postgres integration test; ${testDatabaseUrl} is unavailable.`,
-        setupError,
-      )
-      return
-    }
-
     const runId = randomUUID()
     const userId = `integration-user-${runId}` as UserId
     const originalUrl = `https://example.com/articles/effect-api-${runId}?b=2&a=1#fragment`
