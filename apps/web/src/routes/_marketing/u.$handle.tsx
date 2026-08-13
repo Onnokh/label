@@ -16,6 +16,25 @@ const canonicalFor = (handle: string, page: number) =>
     ? `https://sleevy.app/u/${handle}?page=${page}`
     : `https://sleevy.app/u/${handle}`
 
+// This page is the same bytes for every visitor: the Save button attaches in
+// the browser, so nothing here varies with who is reading. That makes the whole
+// response cacheable at the edge, which is what keeps a popular Public Profile
+// from costing one render and three API reads per visitor.
+//
+// Five minutes matches the window the API puts on the same data. A Saved Item
+// is already withheld for its first hour, so this adds nothing a reader would
+// notice: the save appears 60 to 65 minutes after capture either way.
+const PAGE_CACHE_SECONDS = 300
+
+// Only a page that resolved is cached. A not-found is left uncached on purpose,
+// so claiming a Handle and publishing takes effect at once rather than after the
+// window expires.
+const cachePublicly = async () => {
+  if (!import.meta.env.SSR) return
+  const { setResponseHeader } = await import("@tanstack/react-start/server")
+  setResponseHeader("cache-control", `public, max-age=${PAGE_CACHE_SECONDS}`)
+}
+
 export const Route = createFileRoute("/_marketing/u/$handle")({
   // A hand-edited page number answers with a page rather than an error, so the
   // search parameter is coerced here and clamped by the API.
@@ -38,6 +57,7 @@ export const Route = createFileRoute("/_marketing/u/$handle")({
       throw notFound()
     }
 
+    await cachePublicly()
     return { profile, items, activity }
   },
   head: ({ loaderData, params }) => {
