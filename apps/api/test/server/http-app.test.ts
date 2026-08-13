@@ -299,12 +299,17 @@ const routeLayer = (input: {
           profiles.set(profileUserId, profile)
           return Option.some(profile)
         }),
+      // Stands in for the unique index as well as the update: another Account
+      // holding the Handle reports "taken", the way a lost race does against
+      // Postgres, so the route's 409 is exercised without racing.
       renameHandle: (profileUserId: UserId, handle: string) =>
         Effect.sync(() => {
           const profile = profiles.get(profileUserId)
-          if (!profile) return Option.none()
+          if (!profile) return { _tag: "no-profile" as const }
+          const holder = profileByHandle(handle)
+          if (holder && holder.userId !== profileUserId) return { _tag: "taken" as const }
           profile.handle = handle
-          return Option.some(profile)
+          return { _tag: "renamed" as const, profile }
         }),
       setVisibility: (profileUserId: UserId, visibility: "private" | "public") =>
         Effect.sync(() => {
@@ -1984,6 +1989,15 @@ describe("HttpApp", () => {
       expect(beforeFirst).toEqual(first)
       expect(negative).toEqual(first)
       expect(fractional).toEqual(second)
+
+      // A number past the cap answers with an empty page too. These routes need
+      // no credentials, so an absurd page number must not reach Postgres as an
+      // offset outside the range of a bigint, which would fail the query and
+      // answer a request anybody can make with a server error.
+      const absurd = yield* pageAt("?page=1e20")
+      expect(absurd.savedItems).toEqual([])
+      expect(absurd.page).toBe(1_000_000)
+      expect(absurd.totalPages).toBe(3)
     }),
   )
 

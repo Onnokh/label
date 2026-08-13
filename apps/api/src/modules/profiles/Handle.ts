@@ -27,8 +27,9 @@ export const RESERVED_HANDLES: ReadonlySet<string> = new Set([
 // two Accounts can never hold Handles that differ only by case.
 export const normalizeHandle = (raw: string): string => raw.trim().toLowerCase()
 
-// Returns the reason a normalized Handle is unusable, or null when it is valid.
-export const handleProblem = (handle: string): string | null => {
+// The message telling an Account why a normalized Handle cannot be used, or null
+// when it can. The text reaches the caller as an InvalidHandleError.
+export const invalidHandleMessage = (handle: string): string | null => {
   if (handle.length < HANDLE_MIN_LENGTH || handle.length > HANDLE_MAX_LENGTH) {
     return `Handle must contain between ${HANDLE_MIN_LENGTH} and ${HANDLE_MAX_LENGTH} characters.`
   }

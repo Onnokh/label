@@ -637,9 +637,10 @@ _Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
 - The **Command Palette** suppresses all global keyboard shortcuts while open and restores list selection state on close.
 - The **Web Companion** uses app-level selection state in a root-level React context rather than DOM focus for keyboard list navigation.
 - An **Account** has at most one **Public Profile**.
+- "Profile", alone, in code and in API paths, always names the **Public Profile** record — its **Handle** and its **Profile Visibility**. It never names an **Account**, which is why `/v1/profile` reads and changes those two settings and nothing else about the Account.
 - A **Public Profile** is addressed by one **Handle** at `/u/{handle}`.
 - A **Handle** is unique across Accounts after lowercasing, is 3 to 30 characters of `a-z`, `0-9`, `-`, and `_`, and may not use a reserved path name.
-- A **Handle** stays reserved to its Account while **Profile Visibility** is private, and is released only when the Account is deleted.
+- A **Handle** stays reserved to its Account while **Profile Visibility** is private. Renaming releases the old spelling at once, and anyone may claim it. Deleting the Account releases the Handle.
 - **Profile Visibility** is private by default and becomes public through one explicit confirmed action.
 - A **Saved Item** appears on a **Public Profile** only when Profile Visibility is public, the item is not a **Private Saved Item**, its Folder is not a **Private Folder**, and it was created more than one hour ago.
 - A **Private Saved Item**, and every Saved Item inside a **Private Folder**, is absent from a Public Profile without a placeholder or a count.

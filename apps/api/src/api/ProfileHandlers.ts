@@ -2,7 +2,7 @@ import { Effect, Option } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 
 import { Analytics } from "../modules/analytics/Analytics.js"
-import { handleProblem, normalizeHandle } from "../modules/profiles/Handle.js"
+import { invalidHandleMessage, normalizeHandle } from "../modules/profiles/Handle.js"
 import { ProfileRepository } from "../modules/profiles/ProfileRepository.js"
 import {
   CurrentUser,
@@ -16,10 +16,10 @@ import {
 
 const validateHandle = (raw: string) => {
   const handle = normalizeHandle(raw)
-  const problem = handleProblem(handle)
-  return problem === null
+  const message = invalidHandleMessage(handle)
+  return message === null
     ? Effect.succeed(handle)
-    : Effect.fail(new InvalidHandleError({ message: problem }))
+    : Effect.fail(new InvalidHandleError({ message }))
 }
 
 const notFound = () => new ProfileNotFoundError({
@@ -82,16 +82,20 @@ export const profileGroupLive = HttpApiBuilder.group(sleevyApi, "profile", (hand
         const owned = yield* repo.findByUser(userId).pipe(Effect.orDie)
         if (Option.isNone(owned)) return yield* notFound()
         const handle = yield* validateHandle(payload.handle)
+        // The read answers the common case with a clear message. The unique
+        // index answers the race the read cannot see, and both arrive here as
+        // the same conflict.
         const existing = yield* repo.findByHandle(handle).pipe(Effect.orDie)
         if (Option.isSome(existing) && existing.value.userId !== userId) {
           return yield* taken()
         }
-        const renamed = yield* repo.renameHandle(userId, handle).pipe(Effect.orDie)
-        if (Option.isNone(renamed)) return yield* notFound()
+        const outcome = yield* repo.renameHandle(userId, handle).pipe(Effect.orDie)
+        if (outcome._tag === "taken") return yield* taken()
+        if (outcome._tag === "no-profile") return yield* notFound()
         yield* analytics
           .track({ name: "handle_renamed", userId })
           .pipe(Effect.forkDetach)
-        return profileToDto(renamed.value)
+        return profileToDto(outcome.profile)
       }),
     )
     .handle("setVisibility", ({ payload }) =>

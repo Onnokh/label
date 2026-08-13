@@ -43,12 +43,19 @@ export const publicSavedItemFilter = (owner: UserId | SQLWrapper) =>
 // infinite scroll: every page has to be an address a visitor can share.
 export const PUBLIC_SAVED_ITEMS_PAGE_SIZE = 50
 
+// No Account can fill this many pages, so a request beyond it asks for a page
+// that cannot exist and reads as the last one instead. The cap is what keeps the
+// page number safe to multiply into a SQL offset: these routes need no API Key,
+// and an unbounded number reaches Postgres as an offset past the range of a
+// bigint, which fails the query rather than returning an empty page.
+const MAX_PAGE = 1_000_000
+
 // The page a request asks for. Page 1 is the newest page. A missing number, a
-// fractional one, and anything below the first page all read as the first page:
-// these URLs are typed and edited by hand, so a Public Profile answers with its
-// first page rather than with an error.
+// fractional one, anything below the first page, and anything past the cap all
+// read as a page inside the range: these URLs are typed and edited by hand, so a
+// Public Profile answers with a page rather than with an error.
 export const requestedPage = (asked: number | undefined): number =>
-  asked === undefined ? 1 : Math.max(1, Math.trunc(asked))
+  asked === undefined ? 1 : Math.min(MAX_PAGE, Math.max(1, Math.trunc(asked)))
 
 // How many numbered pages a Public Profile has. A profile that publishes nothing
 // still has one page, so page 1 is always an address that answers.

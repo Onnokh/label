@@ -79,7 +79,7 @@ describe("profile handle integration flow", () => {
           expect(hidden.value.handle).toBe("readerone")
         }
 
-        expect(Option.isSome(yield* repo.renameHandle(userId, "reader-two"))).toBe(true)
+        expect((yield* repo.renameHandle(userId, "reader-two"))._tag).toBe("renamed")
 
         const byOldHandle = yield* repo.findByHandle("readerone")
         expect(Option.isNone(byOldHandle)).toBe(true)
@@ -123,5 +123,41 @@ describe("profile handle integration flow", () => {
     )
 
     expect(rejection).toBe("23505")
+  })
+
+  test("reports a rename onto a taken Handle instead of failing", async () => {
+    const firstUserId = `integration-user-${randomUUID()}` as UserId
+    const secondUserId = `integration-user-${randomUUID()}` as UserId
+    await insertUser(firstUserId)
+    await insertUser(secondUserId)
+
+    await runIntegration(
+      Effect.gen(function* () {
+        const repo = yield* ProfileRepository
+
+        expect(Option.isSome(yield* repo.claim(firstUserId, "readerone"))).toBe(true)
+        expect(Option.isSome(yield* repo.claim(secondUserId, "readertwo"))).toBe(true)
+
+        // Straight at the repository, so the handler's availability read is out
+        // of the way and the unique index is the only thing left to stop this.
+        // That is the lost race: the update must come back as a conflict rather
+        // than raising, which would reach the caller as a failed request.
+        const outcome = yield* repo.renameHandle(secondUserId, "ReaderOne")
+        expect(outcome._tag).toBe("taken")
+
+        // The rename left both Accounts as they were.
+        const second = yield* repo.findByUser(secondUserId)
+        expect(Option.isSome(second)).toBe(true)
+        if (Option.isSome(second)) {
+          expect(second.value.handle).toBe("readertwo")
+        }
+
+        const first = yield* repo.findByHandle("readerone")
+        expect(Option.isSome(first)).toBe(true)
+        if (Option.isSome(first)) {
+          expect(first.value.userId).toBe(firstUserId)
+        }
+      }),
+    )
   })
 })

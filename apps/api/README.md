@@ -78,7 +78,47 @@ GET /v1/saved-items?folder={folder-id}
 
 Saved Item responses always return `folder` as either `{ "id": "...", "name": "..." }` or `null`.
 
+## Public Profile Settings
+
+These routes read and change one Account's **Handle** and **Profile Visibility**. They need an App Session and are not reachable with an API Key: the v1 REST API does not expose account administration to API Keys.
+
+```http
+GET /v1/profile
+GET /v1/profile/handle-availability?handle={handle}
+POST /v1/profile/handle
+PATCH /v1/profile/handle
+PUT /v1/profile/visibility
+```
+
+A Handle is 3 to 30 characters of `a-z`, `0-9`, `-`, and `_`, is stored lowercase, is unique across Accounts after lowercasing, and may not use a reserved path name. `POST` claims one, `PATCH` renames it and releases the old spelling at once. `PUT /v1/profile/visibility` takes `{"visibility": "public"|"private"}`; turning it private keeps the Handle reserved to that Account.
+
+## Public Profile Endpoints
+
+These routes need no credentials at all. They serve one Account's published content once its Profile Visibility is public.
+
+```http
+GET /v1/public/profiles/{handle}
+GET /v1/public/profiles/{handle}/saved-items?page={n}
+GET /v1/public/profiles/{handle}/activity
+```
+
+A Handle nobody holds and a Handle whose Profile Visibility is private answer identically, so these routes never disclose which Handles exist.
+
+The profile response carries the Handle, the join date, the published Saved Item count, and `isIndexable`, which the API computes: true only when the Account is at least 7 days old and publishes at least 5 Saved Items. Callers render a robots directive from that value rather than deciding it themselves.
+
+`saved-items` returns 50 items to a numbered page, newest first by Saved Item creation time, so a Duplicate Save never reorders a page. Each item carries only the original URL, host, title, favicon variants, image, Type, Tags, Preview Summary, and save date. The Folder, the Source name, the Capture Channel, the Read State, the Saved Item id, and the update timestamps are withheld.
+
+A Saved Item appears only when Profile Visibility is public, the item is not a Private Saved Item, its Folder is not a Private Folder, and it was created more than an hour ago. Withheld items add nothing to the count.
+
+`activity` returns per-day save counts over a rolling 52 weeks, bucketed by Saved Item creation time in UTC. Counts are first captures only, and they include Private Saved Items, Saved Items in Private Folders, and saves from the last hour — so the activity grid can show a save the item list does not yet list.
+
+Successful public responses carry `Cache-Control: public, max-age=300`. A not-found response is not cached.
+
+## Rate Limits
+
 Requests over the API Key Rate Limit receive `429 Too Many Requests` with `Retry-After`, `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset` headers.
+
+The Public Profile routes carry no API Key, so the API Key Rate Limit cannot apply. They take the Public Profile Rate Limit instead: 60 requests per minute per client address across the whole `/v1/public/` prefix, with the same `429` shape and headers. The address comes from `CF-Connecting-IP`, the only trustworthy client address behind the production proxy.
 
 ## Error Responses
 
@@ -99,8 +139,12 @@ Current v1 errors:
 | --- | --- | --- |
 | 400 | `InvalidUrlError` | The capture payload did not contain a valid URL. |
 | 400 | `InvalidFolderNameError` | A Folder name was blank or longer than 80 characters. |
+| 400 | `InvalidHandleError` | A Handle broke the length, character, or reserved-name rules. |
 | 401 | `Unauthorized` | The request is missing valid session or API Key credentials. |
 | 404 | `SavedItemNotFoundError` | The Saved Item does not exist for the authenticated Account. |
 | 404 | `FolderNotFoundError` | The Folder does not exist for the authenticated Account. |
+| 404 | `ProfileNotFoundError` | The authenticated Account has not claimed a Handle yet. |
+| 404 | `PublicProfileNotFoundError` | No Public Profile answers for that Handle. Also returned when the Handle exists but its Profile Visibility is private. |
 | 409 | `FolderNameConflictError` | A Folder with the normalized name already exists. |
-| 429 | `RateLimitExceeded` | The API Key exceeded its request budget. |
+| 409 | `HandleConflictError` | The Handle is already claimed, or this Account already holds one. |
+| 429 | `RateLimitExceeded` | The API Key or the client address exceeded its request budget. |
