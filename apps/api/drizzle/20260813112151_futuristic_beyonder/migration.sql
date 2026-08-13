@@ -1,1 +1,0 @@
-ALTER TYPE "capture_channel" ADD VALUE 'public-profile';
