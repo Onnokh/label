@@ -33,6 +33,8 @@ import {
   PublicProfileDto,
   PublicProfileNotFoundError,
   RateLimitExceeded,
+  ReadingActivityDay,
+  ReadingActivityResponse,
   SavedItemDto,
   SavedItemNotFoundError,
   SavedItemPrivacyPayload,
@@ -74,6 +76,8 @@ export {
   PublicProfileDto,
   PublicProfileNotFoundError,
   RateLimitExceeded,
+  ReadingActivityDay,
+  ReadingActivityResponse,
   SavedItemDto,
   SavedItemNotFoundError,
   SavedItemPrivacyPayload,
@@ -372,6 +376,15 @@ const publicProfilesGroup = HttpApiGroup.make("public-profiles")
     HttpApiEndpoint.get("get", "/v1/public/profiles/:handle", {
       params: Schema.Struct({ handle: Schema.String }),
       success: PublicProfileDto,
+      error: [PublicProfileNotFoundError, RateLimitExceeded],
+    }),
+  )
+  // Reading Activity takes the same not-found error as the profile route, so an
+  // unknown Handle and a private one answer alike here too.
+  .add(
+    HttpApiEndpoint.get("activity", "/v1/public/profiles/:handle/activity", {
+      params: Schema.Struct({ handle: Schema.String }),
+      success: ReadingActivityResponse,
       error: [PublicProfileNotFoundError, RateLimitExceeded],
     }),
   )

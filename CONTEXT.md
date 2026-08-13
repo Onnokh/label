@@ -645,7 +645,8 @@ _Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
 - A **Private Saved Item**, and every Saved Item inside a **Private Folder**, is absent from a Public Profile without a placeholder or a count.
 - A **Public Profile** withholds the Folder name, **Source** name, **Capture Channel**, and **Read State** of every listed Saved Item.
 - A **Public Profile** shows a **Handle** only, without a display name, biography, or avatar.
-- **Reading Activity** counts first captures only, bucketed by Saved Item creation time in UTC, and counts **Private Saved Items**.
+- **Reading Activity** counts first captures only, bucketed by Saved Item creation time in UTC, and counts **Private Saved Items**, Saved Items inside a **Private Folder**, and saves from the last hour.
+- **Reading Activity** covers a rolling 52 weeks ending on the current UTC day.
 - A **Duplicate Save** adds no **Reading Activity**.
 - A **Public Profile** becomes eligible for search indexing when its Account is at least 7 days old and has at least 5 public Saved Items.
 - A **Public Profile** marks every outbound Saved Item link `rel="ugc nofollow"`.
@@ -653,6 +654,7 @@ _Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
 - Every **Public Profile Endpoint** lives under `/v1/public/`, beginning with `GET /v1/public/profiles/{handle}`.
 - A **Public Profile Endpoint** requires no **App Session** and no **API Key**.
 - `GET /v1/public/profiles/{handle}` returns the **Handle**, the Account join date, the public Saved Item count, and **Search Indexability**.
+- `GET /v1/public/profiles/{handle}/activity` returns the **Handle**, the inclusive first and last UTC day of the **Reading Activity** window, and one count for every day inside it that has a save.
 - The Account join date on a **Public Profile** is when the **Account** was created, not when its **Handle** was claimed.
 - **Search Indexability** is true only when the **Account** is at least 7 days old and has at least 5 public **Saved Items**.
 - Every **Public Profile Endpoint** is subject to the **Public Profile Rate Limit** rather than the **API Key Rate Limit**.

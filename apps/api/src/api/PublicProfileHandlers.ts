@@ -7,6 +7,8 @@ import { isIndexable } from "../modules/profiles/SearchIndexing.js"
 import {
   PublicProfileDto,
   PublicProfileNotFoundError,
+  ReadingActivityDay,
+  ReadingActivityResponse,
   sleevyApi,
 } from "./ApiContract.js"
 
@@ -42,6 +44,24 @@ export const publicProfilesGroupLive = HttpApiBuilder.group(
             publicSavedItemCount,
             now: new Date(),
           }),
+        })
+      }),
+    ).handle("activity", ({ params }) =>
+      Effect.gen(function* () {
+        const repo = yield* PublicProfileRepository
+        // The same lookup shape as the profile route, so Reading Activity
+        // discloses no more about which Handles exist than the profile does.
+        const found = yield* repo
+          .findReadingActivity(normalizeHandle(params.handle))
+          .pipe(Effect.orDie)
+        if (Option.isNone(found)) return yield* notFound()
+
+        const { handle, from, to, days } = found.value
+        return new ReadingActivityResponse({
+          handle,
+          from,
+          to,
+          days: days.map((day) => new ReadingActivityDay(day)),
         })
       }),
     ),

@@ -159,6 +159,35 @@ export namespace PublicProfileDto {
   export type Encoded = Schema.Codec.Encoded<typeof PublicProfileDto>
 }
 
+// One day of Reading Activity: how many first captures the Account made on that
+// UTC calendar day. The day crosses the wire as a plain `YYYY-MM-DD` string and
+// not as a timestamp, because the bucket is a UTC day for every visitor alike
+// and a timestamp would invite a client to re-bucket it in a local timezone.
+export class ReadingActivityDay extends Schema.Class<ReadingActivityDay>("ReadingActivityDay")({
+  date: Schema.String,
+  count: Schema.Number,
+}) {}
+export namespace ReadingActivityDay {
+  export type Encoded = Schema.Codec.Encoded<typeof ReadingActivityDay>
+}
+
+// Reading Activity for one Public Profile over a rolling 52 weeks. `from` and
+// `to` are the inclusive UTC bounds of that window, so the grid knows which
+// cells to draw; `days` carries only the days inside it that have at least one
+// save, and a day absent from `days` has none. Counts are first captures only,
+// and they include Saved Items the item list withholds — see ADR 0016.
+export class ReadingActivityResponse extends Schema.Class<ReadingActivityResponse>(
+  "ReadingActivityResponse",
+)({
+  handle: Schema.String,
+  from: Schema.String,
+  to: Schema.String,
+  days: Schema.Array(ReadingActivityDay),
+}) {}
+export namespace ReadingActivityResponse {
+  export type Encoded = Schema.Codec.Encoded<typeof ReadingActivityResponse>
+}
+
 export class CaptureCreated extends Schema.Class<CaptureCreated>("CaptureCreated")({
   savedItem: SavedItemDto,
   captureResult: Schema.Literal("created"),

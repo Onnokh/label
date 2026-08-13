@@ -39,6 +39,9 @@ const linkId = "route-link-1" as LinkId
 const savedItemId = "route-saved-item-1" as SavedItemId
 const apiKey = "sly_" + "a".repeat(61)
 const now = new Date("2026-05-19T12:00:00.000Z")
+// The rolling window the stub reports. Which days the window really spans is a
+// Postgres question, proven in test/integration.
+const activityWindow = { from: "2025-05-20", to: "2026-05-19" } as const
 
 const configLayer = Layer.succeed(AppConfig, AppConfig.of({
   database: { url: "" },
@@ -106,6 +109,12 @@ const routeLayer = (input: {
     readonly visibility: "private" | "public"
     readonly joinedAt: Date
     readonly publicSavedItemCount: number
+    // The days the stub reports as Reading Activity. Which days a real Account
+    // has is a Postgres question, proven in test/integration.
+    readonly readingActivity?: ReadonlyArray<{
+      readonly date: string
+      readonly count: number
+    }> | undefined
   }> | undefined
   readonly publicRateLimitAllowed?: boolean | undefined
   readonly onPublicRateLimit?: ((key: string) => void) | undefined
@@ -146,6 +155,17 @@ const routeLayer = (input: {
   const profileByHandle = (handle: string) =>
     [...profiles.values()].find(
       (profile) => profile.handle.toLowerCase() === handle.toLowerCase(),
+    )
+
+  // Stands in for the SQL lookup of the public group, which filters on Profile
+  // Visibility in its WHERE clause: a private Public Profile leaves every public
+  // route without a row, exactly like a Handle no Account holds. Both public
+  // reads go through this one function, so neither can drift from the other.
+  const findPublicProfile = (handle: string) =>
+    (input.publicProfiles ?? []).find(
+      (profile) =>
+        profile.handle.toLowerCase() === handle.toLowerCase() &&
+        profile.visibility === "public",
     )
 
   if (input.claimedHandle) {
@@ -286,22 +306,29 @@ const routeLayer = (input: {
           return Option.some(profile)
         }),
     } as never)),
-    // Stands in for the SQL lookup, which filters on Profile Visibility in its
-    // WHERE clause: a private Public Profile leaves the caller without a row,
-    // exactly like a Handle no Account holds.
     Layer.succeed(PublicProfileRepository, PublicProfileRepository.of({
       findPublicByHandle: (handle: string) =>
         Effect.sync(() => {
-          const found = (input.publicProfiles ?? []).find(
-            (profile) =>
-              profile.handle.toLowerCase() === handle.toLowerCase() &&
-              profile.visibility === "public",
-          )
+          const found = findPublicProfile(handle)
           return found
             ? Option.some({
                 handle: found.handle,
                 joinedAt: found.joinedAt,
                 publicSavedItemCount: found.publicSavedItemCount,
+              })
+            : Option.none()
+        }),
+      // The same lookup as above, so a private Handle leaves this without a row
+      // too and the route answers both Handles alike.
+      findReadingActivity: (handle: string) =>
+        Effect.sync(() => {
+          const found = findPublicProfile(handle)
+          return found
+            ? Option.some({
+                handle: found.handle,
+                from: activityWindow.from,
+                to: activityWindow.to,
+                days: found.readingActivity ?? [],
               })
             : Option.none()
         }),
@@ -544,6 +571,7 @@ describe("HttpApp", () => {
       expect(body.paths?.["/v1/profile/handle-availability"]).toBeDefined()
       expect(body.paths?.["/v1/profile/visibility"]).toBeDefined()
       expect(body.paths?.["/v1/public/profiles/{handle}"]).toBeDefined()
+      expect(body.paths?.["/v1/public/profiles/{handle}/activity"]).toBeDefined()
       expect(body.paths?.["/connect/authorize"]).toBeDefined()
       expect(body.paths?.["/connect/exchange"]).toBeDefined()
     }),
@@ -563,11 +591,14 @@ describe("HttpApp", () => {
       }>(response)
 
       const publicRoute = body.paths["/v1/public/profiles/{handle}"]?.get
+      const activityRoute = body.paths["/v1/public/profiles/{handle}/activity"]?.get
       expect(publicRoute).toBeDefined()
+      expect(activityRoute).toBeDefined()
       // No API Key and no App Session: the route carries no security scheme,
       // unlike every other v1 group.
       // An empty security list is OpenAPI for "no credentials required".
       expect(publicRoute?.security).toEqual([])
+      expect(activityRoute?.security).toEqual([])
       expect(
         body.paths["/v1/saved-items"]?.get?.security,
       ).toBeDefined()
@@ -1591,6 +1622,101 @@ describe("HttpApp", () => {
 
       expect(unusable.status).toBe(404)
       expect(unusable).toEqual(unknown)
+    }),
+  )
+
+  it.effect("serves Reading Activity to an anonymous visitor", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/v1/public/profiles/ReaderOne/activity").pipe(
+        Effect.provide(routeLayer({
+          publicProfiles: [{
+            handle: "readerone",
+            visibility: "public",
+            joinedAt: new Date(Date.now() - daysInMs(30)),
+            publicSavedItemCount: 12,
+            readingActivity: [
+              { date: "2026-05-17", count: 3 },
+              { date: "2026-05-19", count: 1 },
+            ],
+          }],
+        })),
+      )
+
+      // No credentials were sent and none were needed.
+      expect(response.status).toBe(200)
+      expect(yield* json(response)).toEqual({
+        handle: "readerone",
+        from: activityWindow.from,
+        to: activityWindow.to,
+        days: [
+          { date: "2026-05-17", count: 3 },
+          { date: "2026-05-19", count: 1 },
+        ],
+      })
+      expect(response.headers.get("cache-control")).toBe("public, max-age=300")
+      expect(response.headers.get("ratelimit-limit")).toBe(
+        String(PUBLIC_PROFILE_REQUEST_LIMIT),
+      )
+    }),
+  )
+
+  it.effect("serves the window with no days for an Account that saved nothing", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/v1/public/profiles/readerone/activity").pipe(
+        Effect.provide(routeLayer({
+          publicProfiles: [{
+            handle: "readerone",
+            visibility: "public",
+            joinedAt: new Date(Date.now() - daysInMs(2)),
+            publicSavedItemCount: 0,
+          }],
+        })),
+      )
+
+      // An empty grid, not a not-found: the Handle resolves and the window is
+      // still what the page draws.
+      expect(response.status).toBe(200)
+      expect(yield* json(response)).toEqual({
+        handle: "readerone",
+        from: activityWindow.from,
+        to: activityWindow.to,
+        days: [],
+      })
+    }),
+  )
+
+  it.effect("answers an unknown Handle and a private one alike for Reading Activity", () =>
+    Effect.gen(function* () {
+      const layer = routeLayer({
+        publicProfiles: [{
+          handle: "hidden",
+          visibility: "private",
+          joinedAt: new Date(Date.now() - daysInMs(400)),
+          publicSavedItemCount: 99,
+          readingActivity: [{ date: "2026-05-19", count: 7 }],
+        }],
+      })
+
+      const privateHandle = yield* snapshot(
+        yield* request("/v1/public/profiles/hidden/activity").pipe(Effect.provide(layer)),
+      )
+      const unknownHandle = yield* snapshot(
+        yield* request("/v1/public/profiles/nobody-holds-this/activity").pipe(
+          Effect.provide(layer),
+        ),
+      )
+      const profileRoute = yield* snapshot(
+        yield* request("/v1/public/profiles/hidden").pipe(Effect.provide(layer)),
+      )
+
+      expect(privateHandle.status).toBe(404)
+      expect(unknownHandle).toEqual(privateHandle)
+      // The same error as the profile route, down to the bytes: the group has one
+      // not-found answer, not one per endpoint.
+      expect(privateHandle).toEqual(profileRoute)
+      expect(privateHandle.body).toBe(
+        '{"_tag":"PublicProfileNotFoundError","message":"No Public Profile exists for this Handle."}',
+      )
     }),
   )
 

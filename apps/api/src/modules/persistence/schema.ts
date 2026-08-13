@@ -252,6 +252,11 @@ export const savedItemsTable = pgTable(
       table.userId,
       table.lastSavedAt,
     ),
+    // Reading Activity groups an Account's saves by creation day over a rolling
+    // 52 weeks, and the public Saved Item list orders by creation time too. The
+    // Last Saved At index above serves neither, because a Duplicate Save moves a
+    // row inside it while its creation day stays put.
+    index("saved_items_user_created_at_idx").on(table.userId, table.createdAt),
     index("saved_items_user_folder_id_idx").on(table.userId, table.folderId),
   ],
 )
