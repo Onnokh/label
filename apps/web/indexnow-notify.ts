@@ -10,30 +10,39 @@ const origin = new URL(process.env.INDEXNOW_ORIGIN ?? "https://sleevy.app")
 // is already listed there (it's how search engines discover them), so reading it
 // keeps IndexNow in sync automatically as pages are added — no second list to
 // maintain. Set INDEXNOW_URLS to a comma-separated list to override for one-off
-// submissions. Candidate roots cover the runtime image (dist/client) and local
-// runs from the app directory (public); Vite copies public/ into dist/client.
+// submissions.
+//
+// It is fetched from the running server rather than read off disk. The sitemap
+// stopped being a static file when Public Profiles arrived: those come and go as
+// Accounts publish, so the document is built per request. Asking the server is
+// also the only way to submit those profile URLs, which are exactly the pages
+// IndexNow exists to announce.
+//
+// This runs inside the web container, right after it reports healthy, so the
+// server answering is the one just deployed.
+const sitemapUrl = process.env.INDEXNOW_SITEMAP_URL ??
+  `http://127.0.0.1:${process.env.PORT ?? 3000}/sitemap.xml`
+
 async function urlsFromSitemap(): Promise<string[]> {
-  const roots = [`${import.meta.dir}/dist/client/sitemap.xml`, `${import.meta.dir}/public/sitemap.xml`]
+  const response = await fetch(sitemapUrl).catch((cause: unknown) => {
+    throw new Error(`Could not reach the sitemap at ${sitemapUrl}: ${String(cause)}`)
+  })
 
-  for (const path of roots) {
-    const file = Bun.file(path)
-
-    if (await file.exists()) {
-      const xml = await file.text()
-      const locs = [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((match) => match[1])
-
-      if (locs.length === 0) {
-        throw new Error(`Sitemap at ${path} contained no <loc> entries.`)
-      }
-
-      // Re-resolve each path against INDEXNOW_ORIGIN so a non-default origin
-      // (e.g. staging) submits its own URLs rather than the production hosts
-      // baked into the sitemap.
-      return locs.map((loc) => new URL(new URL(loc).pathname, origin).toString())
-    }
+  if (!response.ok) {
+    throw new Error(`Sitemap at ${sitemapUrl} answered ${response.status}.`)
   }
 
-  throw new Error(`No sitemap found (looked in: ${roots.join(", ")}).`)
+  const xml = await response.text()
+  const locs = [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((match) => match[1])
+
+  if (locs.length === 0) {
+    throw new Error(`Sitemap at ${sitemapUrl} contained no <loc> entries.`)
+  }
+
+  // Re-resolve each path against INDEXNOW_ORIGIN so a non-default origin
+  // (e.g. staging) submits its own URLs rather than the production hosts
+  // baked into the sitemap.
+  return locs.map((loc) => new URL(new URL(loc).pathname, origin).toString())
 }
 
 const configured = process.env.INDEXNOW_URLS?.split(",").map((url) => new URL(url.trim(), origin).toString())
