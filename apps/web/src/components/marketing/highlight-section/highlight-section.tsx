@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router"
 import clsx from "clsx"
 
 import { GlassPill } from "../glass-pill/glass-pill"
@@ -58,7 +59,7 @@ export function HighlightSection() {
           <div className={clsx(styles.frame, styles.frameRaycast)}>
             <BlueMeshGradient variant="workflow" />
             <h3>In your workflow</h3>
-            <p>Capture and search from Raycast without leaving the keyboard.</p>
+            <p>Capture and search with the <Link className={styles.inlineLink} to="/raycast">Raycast link-saving extension</Link> without leaving the keyboard.</p>
             <img
               className={clsx(styles.shot, styles.shotRaycast)}
               src="/raycast-search-1508.webp"

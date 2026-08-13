@@ -172,6 +172,19 @@ export function useSetReadState() {
   })
 }
 
+export function useMoveItemsToSource() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ itemIds, sourceName }: { readonly itemIds: readonly string[]; readonly sourceName: string }) =>
+      apiFetch<void>("/v1/saved-items/source", {
+        method: "PUT",
+        body: JSON.stringify({ itemIds, sourceName }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: savedItemsQueryKey }),
+  })
+}
+
 export function useDeleteItem() {
   const queryClient = useQueryClient()
 

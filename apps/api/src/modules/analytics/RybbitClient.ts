@@ -18,14 +18,23 @@ export type RybbitEvent = {
   readonly name: string
   readonly userId: string
   readonly properties?: Record<string, string | number | boolean>
+  /*
+   * The originating visitor's IP and User-Agent. When set these are sent to
+   * Rybbit as `ip_address` / `user_agent`, so the event geolocates to the real
+   * visitor instead of this server (hosted in Germany). `undefined` for events
+   * with no originating user request, which then fall back to the server IP —
+   * typed explicitly so callers can forward a maybe-undefined value directly.
+   */
+  readonly ipAddress?: string | undefined
+  readonly userAgent?: string | undefined
 }
 
 const TIMEOUT_MS = 3_000
 
-// Rybbit's bot detection drops events whose User-Agent isn't browser-like:
-// curl, the Bun/Node fetch defaults, and even descriptive app UAs (e.g.
-// "Sleevy/1.0") are all flagged and silently discarded ("bot detected").
-// A browser-style UA is required for server-side events to be recorded.
+// Fallback User-Agent for events that carry no originating visitor UA. Rybbit
+// runs its User-Agent through a bot filter and drops obvious non-browser agents
+// (curl, the Bun/Node fetch defaults), so a browser-style default keeps
+// UA-less server events from being discarded.
 const USER_AGENT =
   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
 
@@ -47,7 +56,7 @@ export const trackEvent = async (
       headers: {
         authorization: `Bearer ${config.apiKey}`,
         "content-type": "application/json",
-        "user-agent": USER_AGENT,
+        "user-agent": event.userAgent ?? USER_AGENT,
       },
       body: globalThis.JSON.stringify({
         site_id: config.siteId,
@@ -55,6 +64,12 @@ export const trackEvent = async (
         event_name: event.name,
         user_id: event.userId,
         properties: globalThis.JSON.stringify(event.properties ?? {}),
+        // The real visitor's IP/UA, so the event geolocates to them rather than
+        // this server. `undefined` serializes away, and Rybbit then falls back
+        // to the request (server) values — the case when the visitor is genuinely
+        // unknown (local dev without Cloudflare, or a non-request-scoped event).
+        ip_address: event.ipAddress,
+        user_agent: event.userAgent,
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     })

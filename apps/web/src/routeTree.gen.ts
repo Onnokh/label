@@ -32,6 +32,7 @@ import { Route as DocsChar123Char125DotmdRouteImport } from './routes/docs/{$}[.
 import { Route as OauthConsentRouteImport } from './routes/oauth/consent'
 import { Route as OauthLoginRouteImport } from './routes/oauth/login'
 import { Route as MarketingArticlesBookmarkManagerForDevelopersRouteImport } from './routes/_marketing/articles_.bookmark-manager-for-developers'
+import { Route as MarketingArticlesHowToOrganizeTooManyOpenTabsRouteImport } from './routes/_marketing/articles_.how-to-organize-too-many-open-tabs'
 import { Route as MarketingArticlesReadLaterAppChromeIphoneRouteImport } from './routes/_marketing/articles_.read-later-app-chrome-iphone'
 import { Route as MarketingArticlesSaveLinksWithRaycastRouteImport } from './routes/_marketing/articles_.save-links-with-raycast'
 import { Route as MarketingUHandleRouteImport } from './routes/_marketing/u.$handle'
@@ -153,6 +154,12 @@ const MarketingArticlesBookmarkManagerForDevelopersRoute =
     path: '/articles/bookmark-manager-for-developers',
     getParentRoute: () => MarketingRoute,
   } as any)
+const MarketingArticlesHowToOrganizeTooManyOpenTabsRoute =
+  MarketingArticlesHowToOrganizeTooManyOpenTabsRouteImport.update({
+    id: '/articles_/how-to-organize-too-many-open-tabs',
+    path: '/articles/how-to-organize-too-many-open-tabs',
+    getParentRoute: () => MarketingRoute,
+  } as any)
 const MarketingArticlesReadLaterAppChromeIphoneRoute =
   MarketingArticlesReadLaterAppChromeIphoneRouteImport.update({
     id: '/articles_/read-later-app-chrome-iphone',
@@ -199,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/oauth/consent': typeof OauthConsentRoute
   '/oauth/login': typeof OauthLoginRoute
   '/articles/bookmark-manager-for-developers': typeof MarketingArticlesBookmarkManagerForDevelopersRoute
+  '/articles/how-to-organize-too-many-open-tabs': typeof MarketingArticlesHowToOrganizeTooManyOpenTabsRoute
   '/articles/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/articles/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
   '/u/$handle': typeof MarketingUHandleRoute
@@ -226,6 +234,7 @@ export interface FileRoutesByTo {
   '/oauth/consent': typeof OauthConsentRoute
   '/oauth/login': typeof OauthLoginRoute
   '/articles/bookmark-manager-for-developers': typeof MarketingArticlesBookmarkManagerForDevelopersRoute
+  '/articles/how-to-organize-too-many-open-tabs': typeof MarketingArticlesHowToOrganizeTooManyOpenTabsRoute
   '/articles/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/articles/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
   '/u/$handle': typeof MarketingUHandleRoute
@@ -256,6 +265,7 @@ export interface FileRoutesById {
   '/oauth/login': typeof OauthLoginRoute
   '/_marketing/': typeof MarketingIndexRoute
   '/_marketing/articles_/bookmark-manager-for-developers': typeof MarketingArticlesBookmarkManagerForDevelopersRoute
+  '/_marketing/articles_/how-to-organize-too-many-open-tabs': typeof MarketingArticlesHowToOrganizeTooManyOpenTabsRoute
   '/_marketing/articles_/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/_marketing/articles_/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
   '/_marketing/u/$handle': typeof MarketingUHandleRoute
@@ -285,6 +295,7 @@ export interface FileRouteTypes {
     | '/oauth/consent'
     | '/oauth/login'
     | '/articles/bookmark-manager-for-developers'
+    | '/articles/how-to-organize-too-many-open-tabs'
     | '/articles/read-later-app-chrome-iphone'
     | '/articles/save-links-with-raycast'
     | '/u/$handle'
@@ -312,6 +323,7 @@ export interface FileRouteTypes {
     | '/oauth/consent'
     | '/oauth/login'
     | '/articles/bookmark-manager-for-developers'
+    | '/articles/how-to-organize-too-many-open-tabs'
     | '/articles/read-later-app-chrome-iphone'
     | '/articles/save-links-with-raycast'
     | '/u/$handle'
@@ -341,6 +353,7 @@ export interface FileRouteTypes {
     | '/oauth/login'
     | '/_marketing/'
     | '/_marketing/articles_/bookmark-manager-for-developers'
+    | '/_marketing/articles_/how-to-organize-too-many-open-tabs'
     | '/_marketing/articles_/read-later-app-chrome-iphone'
     | '/_marketing/articles_/save-links-with-raycast'
     | '/_marketing/u/$handle'
@@ -522,6 +535,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketingArticlesBookmarkManagerForDevelopersRouteImport
       parentRoute: typeof MarketingRoute
     }
+    '/_marketing/articles_/how-to-organize-too-many-open-tabs': {
+      id: '/_marketing/articles_/how-to-organize-too-many-open-tabs'
+      path: '/articles/how-to-organize-too-many-open-tabs'
+      fullPath: '/articles/how-to-organize-too-many-open-tabs'
+      preLoaderRoute: typeof MarketingArticlesHowToOrganizeTooManyOpenTabsRouteImport
+      parentRoute: typeof MarketingRoute
+    }
     '/_marketing/articles_/read-later-app-chrome-iphone': {
       id: '/_marketing/articles_/read-later-app-chrome-iphone'
       path: '/articles/read-later-app-chrome-iphone'
@@ -582,6 +602,7 @@ interface MarketingRouteChildren {
   MarketingWebCompanionRoute: typeof MarketingWebCompanionRoute
   MarketingIndexRoute: typeof MarketingIndexRoute
   MarketingArticlesBookmarkManagerForDevelopersRoute: typeof MarketingArticlesBookmarkManagerForDevelopersRoute
+  MarketingArticlesHowToOrganizeTooManyOpenTabsRoute: typeof MarketingArticlesHowToOrganizeTooManyOpenTabsRoute
   MarketingArticlesReadLaterAppChromeIphoneRoute: typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   MarketingArticlesSaveLinksWithRaycastRoute: typeof MarketingArticlesSaveLinksWithRaycastRoute
   MarketingUHandleRoute: typeof MarketingUHandleRoute
@@ -599,6 +620,8 @@ const MarketingRouteChildren: MarketingRouteChildren = {
   MarketingIndexRoute: MarketingIndexRoute,
   MarketingArticlesBookmarkManagerForDevelopersRoute:
     MarketingArticlesBookmarkManagerForDevelopersRoute,
+  MarketingArticlesHowToOrganizeTooManyOpenTabsRoute:
+    MarketingArticlesHowToOrganizeTooManyOpenTabsRoute,
   MarketingArticlesReadLaterAppChromeIphoneRoute:
     MarketingArticlesReadLaterAppChromeIphoneRoute,
   MarketingArticlesSaveLinksWithRaycastRoute:

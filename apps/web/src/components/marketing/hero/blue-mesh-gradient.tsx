@@ -115,9 +115,9 @@ export function BlueMeshGradient({ variant = "hero" }: { variant?: keyof typeof 
           }
 
           const offset = (y * sampleWidth + x) * 4
-          image.data[offset] = red
-          image.data[offset + 1] = green
-          image.data[offset + 2] = blue
+          image.data[offset] = Math.min(255, Math.max(0, red))
+          image.data[offset + 1] = Math.min(255, Math.max(0, green))
+          image.data[offset + 2] = Math.min(255, Math.max(0, blue))
           image.data[offset + 3] = 255
         }
       }

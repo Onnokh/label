@@ -11,6 +11,7 @@ import { McpTools } from "../modules/mcp/McpTools.js";
 import { ProfileRepository } from "../modules/profiles/ProfileRepository.js";
 import { PublicProfileRepository } from "../modules/profiles/PublicProfileRepository.js";
 import { ApiKeyRateLimiter } from "../modules/rate-limit/ApiKeyRateLimiter.js";
+import { BearerRateLimiter } from "../modules/rate-limit/BearerRateLimiter.js";
 import { ConnectAuthorizeRateLimiter } from "../modules/rate-limit/ConnectAuthorizeRateLimiter.js";
 import { ConnectExchangeRateLimiter } from "../modules/rate-limit/ConnectExchangeRateLimiter.js";
 import { PublicProfileRateLimiter } from "../modules/rate-limit/PublicProfileRateLimiter.js";
@@ -32,6 +33,7 @@ export const appLayer = Layer.mergeAll(
   Analytics.defaultLayer,
   ApiKeyRateLimiter.defaultLayer,
   AuthHandler.defaultLayer,
+  BearerRateLimiter.defaultLayer,
   BetterAuth.defaultLayer,
   CaptureService.defaultLayer,
   ConnectAuthorizeRateLimiter.defaultLayer,

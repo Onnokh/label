@@ -22,15 +22,15 @@ export function MarketingFooter() {
         <nav className={styles.col} aria-label="Integrations">
           <span className={styles.colTitle}>Integrations</span>
           <Link to="/ios-app">iOS</Link>
-          <Link to="/raycast">Raycast</Link>
-          <Link to="/chrome-extension">Google Chrome</Link>
+          <Link to="/raycast">Raycast extension</Link>
+          <Link to="/chrome-extension">Chrome read-later extension</Link>
           <Link to="/web-companion">Web Companion</Link>
         </nav>
 
         <nav className={styles.col} aria-label="Extras">
           <span className={styles.colTitle}>Extras</span>
           <Link to="/articles">Articles</Link>
-          <Link to="/docs/$" params={{ _splat: "" }}>Documentation</Link>
+          <Link to="/docs/$" params={{ _splat: "" }}>Sleevy API documentation</Link>
           <a href="https://github.com/Onnokh/sleevy" target="_blank" rel="noopener noreferrer">GitHub</a>
           <Link to="/support">Support</Link>
           <Link to="/privacy">Privacy</Link>

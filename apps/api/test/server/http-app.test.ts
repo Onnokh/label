@@ -29,6 +29,7 @@ import {
   isIndexable,
 } from "../../src/modules/profiles/SearchIndexing.js"
 import { ApiKeyRateLimiter } from "../../src/modules/rate-limit/ApiKeyRateLimiter.js"
+import { BearerRateLimiter } from "../../src/modules/rate-limit/BearerRateLimiter.js"
 import { ConnectAuthorizeRateLimiter } from "../../src/modules/rate-limit/ConnectAuthorizeRateLimiter.js"
 import { ConnectExchangeRateLimiter } from "../../src/modules/rate-limit/ConnectExchangeRateLimiter.js"
 import {
@@ -94,6 +95,7 @@ const routeLayer = (input: {
   readonly sessionUserId?: UserId | undefined
   readonly apiKeyValid?: boolean | undefined
   readonly apiKeyAllowed?: boolean | undefined
+  readonly bearerAllowed?: boolean | undefined
   readonly apiKeyPermissions?: Record<string, string[]> | undefined
   readonly savedItemsPage?: boolean | undefined
   readonly claimedHandle?: {
@@ -452,6 +454,15 @@ const routeLayer = (input: {
         Effect.sync(() => {
           input.onConnectRateLimit?.({ limiter: "exchange", key })
           return connectLimiterResult
+        }),
+    })),
+    Layer.succeed(BearerRateLimiter, BearerRateLimiter.of({
+      check: () =>
+        Effect.succeed({
+          allowed: input.bearerAllowed ?? true,
+          limit: 120,
+          remaining: input.bearerAllowed === false ? 0 : 119,
+          resetSeconds: 42,
         }),
     })),
   )
@@ -2231,6 +2242,28 @@ describe("HttpApp", () => {
       )
 
       expect(response.status).toBe(200)
+    }),
+  )
+
+  it.effect("rate limits a session/OAuth bearer token, not just recognized API keys", () =>
+    Effect.gen(function* () {
+      // A signed session token (contains ".") skips the API-key check entirely —
+      // this is the shape a runaway client retry-loop would hammer the API with.
+      const response = yield* request("/v1/saved-items", {
+        headers: { authorization: "Bearer session.token.value" },
+      }).pipe(
+        Effect.provide(routeLayer({
+          sessionUserId: userId,
+          bearerAllowed: false,
+        })),
+      )
+
+      expect(response.status).toBe(429)
+      expect(response.headers.get("retry-after")).toBe("42")
+      expect(yield* json(response)).toEqual({
+        _tag: "RateLimitExceeded",
+        message: "Rate limit exceeded.",
+      })
     }),
   )
 })

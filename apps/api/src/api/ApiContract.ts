@@ -46,6 +46,7 @@ import {
   SavedItemReadStatePayload,
   SavedItemsQuery,
   SavedItemsResponse,
+  SourceAssignmentPayload,
   Unauthorized,
 } from "@sleevy/contract"
 
@@ -101,6 +102,7 @@ export {
   SavedItemReadStatePayload,
   SavedItemsQuery,
   SavedItemsResponse,
+  SourceAssignmentPayload,
   Unauthorized,
 }
 
@@ -310,6 +312,13 @@ const savedItemsGroup = HttpApiGroup.make("saved-items")
       payload: FolderAssignmentPayload,
       success: SavedItemDto,
       error: [SavedItemNotFoundError, FolderNotFoundError, RateLimitExceeded],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.put("setSource", "/v1/saved-items/source", {
+      payload: SourceAssignmentPayload,
+      success: HttpApiSchema.NoContent,
+      error: RateLimitExceeded,
     }),
   )
   .add(

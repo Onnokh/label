@@ -24,6 +24,16 @@
     font-weight: 300;
     letter-spacing: -0.04em;
     line-height: 1.4;
+
+    .inlineLink {
+      color: inherit;
+      text-decoration-color: rgb(255 255 255 / 30%);
+      text-underline-offset: 0.2em;
+
+      &:hover {
+        color: #d8d8d8;
+      }
+    }
   }
 
   @media (max-width: 768px) {

@@ -80,6 +80,16 @@
     line-height: 1.65;
     text-align: center;
   }
+
+  .inlineLink {
+    color: inherit;
+    text-decoration-color: rgb(255 255 255 / 30%);
+    text-underline-offset: 0.2em;
+
+    &:hover {
+      color: #fff;
+    }
+  }
 }
 
 /* Progressive blur at the frame's bottom edge, softening the screenshot as it

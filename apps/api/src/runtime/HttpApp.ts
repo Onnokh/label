@@ -13,6 +13,7 @@ import { FolderRepository } from "../modules/folders/FolderRepository.js"
 import { ProfileRepository } from "../modules/profiles/ProfileRepository.js"
 import { PublicProfileRepository } from "../modules/profiles/PublicProfileRepository.js"
 import { ApiKeyRateLimiter } from "../modules/rate-limit/ApiKeyRateLimiter.js"
+import { BearerRateLimiter } from "../modules/rate-limit/BearerRateLimiter.js"
 import { ConnectAuthorizeRateLimiter } from "../modules/rate-limit/ConnectAuthorizeRateLimiter.js"
 import { ConnectExchangeRateLimiter } from "../modules/rate-limit/ConnectExchangeRateLimiter.js"
 import { PublicProfileRateLimiter } from "../modules/rate-limit/PublicProfileRateLimiter.js"
@@ -87,12 +88,13 @@ export const withCors = async (
 export const makeApiWebHandler = Effect.gen(function* () {
   const config = yield* AppConfig
   const context = yield* Effect.context<
-    Analytics | AuthHandler | BetterAuth | CaptureService | EnrichmentWorkflow | SavedItemRepository | FolderRepository | ProfileRepository | PublicProfileRepository | ApiKeyRateLimiter | ConnectCodeRepository | ConnectAuthorizeRateLimiter | ConnectExchangeRateLimiter | PublicProfileRateLimiter
+    Analytics | AuthHandler | BetterAuth | CaptureService | EnrichmentWorkflow | SavedItemRepository | FolderRepository | ProfileRepository | PublicProfileRepository | ApiKeyRateLimiter | BearerRateLimiter | ConnectCodeRepository | ConnectAuthorizeRateLimiter | ConnectExchangeRateLimiter | PublicProfileRateLimiter
   >()
   const authHandler = yield* AuthHandler
   const { auth } = yield* BetterAuth
   const rateLimiter = yield* ApiKeyRateLimiter
   const publicRateLimiter = yield* PublicProfileRateLimiter
+  const bearerRateLimiter = yield* BearerRateLimiter
   const mcpFetch = yield* makeMcpWebHandler
   const httpEffect = yield* HttpRouter.toHttpEffect(httpAppLayer)
   const apiFetch = HttpEffect.toWebHandler(
@@ -160,7 +162,7 @@ export const makeApiWebHandler = Effect.gen(function* () {
     }
 
     if (pathname === "/mcp") {
-      return withApiKeyRateLimit(request, auth, rateLimiter, mcpFetch)
+      return withApiKeyRateLimit(request, auth, rateLimiter, bearerRateLimiter, mcpFetch)
     }
 
     // The public group carries no API Key, so it takes the per-IP budget
@@ -177,7 +179,7 @@ export const makeApiWebHandler = Effect.gen(function* () {
       isAuthRequest
         ? authHandler.handle
         : (request) =>
-            withApiKeyRateLimit(request, auth, rateLimiter, apiFetch),
+            withApiKeyRateLimit(request, auth, rateLimiter, bearerRateLimiter, apiFetch),
     )
   }) satisfies ApiWebHandler
 })

@@ -390,6 +390,18 @@ export namespace HandleAvailabilityQuery {
   export type Encoded = Schema.Codec.Encoded<typeof HandleAvailabilityQuery>
 }
 
+// Bulk-reassigns a set of saved items to a source (found or created by name).
+// Used by the sidebar's "Move items to" action, which merges one source group
+// into another. The client sends the exact item IDs because source "groups" are
+// derived client-side (from sourceName or a synthetic capture-channel label).
+export class SourceAssignmentPayload extends Schema.Class<SourceAssignmentPayload>("SourceAssignmentPayload")({
+  itemIds: Schema.Array(Schema.String),
+  sourceName: Schema.String,
+}) {}
+export namespace SourceAssignmentPayload {
+  export type Encoded = Schema.Codec.Encoded<typeof SourceAssignmentPayload>
+}
+
 // ─── Error shapes ───────────────────────────────────────────────────────────
 
 export class Unauthorized extends Schema.ErrorClass<Unauthorized>("Unauthorized")({

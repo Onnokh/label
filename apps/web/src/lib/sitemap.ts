@@ -51,6 +51,7 @@ export const staticSitemapUrls: ReadonlyArray<SitemapUrl> = [
   { loc: `${SITE_ORIGIN}/articles/save-links-with-raycast`, lastmod: "2026-07-17", changefreq: "monthly", priority: "0.8" },
   { loc: `${SITE_ORIGIN}/articles/read-later-app-chrome-iphone`, lastmod: "2026-07-17", changefreq: "monthly", priority: "0.8" },
   { loc: `${SITE_ORIGIN}/articles/bookmark-manager-for-developers`, lastmod: "2026-07-17", changefreq: "monthly", priority: "0.8" },
+  { loc: `${SITE_ORIGIN}/articles/how-to-organize-too-many-open-tabs`, lastmod: "2026-08-11", changefreq: "monthly", priority: "0.8" },
 ]
 
 // A Handle is 3 to 30 characters of a-z, 0-9, `-`, and `_`, so no Public Profile
