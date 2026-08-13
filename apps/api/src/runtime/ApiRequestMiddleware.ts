@@ -98,6 +98,25 @@ const applyRateLimit = async (
   return withHeaders(await handle(request), rateLimitHeaders(limit))
 }
 
+// The header a Server-Side Render states to identify itself, holding the Render
+// Token. It is a secret shared inside the deployment, so a public caller cannot
+// state it and cannot exempt itself.
+export const RENDER_TOKEN_HEADER = "x-sleevy-render"
+
+// Whether this request is the web server rendering a public page rather than a
+// public API client reading the API.
+//
+// A render is not a third party: a visitor who opens a Public Profile must get
+// the page, and one page view fans out to three reads of this group, so counting
+// a render against the visitor's budget refuses pages to readers who did nothing
+// wrong. What bounds the render path is the edge cache on the page itself, not a
+// budget on the API behind it.
+//
+// With no Render Token configured nothing is exempt, so a deployment that never
+// sets one keeps the old behaviour.
+const isServerSideRender = (request: Request, renderToken: string) =>
+  renderToken !== "" && request.headers.get(RENDER_TOKEN_HEADER) === renderToken
+
 // The public group carries no API Key, so it is bucketed on the client address
 // instead. The budget is applied here rather than inside the route handler so
 // the 429 can carry Retry-After, the way the other budgets do.
@@ -107,8 +126,17 @@ const applyRateLimit = async (
 export const withPublicRateLimit = async (
   request: Request,
   rateLimiter: PublicProfileRateLimiterShape,
+  renderToken: string,
   handle: (request: Request) => Promise<Response>,
 ) => {
+  // A render is served with the cache header and no budget headers at all: there
+  // is no budget to report on.
+  if (isServerSideRender(request, renderToken)) {
+    const response = await handle(request)
+    if (response.status !== 200) return response
+    return withHeaders(response, new Headers({ "cache-control": PUBLIC_CACHE_CONTROL }))
+  }
+
   const limit = await Effect.runPromise(rateLimiter.check(webClientIp(request)))
   if (!limit.allowed) {
     return rateLimitResponse(limit, "Public profile rate limit exceeded.")

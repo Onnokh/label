@@ -52,9 +52,14 @@ const now = new Date("2026-05-19T12:00:00.000Z")
 // Postgres question, proven in test/integration.
 const activityWindow = { from: "2025-05-20", to: "2026-05-19" } as const
 
+// The Render Token every test but the render ones runs with. A test that states
+// no token is therefore a public API client, and takes the budget.
+const RENDER_TOKEN = "test-render-token"
+
 const configLayer = Layer.succeed(AppConfig, AppConfig.of({
   database: { url: "" },
   redis: { url: "" },
+  render: { token: RENDER_TOKEN },
   http: { port: 0 },
   fetch: {
     timeoutMs: 5_000,
@@ -1863,6 +1868,67 @@ describe("HttpApp", () => {
     })
   })
 
+  // A visitor who opens a page must get the page. The render that serves it is
+  // the web server, not a third party, so it takes no budget at all — and one
+  // page view costs three reads of this group, so a counted render would refuse
+  // pages to readers who did nothing wrong.
+  it.effect("leaves a Server-Side Render out of the Public Profile Rate Limit", () => {
+    const seen: string[] = []
+
+    return Effect.gen(function* () {
+      const layer = routeLayer({
+        onPublicRateLimit: (key) => {
+          seen.push(key)
+        },
+        publicProfiles: [{
+          handle: "readerone",
+          visibility: "public",
+          joinedAt: new Date(Date.now() - daysInMs(30)),
+          publicSavedItemCount: 0,
+          savedItems: [],
+        }],
+      })
+
+      const response = yield* request("/v1/public/profiles/readerone", {
+        headers: {
+          "X-Sleevy-Render": RENDER_TOKEN,
+          "CF-Connecting-IP": "198.51.100.9",
+        },
+      }).pipe(Effect.provide(layer))
+
+      expect(response.status).toBe(200)
+
+      // Nothing was counted, and there is no budget to report on.
+      expect(seen).toEqual([])
+      expect(response.headers.get("ratelimit-limit")).toBeNull()
+      // The response is still cacheable: the edge cache on the page is what
+      // bounds the render path.
+      expect(response.headers.get("cache-control")).toBe("public, max-age=300")
+    })
+  })
+
+  // The exemption is a shared secret, so stating the header is not enough.
+  it.effect("treats a wrong Render Token as a public API client", () => {
+    const seen: string[] = []
+
+    return Effect.gen(function* () {
+      const layer = routeLayer({
+        onPublicRateLimit: (key) => {
+          seen.push(key)
+        },
+      })
+
+      yield* request("/v1/public/profiles/readerone", {
+        headers: {
+          "X-Sleevy-Render": "guessed",
+          "CF-Connecting-IP": "198.51.100.9",
+        },
+      }).pipe(Effect.provide(layer))
+
+      expect(seen).toEqual(["198.51.100.9"])
+    })
+  })
+
   it.effect("serves one page of public Saved Items to an anonymous visitor", () =>
     Effect.gen(function* () {
       const response = yield* request("/v1/public/profiles/ReaderOne/saved-items").pipe(
@@ -1898,6 +1964,9 @@ describe("HttpApp", () => {
             faviconLightUrl: "https://example.com/favicon-light.png",
             faviconDarkUrl: "https://example.com/favicon-dark.png",
             imageUrl: "https://example.com/cover.png",
+            authorName: null,
+            authorHandle: null,
+            authorAvatarUrl: null,
             type: "article",
             tags: ["backend"],
             previewSummary: "One sentence a visitor reads before opening the Link.",
@@ -1911,6 +1980,9 @@ describe("HttpApp", () => {
             faviconLightUrl: null,
             faviconDarkUrl: null,
             imageUrl: null,
+            authorName: null,
+            authorHandle: null,
+            authorAvatarUrl: null,
             type: "website",
             tags: [],
             previewSummary: null,
@@ -1925,6 +1997,9 @@ describe("HttpApp", () => {
       // A Basic Link, which has no enrichment yet, carries the same properties
       // with an empty value rather than a different shape.
       const publishedProperties = [
+        "authorAvatarUrl",
+        "authorHandle",
+        "authorName",
         "faviconDarkUrl",
         "faviconLightUrl",
         "faviconUrl",

@@ -16,6 +16,9 @@ type AppConfigShape = {
   readonly redis: {
     readonly url: string;
   };
+  readonly render: {
+    readonly token: string;
+  };
   readonly http: {
     readonly port: number;
   };
@@ -67,6 +70,15 @@ export class AppConfig extends Context.Service<AppConfig, AppConfigShape>()(
       );
 
       const httpPort = yield* Config.int("PORT").pipe(Config.withDefault(3002));
+
+      // The secret the web server states to identify a Server-Side Render of a
+      // public page. A render is a first-party caller inside the deployment
+      // network, not a public API client, so it must not spend the visitor's
+      // Public Profile Rate Limit: a visitor who opens a page has to get the
+      // page. Empty means no render is recognized, and every caller is public.
+      const renderToken = yield* Config.string("INTERNAL_RENDER_TOKEN").pipe(
+        Config.withDefault(""),
+      );
 
       const aiEnabled = yield* Config.boolean("AI_ENABLED").pipe(
         Config.withDefault(false),
@@ -152,6 +164,9 @@ export class AppConfig extends Context.Service<AppConfig, AppConfigShape>()(
         },
         redis: {
           url: redisUrl,
+        },
+        render: {
+          token: renderToken,
         },
         http: {
           port: httpPort,

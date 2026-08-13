@@ -65,6 +65,11 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD:-sleevy}
       PGDATABASE: sleevy
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      # Shared with the web service below. A Server-Side Render of a public page
+      # states this secret and is left out of the Public Profile Rate Limit, so a
+      # visitor who opens a page always gets the page. Unset means every caller
+      # is treated as a public API client.
+      INTERNAL_RENDER_TOKEN: ${INTERNAL_RENDER_TOKEN:-}
       BETTER_AUTH_URL: ${SERVICE_URL_API:-http://localhost:3002}
       BETTER_AUTH_TRUSTED_ORIGINS: ${SERVICE_URL_WEB:-http://localhost:8080}
       SLEEVY_WEB_URL: ${SERVICE_URL_WEB:-http://localhost:8080}
@@ -110,6 +115,9 @@ services:
       # a server-side render that used it would leave the network and come back
       # through the proxy. This one keeps that call on the compose network.
       INTERNAL_API_BASE_URL: http://api:3002
+      # The same secret the api service holds, stated on every public read a
+      # render makes.
+      INTERNAL_RENDER_TOKEN: ${INTERNAL_RENDER_TOKEN:-}
       # IndexNow ownership key. It is intentionally served publicly at
       # /<key>.txt so the protocol can verify domain ownership.
       INDEXNOW_KEY: ${INDEXNOW_KEY:-e71501ace20aafcc1c8d1fa9b232b117}
