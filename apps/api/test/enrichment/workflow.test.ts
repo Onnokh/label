@@ -12,7 +12,11 @@ import {
   type LinkId,
   type Topic,
 } from "../../src/domain/SavedItem.js"
-import { AiEnricher } from "../../src/modules/ai/AiEnricher.js"
+import {
+  AiEnricher,
+  AiEnricherError,
+  type AiEnrichmentInput,
+} from "../../src/modules/ai/AiEnricher.js"
 import { EnrichmentWorkflow } from "../../src/modules/enrichment/EnrichmentWorkflow.js"
 import { PageDocument } from "../../src/modules/fetch/PageDocument.js"
 import { PageFetcher } from "../../src/modules/fetch/PageFetcher.js"
@@ -80,6 +84,9 @@ const makePage = (url: string) =>
       "<title>Effect API Testing - Example</title>",
       '<meta name="description" content="A practical guide to testing an Effect API.">',
       '<meta property="og:site_name" content="Example Docs">',
+      "<body><nav>Docs Pricing</nav>",
+      "<article><p>Layers make an Effect API testable without mocks.</p></article>",
+      "</body>",
     ].join(""),
   })
 
@@ -87,6 +94,8 @@ const workflowLayer = (input: {
   readonly status?: LinkEnrichment["status"] | undefined
   readonly aiTags?: readonly Topic[] | undefined
   readonly aiPreview?: string | undefined
+  readonly aiFails?: boolean | undefined
+  readonly onAiInput?: ((input: AiEnrichmentInput) => void) | undefined
   readonly onStart?: (() => void) | undefined
   readonly onFinish?: ((result: FinishedEnrichment) => void) | undefined
 }) =>
@@ -137,14 +146,18 @@ const workflowLayer = (input: {
       Layer.succeed(
         AiEnricher,
         AiEnricher.of({
-          chooseTags: () =>
-            Effect.succeed(
-              input.aiTags ? Option.some(input.aiTags) : Option.none(),
-            ),
-          preview: () =>
-            Effect.succeed(
-              input.aiPreview ? Option.some(input.aiPreview) : Option.none(),
-            ),
+          enrich: (aiInput) =>
+            Effect.suspend(() => {
+              input.onAiInput?.(aiInput)
+              return input.aiFails
+                ? Effect.fail(
+                  new AiEnricherError({ operation: "enrich", cause: "upstream is down" }),
+                )
+                : Effect.succeed({
+                  tags: input.aiTags ? Option.some(input.aiTags) : Option.none(),
+                  summary: input.aiPreview ? Option.some(input.aiPreview) : Option.none(),
+                })
+            }),
         }),
       ),
     ),
@@ -181,6 +194,67 @@ describe("EnrichmentWorkflow", () => {
       )
     },
   )
+
+  it.effect("hands the extracted page content to one AI call", () => {
+    const aiInputs: AiEnrichmentInput[] = []
+    let finished: FinishedEnrichment | undefined
+
+    return Effect.gen(function* () {
+      const workflow = yield* EnrichmentWorkflow
+      yield* workflow.enrich(linkId)
+
+      // Tags and Preview Summary are two stages served by a single AI call.
+      expect(aiInputs.length).toBe(1)
+      expect(finished?.job.stages.map((stage) => `${stage.stage}:${stage.status}`)).toEqual([
+        "metadata:succeeded",
+        "tagging:succeeded",
+        "preview-summary:succeeded",
+      ])
+
+      const content = aiInputs[0]?.content
+      expect(content && Option.isSome(content)).toBe(true)
+      if (!content || Option.isNone(content)) return
+
+      expect(content.value).toContain("Layers make an Effect API testable without mocks.")
+      expect(content.value).not.toContain("Pricing")
+    }).pipe(
+      Effect.provide(workflowLayer({
+        aiTags: ["typescript"],
+        aiPreview: "Layers replace mocks when testing an Effect API.",
+        onAiInput: (value) => {
+          aiInputs.push(value)
+        },
+        onFinish: (result) => {
+          finished = result
+        },
+      })),
+    )
+  })
+
+  it.effect("fails both AI stages when the single call fails", () => {
+    let finished: FinishedEnrichment | undefined
+
+    return Effect.gen(function* () {
+      const workflow = yield* EnrichmentWorkflow
+      yield* workflow.enrich(linkId)
+
+      expect(finished?.metadata.title).toBe("Effect API Testing")
+      expect(finished?.enrichment.previewSummary).toBeUndefined()
+      expect(finished?.job.status).toBe("partial")
+      expect(finished?.job.stages.map((stage) => `${stage.stage}:${stage.status}`)).toEqual([
+        "metadata:succeeded",
+        "tagging:failed",
+        "preview-summary:failed",
+      ])
+    }).pipe(
+      Effect.provide(workflowLayer({
+        aiFails: true,
+        onFinish: (result) => {
+          finished = result
+        },
+      })),
+    )
+  })
 
   it.effect("skips links that are already enriched", () =>
     Effect.gen(function* () {

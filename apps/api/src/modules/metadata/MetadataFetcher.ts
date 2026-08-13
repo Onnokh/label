@@ -1,7 +1,13 @@
 import { Context, Data, Effect, Layer, Option, Schema } from "effect"
 
 import { stripBrandSuffix } from "../../lib/strip-brand.js"
-import { getLinkHref, getMetaContent, getTitle, parseHtml } from "../../lib/html.js"
+import {
+  extractPageContent,
+  getLinkHref,
+  getMetaContent,
+  getTitle,
+  parseHtml,
+} from "../../lib/html.js"
 import { toAbsoluteUrl } from "../../lib/url.js"
 import { PageDocument } from "../fetch/PageFetcher.js"
 import { chooseFavicon, findFaviconCandidates } from "./Favicon.js"
@@ -17,6 +23,13 @@ export class Metadata extends Schema.Class<Metadata>("Metadata")({
   imageUrl: Schema.optional(Schema.String),
   canonicalUrl: Schema.optional(Schema.String),
 }) { }
+
+/**
+ * Enough Extracted Page Content for a Preview Summary without paying for a
+ * whole page: roughly the first 500 words, which covers the lede of most
+ * articles and the opening of a README.
+ */
+export const PAGE_CONTENT_LIMIT = 2000
 
 export class MetadataFetcherError extends Data.TaggedError("MetadataFetcherError")<{
   readonly operation: string
@@ -35,6 +48,25 @@ export class MetadataFetcher extends Context.Service<MetadataFetcher>()(
           catch: (cause) =>
             new MetadataFetcherError({
               operation: "parse",
+              url: page.finalUrl,
+              cause,
+            }),
+        })
+      }),
+
+      /** Extracted Page Content, for AI Enrichment to summarize. */
+      extractContent: Effect.fn("MetadataFetcher.extractContent")(function* (
+        page: PageDocument,
+      ) {
+        yield* Effect.annotateCurrentSpan("url", page.finalUrl)
+        return yield* Effect.try({
+          try: () => {
+            const text = extractPageContent(parseHtml(page.html), PAGE_CONTENT_LIMIT)
+            return text ? Option.some(text) : Option.none<string>()
+          },
+          catch: (cause) =>
+            new MetadataFetcherError({
+              operation: "extractContent",
               url: page.finalUrl,
               cause,
             }),

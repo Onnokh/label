@@ -42,6 +42,41 @@ describe("MetadataFetcher", () => {
     }),
   )
 
+  it.effect("extracts the page prose and leaves out the site chrome", () =>
+    Effect.gen(function* () {
+      const fetcher = yield* MetadataFetcher
+      const result = yield* fetcher.extractContent(page([
+        "<!doctype html>",
+        "<body>",
+        "<nav>Home Docs Pricing</nav>",
+        "<script>console.log('tracking')</script>",
+        "<article><h1>Monomorphic call sites</h1>",
+        "<p>Keeping one object shape per call site lets the engine inline the",
+        " property lookup instead of walking a megamorphic cache.</p></article>",
+        "<footer>Cookie notice</footer>",
+        "</body>",
+      ].join("")))
+
+      expect(Option.isSome(result)).toBe(true)
+      if (Option.isNone(result)) return
+
+      expect(result.value).toContain("Monomorphic call sites")
+      expect(result.value).toContain("inline the property lookup")
+      expect(result.value).not.toContain("Pricing")
+      expect(result.value).not.toContain("tracking")
+      expect(result.value).not.toContain("Cookie notice")
+    }),
+  )
+
+  it.effect("reports no page content for an empty document", () =>
+    Effect.gen(function* () {
+      const fetcher = yield* MetadataFetcher
+      const result = yield* fetcher.extractContent(page("<!doctype html><body></body>"))
+
+      expect(Option.isNone(result)).toBe(true)
+    }),
+  )
+
   it.effect("falls back to the host when only favicon metadata is available", () =>
     Effect.gen(function* () {
       const fetcher = yield* MetadataFetcher
