@@ -377,6 +377,7 @@ describe("HttpApp", () => {
           "folders:read",
           "folders:write",
           "folders:delete",
+          "offline_access",
         ],
       })
     }),
