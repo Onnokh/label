@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { Folder as FolderIcon, MoreVertical, Plus } from "lucide-react"
+import { Folder as FolderIcon, Globe, MoreVertical, Plus } from "lucide-react"
 import { type DragEvent, useState } from "react"
 
 import { ContextMenu, type ContextMenuItem } from "../ui/context-menu/context-menu"
@@ -12,9 +12,14 @@ import {
   useFolders,
   useMoveSavedItemToFolder,
   useRenameFolder,
+  useSetFolderPublished,
 } from "../../sleevy/folders"
+import { useIsProfilePublic } from "../../sleevy/profile"
 import { useSavedItems } from "../../sleevy/saved-items"
 import styles from "./folder-sidebar.module.scss"
+
+const publishedFolderLabel =
+  "On your profile. A visitor to your Public Profile sees everything in this folder."
 
 function errorMessage(cause: unknown): string {
   if (!(cause instanceof Error)) return "Something went wrong."
@@ -35,6 +40,8 @@ export function FolderSidebar() {
   const renameMutation = useRenameFolder()
   const deleteMutation = useDeleteFolder()
   const moveMutation = useMoveSavedItemToFolder()
+  const setPublishedMutation = useSetFolderPublished()
+  const isProfilePublic = useIsProfilePublic()
   const [creating, setCreating] = useState(false)
   const [renaming, setRenaming] = useState<Folder | null>(null)
   const [deleting, setDeleting] = useState<Folder | null>(null)
@@ -68,6 +75,14 @@ export function FolderSidebar() {
           {folders.map((folder) => {
             const menu: readonly ContextMenuItem[] = [
               { key: "rename", label: "Rename", onClick: () => setRenaming(folder) },
+              {
+                key: "publish",
+                // The label states what the action does next, so the stored
+                // state stays legible while Profile Visibility is private and
+                // the row shows no marker.
+                label: folder.isPublished ? "Remove from profile" : "Publish to profile",
+                onClick: () => setPublishedMutation.mutate({ id: folder.id, isPublished: !folder.isPublished }),
+              },
               { key: "delete", label: "Delete", destructive: true, onClick: () => setDeleting(folder) },
             ]
             return (
@@ -89,6 +104,16 @@ export function FolderSidebar() {
                 >
                   <FolderIcon size={14} className={styles.icon} />
                   <span className={styles.name}>{folder.name}</span>
+                  {isProfilePublic && folder.isPublished ? (
+                    <span
+                      className={styles.publishedMarker}
+                      role="img"
+                      aria-label={publishedFolderLabel}
+                      title={publishedFolderLabel}
+                    >
+                      <Globe size={12} />
+                    </span>
+                  ) : null}
                   <span className={styles.count}>{counts.get(folder.id) ?? 0}</span>
                 </Link>
                 <div className={styles.menu}>

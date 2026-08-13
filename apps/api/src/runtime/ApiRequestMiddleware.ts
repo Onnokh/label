@@ -1,9 +1,22 @@
 import { Effect } from "effect"
 
-import type { ApiKeyRateLimiterShape, RateLimitResult } from "../modules/rate-limit/ApiKeyRateLimiter.js"
+import type { ApiKeyRateLimiterShape } from "../modules/rate-limit/ApiKeyRateLimiter.js"
 import type { BearerRateLimiterShape } from "../modules/rate-limit/BearerRateLimiter.js"
+import { webClientIp } from "../modules/rate-limit/ClientIp.js"
+import type { PublicProfileRateLimiterShape } from "../modules/rate-limit/PublicProfileRateLimiter.js"
+import type { RateLimitResult } from "../modules/rate-limit/RateLimiter.js"
 
 const API_KEY_LENGTH = 64
+
+// Every route of the unauthenticated Public Profile group lives under this
+// prefix, so one path test picks out the group that takes the per-IP budget.
+export const PUBLIC_API_PREFIX = "/v1/public/"
+
+// ADR 0016: public responses cache for five minutes, so publishing a Folder
+// shows up within five minutes and unpublishing one withdraws it as fast. Only
+// a success is cached — a not-found answer must not keep a profile hidden after
+// its owner turns Profile Visibility on.
+const PUBLIC_CACHE_CONTROL = "public, max-age=300"
 
 type SessionApi = {
   readonly getSession: (input: { readonly headers: Headers }) => Promise<{
@@ -61,6 +74,17 @@ const rateLimitResponse = (result: RateLimitResult, message: string) =>
     },
   )
 
+const withHeaders = (response: Response, extra: Headers) => {
+  const headers = new Headers(response.headers)
+  extra.forEach((value, key) => headers.set(key, value))
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
 const applyRateLimit = async (
   limit: RateLimitResult,
   message: string,
@@ -71,15 +95,32 @@ const applyRateLimit = async (
     return rateLimitResponse(limit, message)
   }
 
-  const response = await handle(request)
-  const headers = new Headers(response.headers)
-  rateLimitHeaders(limit).forEach((value, key) => headers.set(key, value))
+  return withHeaders(await handle(request), rateLimitHeaders(limit))
+}
 
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  })
+// The public group carries no API Key, so it is bucketed on the client address
+// instead. The budget is applied here rather than inside the route handler so
+// the 429 can carry Retry-After, the way the other budgets do.
+//
+// It does not go through applyRateLimit, because a public response also carries
+// a cache header when it succeeds and no other budget does.
+export const withPublicRateLimit = async (
+  request: Request,
+  rateLimiter: PublicProfileRateLimiterShape,
+  handle: (request: Request) => Promise<Response>,
+) => {
+  const limit = await Effect.runPromise(rateLimiter.check(webClientIp(request)))
+  if (!limit.allowed) {
+    return rateLimitResponse(limit, "Public profile rate limit exceeded.")
+  }
+
+  const response = await handle(request)
+  const headers = rateLimitHeaders(limit)
+  if (response.status === 200) {
+    headers.set("cache-control", PUBLIC_CACHE_CONTROL)
+  }
+
+  return withHeaders(response, headers)
 }
 
 // Every bearer-authenticated request is throttled: recognized API keys get

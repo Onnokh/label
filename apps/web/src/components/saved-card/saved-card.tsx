@@ -3,7 +3,7 @@ import clsx from "clsx"
 import { differenceInHours, differenceInMinutes, format } from "date-fns"
 import { MoreVertical } from "lucide-react"
 
-import type { SavedItem } from "../../sleevy/saved-items"
+import { type SavedItem } from "../../sleevy/saved-items"
 import { SAVED_ITEM_DRAG_TYPE, useFolders, useMoveSavedItemToFolder } from "../../sleevy/folders"
 import { ContextMenu, type ContextMenuItem } from "../ui/context-menu/context-menu"
 import styles from "./saved-card.module.scss"

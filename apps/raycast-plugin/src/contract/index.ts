@@ -32,6 +32,7 @@ export const captureChannels = [
   "raycast",
   "web-companion",
   "api",
+  "public-profile",
 ] as const;
 export type CaptureChannel =
   | "chrome-extension"
@@ -39,7 +40,8 @@ export type CaptureChannel =
   | "ios-share-extension"
   | "raycast"
   | "web-companion"
-  | "api";
+  | "api"
+  | "public-profile";
 
 export const enrichmentStatuses = ["pending", "enriched", "failed"] as const;
 export type EnrichmentStatus = "pending" | "enriched" | "failed";
@@ -52,6 +54,7 @@ export type FolderDto = {
   readonly name: string;
   readonly emoji: string | null;
   readonly color: string | null;
+  readonly isPublished: boolean;
 };
 
 export type FoldersResponse = {
@@ -60,6 +63,7 @@ export type FoldersResponse = {
     readonly name: string;
     readonly emoji: string | null;
     readonly color: string | null;
+    readonly isPublished: boolean;
   }[];
 };
 
@@ -84,6 +88,7 @@ export type SavedItemDto = {
     readonly name: string;
     readonly emoji: string | null;
     readonly color: string | null;
+    readonly isPublished: boolean;
   } | null;
   readonly isRead: boolean;
   readonly lastSavedAt: string;
@@ -106,6 +111,7 @@ export type SavedItemDto = {
     | "raycast"
     | "web-companion"
     | "api"
+    | "public-profile"
     | undefined;
 };
 
@@ -131,6 +137,7 @@ export type SavedItemsResponse = {
       readonly name: string;
       readonly emoji: string | null;
       readonly color: string | null;
+      readonly isPublished: boolean;
     } | null;
     readonly isRead: boolean;
     readonly lastSavedAt: string;
@@ -153,6 +160,7 @@ export type SavedItemsResponse = {
       | "raycast"
       | "web-companion"
       | "api"
+      | "public-profile"
       | undefined;
   }[];
 };
@@ -179,6 +187,7 @@ export type CaptureCreated = {
       readonly name: string;
       readonly emoji: string | null;
       readonly color: string | null;
+      readonly isPublished: boolean;
     } | null;
     readonly isRead: boolean;
     readonly lastSavedAt: string;
@@ -201,6 +210,7 @@ export type CaptureCreated = {
       | "raycast"
       | "web-companion"
       | "api"
+      | "public-profile"
       | undefined;
   };
   readonly captureResult: "created";
@@ -228,6 +238,7 @@ export type CaptureUpdated = {
       readonly name: string;
       readonly emoji: string | null;
       readonly color: string | null;
+      readonly isPublished: boolean;
     } | null;
     readonly isRead: boolean;
     readonly lastSavedAt: string;
@@ -250,6 +261,7 @@ export type CaptureUpdated = {
       | "raycast"
       | "web-companion"
       | "api"
+      | "public-profile"
       | undefined;
   };
   readonly captureResult: "updated";
@@ -267,6 +279,7 @@ export type CapturePayload = {
     | "raycast"
     | "web-companion"
     | "api"
+    | "public-profile"
     | undefined;
   readonly tags?:
     | readonly (

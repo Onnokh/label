@@ -46,6 +46,7 @@ export const captureChannels = [
   "raycast",
   "web-companion",
   "api",
+  "public-profile",
 ] as const
 export const CaptureChannel = Schema.Literals(captureChannels)
 export type CaptureChannel = typeof CaptureChannel.Type
@@ -53,6 +54,10 @@ export type CaptureChannel = typeof CaptureChannel.Type
 export const enrichmentStatuses = ["pending", "enriched", "failed"] as const
 export const EnrichmentStatus = Schema.Literals(enrichmentStatuses)
 export type EnrichmentStatus = typeof EnrichmentStatus.Type
+
+export const profileVisibilities = ["private", "public"] as const
+export const ProfileVisibility = Schema.Literals(profileVisibilities)
+export type ProfileVisibility = typeof ProfileVisibility.Type
 
 export const savedItemSorts = ["newest", "oldest", "title", "unread"] as const
 export const SavedItemSort = Schema.Literals(savedItemSorts)
@@ -101,6 +106,9 @@ export class FolderDto extends Schema.Class<FolderDto>("FolderDto")({
   name: Schema.String,
   emoji: Schema.NullOr(Schema.String),
   color: Schema.NullOr(Schema.String),
+  // A Published Folder shows every Saved Item inside it on the Public Profile,
+  // once Profile Visibility is public. Nothing else publishes a Saved Item.
+  isPublished: Schema.Boolean,
 }) {}
 export namespace FolderDto {
   export type Encoded = Schema.Codec.Encoded<typeof FolderDto>
@@ -111,6 +119,165 @@ export class FoldersResponse extends Schema.Class<FoldersResponse>("FoldersRespo
 }) {}
 export namespace FoldersResponse {
   export type Encoded = Schema.Codec.Encoded<typeof FoldersResponse>
+}
+
+// The private half of a Public Profile: the Handle an Account claimed and the
+// Profile Visibility that decides whether that Handle resolves publicly.
+export class ProfileDto extends Schema.Class<ProfileDto>("ProfileDto")({
+  handle: Schema.String,
+  visibility: ProfileVisibility,
+  createdAt: Schema.DateFromString,
+  updatedAt: Schema.DateFromString,
+}) {}
+export namespace ProfileDto {
+  export type Encoded = Schema.Codec.Encoded<typeof ProfileDto>
+}
+
+export class HandleAvailabilityResponse extends Schema.Class<HandleAvailabilityResponse>(
+  "HandleAvailabilityResponse",
+)({
+  handle: Schema.String,
+  available: Schema.Boolean,
+}) {}
+export namespace HandleAvailabilityResponse {
+  export type Encoded = Schema.Codec.Encoded<typeof HandleAvailabilityResponse>
+}
+
+// The public half of a Public Profile: everything an anonymous visitor may read
+// for a Handle. Identity is the Handle alone — no display name, no biography,
+// and no avatar. `isIndexable` carries the search-indexing decision as a value
+// the API computed, so the web layer renders a robots directive from a boolean
+// and owns no part of the rule.
+export class PublicProfileDto extends Schema.Class<PublicProfileDto>("PublicProfileDto")({
+  handle: Schema.String,
+  joinedAt: Schema.DateFromString,
+  publicSavedItemCount: Schema.Number,
+  isIndexable: Schema.Boolean,
+}) {}
+export namespace PublicProfileDto {
+  export type Encoded = Schema.Codec.Encoded<typeof PublicProfileDto>
+}
+
+// One day of Reading Activity: how many first captures the Account made on that
+// UTC calendar day. The day crosses the wire as a plain `YYYY-MM-DD` string and
+// not as a timestamp, because the bucket is a UTC day for every visitor alike
+// and a timestamp would invite a client to re-bucket it in a local timezone.
+export class ReadingActivityDay extends Schema.Class<ReadingActivityDay>("ReadingActivityDay")({
+  date: Schema.String,
+  count: Schema.Number,
+}) {}
+export namespace ReadingActivityDay {
+  export type Encoded = Schema.Codec.Encoded<typeof ReadingActivityDay>
+}
+
+// Reading Activity for one Public Profile over a rolling 52 weeks. `from` and
+// `to` are the inclusive UTC bounds of that window, so the grid knows which
+// cells to draw; `days` carries only the days inside it that have at least one
+// save, and a day absent from `days` has none. Counts are first captures only,
+// and they include Saved Items the item list withholds — see ADR 0016.
+export class ReadingActivityResponse extends Schema.Class<ReadingActivityResponse>(
+  "ReadingActivityResponse",
+)({
+  handle: Schema.String,
+  from: Schema.String,
+  to: Schema.String,
+  days: Schema.Array(ReadingActivityDay),
+}) {}
+export namespace ReadingActivityResponse {
+  export type Encoded = Schema.Codec.Encoded<typeof ReadingActivityResponse>
+}
+
+// One published Saved Item, defined as an allow-list instead of a projection of
+// SavedItemDto. Only these properties may reach an anonymous visitor: Original
+// URL, host, title, favicon variants, image, Type, Tags, Preview Summary, and
+// the save date. The Folder, the Source name, the Capture Channel, the Read
+// State, the Saved Item identifier, and the update timestamps are withheld.
+// Reusing SavedItemDto is rejected on purpose: the private representation keeps
+// growing, and every field added to it later would publish itself by default.
+// The contract test asserts this property list exactly, so widening it can only
+// happen deliberately.
+export class PublicSavedItemDto extends Schema.Class<PublicSavedItemDto>("PublicSavedItemDto")({
+  originalUrl: Schema.String,
+  host: Schema.String,
+  title: Schema.optional(Schema.String),
+  faviconUrl: Schema.optional(Schema.String),
+  faviconLightUrl: Schema.optional(Schema.String),
+  faviconDarkUrl: Schema.optional(Schema.String),
+  imageUrl: Schema.optional(Schema.String),
+  type: LinkType,
+  tags: Schema.Array(Topic),
+  previewSummary: Schema.optional(Schema.String),
+  // The Saved Item creation time, not Last Saved At: a Duplicate Save must not
+  // reorder a published page.
+  savedAt: Schema.DateFromString,
+}) {}
+export namespace PublicSavedItemDto {
+  export type Encoded = Schema.Codec.Encoded<typeof PublicSavedItemDto>
+}
+
+// One page of a Public Profile's Saved Items. Pages carry their own number and
+// the total, because a Public Profile is addressed by page number rather than by
+// cursor: every page must be a real URL a crawler can reach.
+export class PublicSavedItemsResponse extends Schema.Class<PublicSavedItemsResponse>(
+  "PublicSavedItemsResponse",
+)({
+  savedItems: Schema.Array(PublicSavedItemDto),
+  page: Schema.Number,
+  pageSize: Schema.Number,
+  totalPages: Schema.Number,
+}) {}
+export namespace PublicSavedItemsResponse {
+  export type Encoded = Schema.Codec.Encoded<typeof PublicSavedItemsResponse>
+}
+
+export class PublicSavedItemsQuery extends Schema.Class<PublicSavedItemsQuery>(
+  "PublicSavedItemsQuery",
+)({
+  // Omitted means the first page.
+  page: Schema.optional(Schema.FiniteFromString),
+}) {}
+export namespace PublicSavedItemsQuery {
+  export type Encoded = Schema.Codec.Encoded<typeof PublicSavedItemsQuery>
+}
+
+// One Public Profile a search engine may be offered. The Handle is the whole
+// address — a Public Profile lives at /u/{handle} — and `lastModifiedAt` is when
+// that page last changed, which is the creation time of the newest Saved Item it
+// publishes. A profile that is public but not yet indexable is absent, so a
+// caller lists what it finds here and decides nothing itself.
+export class IndexableProfileDto extends Schema.Class<IndexableProfileDto>(
+  "IndexableProfileDto",
+)({
+  handle: Schema.String,
+  lastModifiedAt: Schema.DateFromString,
+}) {}
+export namespace IndexableProfileDto {
+  export type Encoded = Schema.Codec.Encoded<typeof IndexableProfileDto>
+}
+
+// One page of indexable Handles. Paged like the published Saved Items of a
+// single Handle, and for the same reason: the caller is a crawler-facing
+// document builder that must be able to walk the whole list by number.
+export class IndexableProfilesResponse extends Schema.Class<IndexableProfilesResponse>(
+  "IndexableProfilesResponse",
+)({
+  profiles: Schema.Array(IndexableProfileDto),
+  page: Schema.Number,
+  pageSize: Schema.Number,
+  totalPages: Schema.Number,
+}) {}
+export namespace IndexableProfilesResponse {
+  export type Encoded = Schema.Codec.Encoded<typeof IndexableProfilesResponse>
+}
+
+export class IndexableProfilesQuery extends Schema.Class<IndexableProfilesQuery>(
+  "IndexableProfilesQuery",
+)({
+  // Omitted means the first page.
+  page: Schema.optional(Schema.FiniteFromString),
+}) {}
+export namespace IndexableProfilesQuery {
+  export type Encoded = Schema.Codec.Encoded<typeof IndexableProfilesQuery>
 }
 
 export class CaptureCreated extends Schema.Class<CaptureCreated>("CaptureCreated")({
@@ -177,11 +344,50 @@ export namespace FolderNamePayload {
   export type Encoded = Schema.Codec.Encoded<typeof FolderNamePayload>
 }
 
+// The Folder update payload. A Folder is a resource with fields, so it takes a
+// widened PATCH instead of one endpoint per field. Every field is optional, so
+// a name-only caller keeps working unchanged and an omitted field is left as it
+// is. Creating a Folder keeps FolderNamePayload, where a name is required.
+export class FolderUpdatePayload extends Schema.Class<FolderUpdatePayload>("FolderUpdatePayload")({
+  name: Schema.optional(Schema.String),
+  emoji: Schema.optional(Schema.NullOr(Schema.String)),
+  color: Schema.optional(Schema.NullOr(Schema.String)),
+  isPublished: Schema.optional(Schema.Boolean),
+}) {}
+export namespace FolderUpdatePayload {
+  export type Encoded = Schema.Codec.Encoded<typeof FolderUpdatePayload>
+}
+
 export class FolderAssignmentPayload extends Schema.Class<FolderAssignmentPayload>("FolderAssignmentPayload")({
   folderId: Schema.NullOr(Schema.String),
 }) {}
 export namespace FolderAssignmentPayload {
   export type Encoded = Schema.Codec.Encoded<typeof FolderAssignmentPayload>
+}
+
+export class HandlePayload extends Schema.Class<HandlePayload>("HandlePayload")({
+  handle: Schema.String,
+}) {}
+export namespace HandlePayload {
+  export type Encoded = Schema.Codec.Encoded<typeof HandlePayload>
+}
+
+export class ProfileVisibilityPayload extends Schema.Class<ProfileVisibilityPayload>(
+  "ProfileVisibilityPayload",
+)({
+  visibility: ProfileVisibility,
+}) {}
+export namespace ProfileVisibilityPayload {
+  export type Encoded = Schema.Codec.Encoded<typeof ProfileVisibilityPayload>
+}
+
+export class HandleAvailabilityQuery extends Schema.Class<HandleAvailabilityQuery>(
+  "HandleAvailabilityQuery",
+)({
+  handle: Schema.String,
+}) {}
+export namespace HandleAvailabilityQuery {
+  export type Encoded = Schema.Codec.Encoded<typeof HandleAvailabilityQuery>
 }
 
 // Bulk-reassigns a set of saved items to a source (found or created by name).
@@ -259,6 +465,44 @@ export namespace FolderNameConflictError {
   export type Encoded = Schema.Codec.Encoded<typeof FolderNameConflictError>
 }
 
+export class InvalidHandleError extends Schema.ErrorClass<InvalidHandleError>("InvalidHandleError")({
+  _tag: Schema.tag("InvalidHandleError"),
+  message: Schema.String,
+}, { httpApiStatus: 400 }) {}
+export namespace InvalidHandleError {
+  export type Encoded = Schema.Codec.Encoded<typeof InvalidHandleError>
+}
+
+export class HandleConflictError extends Schema.ErrorClass<HandleConflictError>("HandleConflictError")({
+  _tag: Schema.tag("HandleConflictError"),
+  message: Schema.String,
+}, { httpApiStatus: 409 }) {}
+export namespace HandleConflictError {
+  export type Encoded = Schema.Codec.Encoded<typeof HandleConflictError>
+}
+
+export class ProfileNotFoundError extends Schema.ErrorClass<ProfileNotFoundError>("ProfileNotFoundError")({
+  _tag: Schema.tag("ProfileNotFoundError"),
+  message: Schema.String,
+}, { httpApiStatus: 404 }) {}
+export namespace ProfileNotFoundError {
+  export type Encoded = Schema.Codec.Encoded<typeof ProfileNotFoundError>
+}
+
+// The single not-found answer of the public group. An unknown Handle and a
+// Handle whose Profile Visibility is private both get this exact response, so
+// the API never discloses which Handles exist. It carries no Handle field for
+// the same reason: the body must not vary with the request.
+export class PublicProfileNotFoundError extends Schema.ErrorClass<PublicProfileNotFoundError>(
+  "PublicProfileNotFoundError",
+)({
+  _tag: Schema.tag("PublicProfileNotFoundError"),
+  message: Schema.String,
+}, { httpApiStatus: 404 }) {}
+export namespace PublicProfileNotFoundError {
+  export type Encoded = Schema.Codec.Encoded<typeof PublicProfileNotFoundError>
+}
+
 export type ApiErrorEncoded =
   | Unauthorized.Encoded
   | RateLimitExceeded.Encoded
@@ -267,3 +511,7 @@ export type ApiErrorEncoded =
   | InvalidFolderNameError.Encoded
   | FolderNotFoundError.Encoded
   | FolderNameConflictError.Encoded
+  | InvalidHandleError.Encoded
+  | HandleConflictError.Encoded
+  | ProfileNotFoundError.Encoded
+  | PublicProfileNotFoundError.Encoded

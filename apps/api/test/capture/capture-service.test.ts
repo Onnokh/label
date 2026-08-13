@@ -103,6 +103,35 @@ describe("CaptureService", () => {
     )
   })
 
+  // A capture decides where a Saved Item is filed, never who may read it. The
+  // Folder it lands in is the only thing that can publish it, so the command a
+  // capture hands the store must carry no audience flag of its own. This test
+  // fails the moment one is added back.
+  it.effect("hands the store no audience flag of its own", () => {
+    let seen: SaveCaptureCommand | undefined
+
+    return Effect.gen(function* () {
+      const capture = yield* CaptureService
+      yield* capture.save({
+        userId,
+        url: "https://example.com/articles/effect-api",
+        folderId,
+      }).pipe(Effect.exit)
+
+      const audienceKeys = Object.keys(seen ?? {}).filter((key) =>
+        /private|public|publish|visib/i.test(key),
+      )
+      expect(audienceKeys).toEqual([])
+      expect(seen?.folderId).toBe(folderId)
+    }).pipe(
+      Effect.provide(captureServiceLayer({
+        onSave: (command) => {
+          seen = command
+        },
+      })),
+    )
+  })
+
   it.effect("rejects invalid URLs before calling the store", () => {
     let called = false
 

@@ -1,0 +1,43 @@
+// Handle rules, fixed by ADR 0016. A Handle is 3 to 30 characters of `a-z`,
+// `0-9`, `-`, and `_`, is stored lowercase, and may not take a name that a root
+// path already uses or may use later.
+
+const HANDLE_MIN_LENGTH = 3
+const HANDLE_MAX_LENGTH = 30
+
+const HANDLE_PATTERN = /^[a-z0-9_-]+$/
+
+export const RESERVED_HANDLES: ReadonlySet<string> = new Set([
+  "api",
+  "docs",
+  "settings",
+  "inbox",
+  "library",
+  "connect",
+  "oauth",
+  "support",
+  "privacy",
+  "admin",
+  "u",
+  "user",
+  "sleevy",
+])
+
+// Storage form of a Handle: surrounding whitespace removed and lowercased, so
+// two Accounts can never hold Handles that differ only by case.
+export const normalizeHandle = (raw: string): string => raw.trim().toLowerCase()
+
+// The message telling an Account why a normalized Handle cannot be used, or null
+// when it can. The text reaches the caller as an InvalidHandleError.
+export const invalidHandleMessage = (handle: string): string | null => {
+  if (handle.length < HANDLE_MIN_LENGTH || handle.length > HANDLE_MAX_LENGTH) {
+    return `Handle must contain between ${HANDLE_MIN_LENGTH} and ${HANDLE_MAX_LENGTH} characters.`
+  }
+  if (!HANDLE_PATTERN.test(handle)) {
+    return "Handle may contain only lowercase letters, digits, hyphen, and underscore."
+  }
+  if (RESERVED_HANDLES.has(handle)) {
+    return "Handle is reserved."
+  }
+  return null
+}

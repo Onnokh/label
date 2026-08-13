@@ -1,0 +1,38 @@
+// The button is a direct child of the Saved Item row, so `margin-left: auto`
+// pushes it to the end of the row. The row keeps its layout when the button is
+// absent, which is what a signed-out visitor and the server-rendered HTML get.
+.save {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-top: 0.2rem;
+  margin-left: auto;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: rgb(255 255 255 / 40%);
+  }
+
+  &:disabled {
+    cursor: default;
+    color: rgb(255 255 255 / 55%);
+  }
+}
+
+.saved {
+  border-color: rgb(129 140 248 / 55%);
+  color: rgb(199 210 254);
+}
+
+.failed {
+  border-color: rgb(248 113 113 / 50%);
+  color: rgb(252 165 165);
+}

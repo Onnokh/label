@@ -57,13 +57,26 @@ export class FolderRepository extends Context.Service<FolderRepository>()(
           return row ? Option.some(toFolder(row)) : Option.none<Folder>()
         }),
 
-        rename: Effect.fn("FolderRepository.rename")(function* (userId: UserId, id: FolderId, name: string, emoji?: string | null, color?: string | null) {
+        // Every field is optional: an omitted field keeps its stored value, so
+        // a name-only caller never clears the emoji, the color, or the publish
+        // flag.
+        update: Effect.fn("FolderRepository.update")(function* (
+          userId: UserId,
+          id: FolderId,
+          changes: {
+            readonly name?: string
+            readonly emoji?: string | null
+            readonly color?: string | null
+            readonly isPublished?: boolean
+          },
+        ) {
           const [row] = yield* db
             .update(foldersTable)
             .set({
-              name,
-              ...(emoji !== undefined ? { emoji } : {}),
-              ...(color !== undefined ? { color } : {}),
+              ...(changes.name !== undefined ? { name: changes.name } : {}),
+              ...(changes.emoji !== undefined ? { emoji: changes.emoji } : {}),
+              ...(changes.color !== undefined ? { color: changes.color } : {}),
+              ...(changes.isPublished !== undefined ? { isPublished: changes.isPublished } : {}),
               updatedAt: new Date(),
             })
             .where(and(eq(foldersTable.userId, userId), eq(foldersTable.id, id)))

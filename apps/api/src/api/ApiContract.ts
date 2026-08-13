@@ -18,10 +18,29 @@ import {
   FolderNamePayload,
   FolderNotFoundError,
   FoldersResponse,
+  FolderUpdatePayload,
+  HandleAvailabilityQuery,
+  HandleAvailabilityResponse,
+  HandleConflictError,
+  HandlePayload,
   HealthResponse,
+  IndexableProfileDto,
+  IndexableProfilesQuery,
+  IndexableProfilesResponse,
   InvalidFolderNameError,
+  InvalidHandleError,
   InvalidUrlError,
+  ProfileDto,
+  ProfileNotFoundError,
+  ProfileVisibilityPayload,
+  PublicProfileDto,
+  PublicProfileNotFoundError,
+  PublicSavedItemDto,
+  PublicSavedItemsQuery,
+  PublicSavedItemsResponse,
   RateLimitExceeded,
+  ReadingActivityDay,
+  ReadingActivityResponse,
   SavedItemDto,
   SavedItemNotFoundError,
   SavedItemReadStatePayload,
@@ -31,9 +50,17 @@ import {
   Unauthorized,
 } from "@sleevy/contract"
 
-import { FolderId, SavedItemId, type SavedItemWithLink, type UserId } from "../domain/SavedItem.js"
+import type { Profile } from "../domain/Profile.js"
+import {
+  effectiveTags,
+  FolderId,
+  SavedItemId,
+  type SavedItemWithLink,
+  type UserId,
+} from "../domain/SavedItem.js"
 import { AuthContext, V1_SCOPES } from "../modules/auth/Scopes.js"
 import { CONNECT_CLIENT_IDS } from "../modules/connect/ConnectClients.js"
+import type { PublicSavedItem } from "../modules/profiles/PublicProfileRepository.js"
 
 // Re-export the contract schemas so existing API consumers can keep importing
 // from ApiContract while the source of truth lives in @sleevy/contract.
@@ -47,10 +74,29 @@ export {
   FolderNamePayload,
   FolderNotFoundError,
   FoldersResponse,
+  FolderUpdatePayload,
+  HandleAvailabilityQuery,
+  HandleAvailabilityResponse,
+  HandleConflictError,
+  HandlePayload,
   HealthResponse,
+  IndexableProfileDto,
+  IndexableProfilesQuery,
+  IndexableProfilesResponse,
   InvalidFolderNameError,
+  InvalidHandleError,
   InvalidUrlError,
+  ProfileDto,
+  ProfileNotFoundError,
+  ProfileVisibilityPayload,
+  PublicProfileDto,
+  PublicProfileNotFoundError,
+  PublicSavedItemDto,
+  PublicSavedItemsQuery,
+  PublicSavedItemsResponse,
   RateLimitExceeded,
+  ReadingActivityDay,
+  ReadingActivityResponse,
   SavedItemDto,
   SavedItemNotFoundError,
   SavedItemReadStatePayload,
@@ -60,6 +106,14 @@ export {
   Unauthorized,
 }
 
+export const profileToDto = (profile: Profile) =>
+  new ProfileDto({
+    handle: profile.handle,
+    visibility: profile.visibility,
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+  })
+
 export const savedItemToDto = ({
   savedItem,
   link,
@@ -68,7 +122,7 @@ export const savedItemToDto = ({
   source,
   folder,
 }: SavedItemWithLink) => {
-  const tags = savedItem.tags.length > 0 ? savedItem.tags : enrichment.tags
+  const tags = effectiveTags(savedItem.tags, enrichment.tags)
 
   return new SavedItemDto({
     id: savedItem.id,
@@ -94,6 +148,7 @@ export const savedItemToDto = ({
       name: folder.name,
       emoji: folder.emoji,
       color: folder.color,
+      isPublished: folder.isPublished,
     }) : null,
     isRead: savedItem.isRead,
     lastSavedAt: savedItem.lastSavedAt,
@@ -101,6 +156,24 @@ export const savedItemToDto = ({
     updatedAt: savedItem.updatedAt,
   })
 }
+
+// Every property is named here rather than spread from the row, so a field
+// added to the repository shape cannot publish itself. This is the second guard
+// on the allow-list; the first is the repository's select list.
+export const publicSavedItemToDto = (item: PublicSavedItem) =>
+  new PublicSavedItemDto({
+    originalUrl: item.originalUrl,
+    host: item.host,
+    title: item.title,
+    faviconUrl: item.faviconUrl,
+    faviconLightUrl: item.faviconLightUrl,
+    faviconDarkUrl: item.faviconDarkUrl,
+    imageUrl: item.imageUrl,
+    type: item.type,
+    tags: item.tags,
+    previewSummary: item.previewSummary,
+    savedAt: item.savedAt,
+  })
 
 export class CurrentUser extends Context.Service<CurrentUser, UserId>()(
   "@app/api/CurrentUser",
@@ -272,9 +345,9 @@ const foldersGroup = HttpApiGroup.make("folders")
     }),
   )
   .add(
-    HttpApiEndpoint.patch("rename", "/v1/folders/:id", {
+    HttpApiEndpoint.patch("update", "/v1/folders/:id", {
       params: Schema.Struct({ id: FolderId }),
-      payload: FolderNamePayload,
+      payload: FolderUpdatePayload,
       success: FolderDto,
       error: [InvalidFolderNameError, FolderNotFoundError, FolderNameConflictError, RateLimitExceeded],
     }),
@@ -287,6 +360,90 @@ const foldersGroup = HttpApiGroup.make("folders")
     }),
   )
   .middleware(SessionOrApiKeyAuth)
+
+// Handle and Profile Visibility are Account settings, so this group is
+// session-only: the v1 REST API does not expose account administration
+// through API Keys.
+const profileGroup = HttpApiGroup.make("profile")
+  .add(
+    HttpApiEndpoint.get("get", "/v1/profile", {
+      success: ProfileDto,
+      error: [ProfileNotFoundError, RateLimitExceeded],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("checkHandle", "/v1/profile/handle-availability", {
+      query: HandleAvailabilityQuery,
+      success: HandleAvailabilityResponse,
+      error: [InvalidHandleError, RateLimitExceeded],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("claimHandle", "/v1/profile/handle", {
+      payload: HandlePayload,
+      success: ProfileDto,
+      error: [InvalidHandleError, HandleConflictError, RateLimitExceeded],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.patch("renameHandle", "/v1/profile/handle", {
+      payload: HandlePayload,
+      success: ProfileDto,
+      error: [InvalidHandleError, ProfileNotFoundError, HandleConflictError, RateLimitExceeded],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.put("setVisibility", "/v1/profile/visibility", {
+      payload: ProfileVisibilityPayload,
+      success: ProfileDto,
+      error: [ProfileNotFoundError, RateLimitExceeded],
+    }),
+  )
+  .middleware(SessionOnlyAuth)
+
+// The public half of Public Profiles. This group takes no middleware on
+// purpose: a visitor reads a Public Profile without an App Session and without
+// an API Key, so it is bucketed on the client address instead (see
+// PublicProfileRateLimiter). Every route lives under /v1/public/, which is the
+// prefix the per-IP budget is applied to, and every route answers a Handle it
+// cannot resolve with the same not-found error, so the three disclose nothing
+// between them.
+const publicProfilesGroup = HttpApiGroup.make("public-profiles")
+  .add(
+    HttpApiEndpoint.get("get", "/v1/public/profiles/:handle", {
+      params: Schema.Struct({ handle: Schema.String }),
+      success: PublicProfileDto,
+      error: [PublicProfileNotFoundError, RateLimitExceeded],
+    }),
+  )
+  // The published Saved Items of one Handle, newest first, one numbered page at
+  // a time.
+  .add(
+    HttpApiEndpoint.get("listSavedItems", "/v1/public/profiles/:handle/saved-items", {
+      params: Schema.Struct({ handle: Schema.String }),
+      query: PublicSavedItemsQuery,
+      success: PublicSavedItemsResponse,
+      error: [PublicProfileNotFoundError, RateLimitExceeded],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("getActivity", "/v1/public/profiles/:handle/activity", {
+      params: Schema.Struct({ handle: Schema.String }),
+      success: ReadingActivityResponse,
+      error: [PublicProfileNotFoundError, RateLimitExceeded],
+    }),
+  )
+  // Every Handle a search engine may be offered, so a crawler-facing document
+  // can name the Public Profiles that exist. This route carries no not-found
+  // error: no Handle is asked for, and a deployment with nothing worth indexing
+  // answers with an empty page rather than with a miss.
+  .add(
+    HttpApiEndpoint.get("listIndexable", "/v1/public/indexable-profiles", {
+      query: IndexableProfilesQuery,
+      success: IndexableProfilesResponse,
+      error: RateLimitExceeded,
+    }),
+  )
 
 const connectAuthorizeGroup = HttpApiGroup.make("connect-authorize")
   .add(
@@ -319,5 +476,7 @@ export const sleevyApi = HttpApi.make("SleevyApi")
   .add(capturesGroup)
   .add(savedItemsGroup)
   .add(foldersGroup)
+  .add(profileGroup)
+  .add(publicProfilesGroup)
   .add(connectAuthorizeGroup)
   .add(connectExchangeGroup)

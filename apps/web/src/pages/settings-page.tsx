@@ -2,6 +2,7 @@ import { AccountPanel, DeleteAccountControl } from "../components/account/accoun
 import { ApiKeysPanel } from "../components/api-keys/api-keys"
 import { ConnectedAppsPanel } from "../components/connected-apps/connected-apps"
 import { BlueMeshGradient } from "../components/marketing/hero/blue-mesh-gradient"
+import { PublicProfilePanel } from "../components/public-profile/public-profile"
 import { SourceNamePanel } from "../components/source-name/source-name"
 
 export function SettingsPage() {
@@ -20,6 +21,9 @@ export function SettingsPage() {
       <div className="page-sections">
         <div className="settings-group settings-group-preferences">
           <SourceNamePanel />
+        </div>
+        <div className="settings-group settings-group-access">
+          <PublicProfilePanel />
         </div>
         <div className="settings-group settings-group-access">
           <ConnectedAppsPanel />

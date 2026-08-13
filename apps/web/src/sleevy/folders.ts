@@ -48,6 +48,28 @@ export function useRenameFolder() {
   })
 }
 
+// Publishes one Folder to the Public Profile, or takes it back off. Every Saved
+// Item inside a published Folder appears on the page while Profile Visibility is
+// public; nothing else publishes a Saved Item. The payload carries `isPublished`
+// alone, because an omitted field keeps its stored value and the name, emoji,
+// and colour are not being changed here. Saved Items are invalidated too, since
+// every row carries its Folder Summary and reads the publish state from it.
+export function useSetFolderPublished() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, isPublished }: { readonly id: string; readonly isPublished: boolean }) =>
+      apiFetch<Folder>(`/v1/folders/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isPublished }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: foldersQueryKey })
+      void queryClient.invalidateQueries({ queryKey: savedItemsQueryKey })
+    },
+  })
+}
+
 export function useDeleteFolder() {
   const queryClient = useQueryClient()
 

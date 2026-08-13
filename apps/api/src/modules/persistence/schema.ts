@@ -17,6 +17,7 @@ import {
   captureChannels,
   enrichmentStatuses,
   linkTypes,
+  profileVisibilities,
 } from "@sleevy/contract"
 import type {
   CaptureChannel,
@@ -28,6 +29,7 @@ import type {
   LinkId,
   UserId,
 } from "../../domain/SavedItem.js"
+import type { ProfileId, ProfileVisibility } from "../../domain/Profile.js"
 import type {
   EnrichmentJobId,
   EnrichmentJobStatus,
@@ -63,6 +65,8 @@ export const enrichmentStatusEnum = pgEnum("enrichment_status", enrichmentStatus
 export const linkTypeEnum = pgEnum("link_type", linkTypes)
 
 export const captureChannelEnum = pgEnum("capture_channel", captureChannels)
+
+export const profileVisibilityEnum = pgEnum("profile_visibility", profileVisibilities)
 
 export const enrichmentJobStatusEnum = pgEnum("enrichment_job_status", [
   "queued",
@@ -168,11 +172,44 @@ export const foldersTable = pgTable(
     name: text("name").notNull(),
     emoji: text("emoji"),
     color: text("color"),
+    // A Published Folder shows every Saved Item inside it on the Public
+    // Profile. False by default: publishing is a deliberate act, so a Folder
+    // nobody published shows nothing.
+    isPublished: boolean("is_published").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     uniqueIndex("folders_user_name_lower_unique").on(table.userId, sql`lower(${table.name})`),
+  ],
+)
+
+// One Public Profile record per Account. The Handle lives here rather than on
+// the Better Auth user because it is a product identifier, not a credential.
+// Handles are stored lowercase; the lower() index keeps two Accounts from
+// holding Handles that differ only by case, the same way Folder names work.
+export const profilesTable = pgTable(
+  "profiles",
+  {
+    id: text("id")
+      .$type<ProfileId>()
+      .primaryKey()
+      .$defaultFn(() => randomUUID() as ProfileId),
+    userId: text("user_id")
+      .$type<UserId>()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    handle: text("handle").notNull(),
+    visibility: profileVisibilityEnum("visibility")
+      .$type<ProfileVisibility>()
+      .notNull()
+      .default("private"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("profiles_user_id_unique").on(table.userId),
+    uniqueIndex("profiles_handle_lower_unique").on(sql`lower(${table.handle})`),
   ],
 )
 
@@ -213,6 +250,11 @@ export const savedItemsTable = pgTable(
       table.userId,
       table.lastSavedAt,
     ),
+    // Reading Activity groups an Account's saves by creation day over a rolling
+    // 52 weeks, and the public Saved Item list orders by creation time too. The
+    // Last Saved At index above serves neither, because a Duplicate Save moves a
+    // row inside it while its creation day stays put.
+    index("saved_items_user_created_at_idx").on(table.userId, table.createdAt),
     index("saved_items_user_folder_id_idx").on(table.userId, table.folderId),
   ],
 )
@@ -273,6 +315,7 @@ export const relationalSchema = {
   linkEnrichment: linkEnrichmentTable,
   sources: sourcesTable,
   folders: foldersTable,
+  profiles: profilesTable,
   savedItems: savedItemsTable,
   enrichmentJobs: enrichmentJobsTable,
 } as const
@@ -369,6 +412,7 @@ export const schema = {
   linkEnrichmentTable,
   sourcesTable,
   foldersTable,
+  profilesTable,
   savedItemsTable,
   enrichmentJobsTable,
   connectCodesTable,

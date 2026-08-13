@@ -9,105 +9,81 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as MarketingRouteImport } from './routes/_marketing'
-import { Route as AppRouteImport } from './routes/_app'
 import { Route as SplatRouteImport } from './routes/$'
-import { Route as MarketingIndexRouteImport } from './routes/_marketing/index'
-import { Route as OauthLoginRouteImport } from './routes/oauth/login'
-import { Route as OauthConsentRouteImport } from './routes/oauth/consent'
-import { Route as DocsChar123Char125DotmdRouteImport } from './routes/docs/{$}[.]md'
-import { Route as DocsSplatRouteImport } from './routes/docs/$'
-import { Route as ApiSearchRouteImport } from './routes/api.search'
-import { Route as MarketingWebCompanionRouteImport } from './routes/_marketing/web-companion'
-import { Route as MarketingSupportRouteImport } from './routes/_marketing/support'
-import { Route as MarketingRaycastRouteImport } from './routes/_marketing/raycast'
-import { Route as MarketingPrivacyRouteImport } from './routes/_marketing/privacy'
-import { Route as MarketingPocketAlternativeRouteImport } from './routes/_marketing/pocket-alternative'
-import { Route as MarketingIosAppRouteImport } from './routes/_marketing/ios-app'
-import { Route as MarketingChromeExtensionRouteImport } from './routes/_marketing/chrome-extension'
-import { Route as MarketingArticlesRouteImport } from './routes/_marketing/articles'
-import { Route as AppSettingsRouteImport } from './routes/_app/settings'
-import { Route as AppLibraryRouteImport } from './routes/_app/library'
-import { Route as AppInboxRouteImport } from './routes/_app/inbox'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as MarketingRouteImport } from './routes/_marketing'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AppConnectRouteImport } from './routes/_app/connect'
-import { Route as MarketingArticlesSaveLinksWithRaycastRouteImport } from './routes/_marketing/articles_.save-links-with-raycast'
-import { Route as MarketingArticlesReadLaterAppChromeIphoneRouteImport } from './routes/_marketing/articles_.read-later-app-chrome-iphone'
+import { Route as AppInboxRouteImport } from './routes/_app/inbox'
+import { Route as AppLibraryRouteImport } from './routes/_app/library'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as MarketingIndexRouteImport } from './routes/_marketing/index'
+import { Route as MarketingArticlesRouteImport } from './routes/_marketing/articles'
+import { Route as MarketingChromeExtensionRouteImport } from './routes/_marketing/chrome-extension'
+import { Route as MarketingIosAppRouteImport } from './routes/_marketing/ios-app'
+import { Route as MarketingPocketAlternativeRouteImport } from './routes/_marketing/pocket-alternative'
+import { Route as MarketingPrivacyRouteImport } from './routes/_marketing/privacy'
+import { Route as MarketingRaycastRouteImport } from './routes/_marketing/raycast'
+import { Route as MarketingSupportRouteImport } from './routes/_marketing/support'
+import { Route as MarketingWebCompanionRouteImport } from './routes/_marketing/web-companion'
+import { Route as ApiSearchRouteImport } from './routes/api.search'
+import { Route as DocsSplatRouteImport } from './routes/docs/$'
+import { Route as DocsChar123Char125DotmdRouteImport } from './routes/docs/{$}[.]md'
+import { Route as OauthConsentRouteImport } from './routes/oauth/consent'
+import { Route as OauthLoginRouteImport } from './routes/oauth/login'
 import { Route as MarketingArticlesBookmarkManagerForDevelopersRouteImport } from './routes/_marketing/articles_.bookmark-manager-for-developers'
 import { Route as MarketingArticlesHowToOrganizeTooManyOpenTabsRouteImport } from './routes/_marketing/articles_.how-to-organize-too-many-open-tabs'
+import { Route as MarketingArticlesReadLaterAppChromeIphoneRouteImport } from './routes/_marketing/articles_.read-later-app-chrome-iphone'
+import { Route as MarketingArticlesSaveLinksWithRaycastRouteImport } from './routes/_marketing/articles_.save-links-with-raycast'
+import { Route as MarketingUHandleRouteImport } from './routes/_marketing/u.$handle'
 import { Route as AppLibraryFoldersFolderIdRouteImport } from './routes/_app/library_.folders.$folderId'
 
-const MarketingRoute = MarketingRouteImport.update({
-  id: '/_marketing',
+const SplatRoute = SplatRouteImport.update({
+  id: '/$',
+  path: '/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SplatRoute = SplatRouteImport.update({
-  id: '/$',
-  path: '/$',
+const MarketingRoute = MarketingRouteImport.update({
+  id: '/_marketing',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppConnectRoute = AppConnectRouteImport.update({
+  id: '/connect',
+  path: '/connect',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInboxRoute = AppInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLibraryRoute = AppLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
 } as any)
 const MarketingIndexRoute = MarketingIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => MarketingRoute,
 } as any)
-const OauthLoginRoute = OauthLoginRouteImport.update({
-  id: '/oauth/login',
-  path: '/oauth/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OauthConsentRoute = OauthConsentRouteImport.update({
-  id: '/oauth/consent',
-  path: '/oauth/consent',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DocsChar123Char125DotmdRoute = DocsChar123Char125DotmdRouteImport.update({
-  id: '/docs/{$}.md',
-  path: '/docs/{$}.md',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DocsSplatRoute = DocsSplatRouteImport.update({
-  id: '/docs/$',
-  path: '/docs/$',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiSearchRoute = ApiSearchRouteImport.update({
-  id: '/api/search',
-  path: '/api/search',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MarketingWebCompanionRoute = MarketingWebCompanionRouteImport.update({
-  id: '/web-companion',
-  path: '/web-companion',
-  getParentRoute: () => MarketingRoute,
-} as any)
-const MarketingSupportRoute = MarketingSupportRouteImport.update({
-  id: '/support',
-  path: '/support',
-  getParentRoute: () => MarketingRoute,
-} as any)
-const MarketingRaycastRoute = MarketingRaycastRouteImport.update({
-  id: '/raycast',
-  path: '/raycast',
-  getParentRoute: () => MarketingRoute,
-} as any)
-const MarketingPrivacyRoute = MarketingPrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => MarketingRoute,
-} as any)
-const MarketingPocketAlternativeRoute =
-  MarketingPocketAlternativeRouteImport.update({
-    id: '/pocket-alternative',
-    path: '/pocket-alternative',
-    getParentRoute: () => MarketingRoute,
-  } as any)
-const MarketingIosAppRoute = MarketingIosAppRouteImport.update({
-  id: '/ios-app',
-  path: '/ios-app',
+const MarketingArticlesRoute = MarketingArticlesRouteImport.update({
+  id: '/articles',
+  path: '/articles',
   getParentRoute: () => MarketingRoute,
 } as any)
 const MarketingChromeExtensionRoute =
@@ -116,43 +92,62 @@ const MarketingChromeExtensionRoute =
     path: '/chrome-extension',
     getParentRoute: () => MarketingRoute,
   } as any)
-const MarketingArticlesRoute = MarketingArticlesRouteImport.update({
-  id: '/articles',
-  path: '/articles',
+const MarketingIosAppRoute = MarketingIosAppRouteImport.update({
+  id: '/ios-app',
+  path: '/ios-app',
   getParentRoute: () => MarketingRoute,
 } as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLibraryRoute = AppLibraryRouteImport.update({
-  id: '/library',
-  path: '/library',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppInboxRoute = AppInboxRouteImport.update({
-  id: '/inbox',
-  path: '/inbox',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppConnectRoute = AppConnectRouteImport.update({
-  id: '/connect',
-  path: '/connect',
-  getParentRoute: () => AppRoute,
-} as any)
-const MarketingArticlesSaveLinksWithRaycastRoute =
-  MarketingArticlesSaveLinksWithRaycastRouteImport.update({
-    id: '/articles_/save-links-with-raycast',
-    path: '/articles/save-links-with-raycast',
+const MarketingPocketAlternativeRoute =
+  MarketingPocketAlternativeRouteImport.update({
+    id: '/pocket-alternative',
+    path: '/pocket-alternative',
     getParentRoute: () => MarketingRoute,
   } as any)
-const MarketingArticlesReadLaterAppChromeIphoneRoute =
-  MarketingArticlesReadLaterAppChromeIphoneRouteImport.update({
-    id: '/articles_/read-later-app-chrome-iphone',
-    path: '/articles/read-later-app-chrome-iphone',
-    getParentRoute: () => MarketingRoute,
-  } as any)
+const MarketingPrivacyRoute = MarketingPrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => MarketingRoute,
+} as any)
+const MarketingRaycastRoute = MarketingRaycastRouteImport.update({
+  id: '/raycast',
+  path: '/raycast',
+  getParentRoute: () => MarketingRoute,
+} as any)
+const MarketingSupportRoute = MarketingSupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => MarketingRoute,
+} as any)
+const MarketingWebCompanionRoute = MarketingWebCompanionRouteImport.update({
+  id: '/web-companion',
+  path: '/web-companion',
+  getParentRoute: () => MarketingRoute,
+} as any)
+const ApiSearchRoute = ApiSearchRouteImport.update({
+  id: '/api/search',
+  path: '/api/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsSplatRoute = DocsSplatRouteImport.update({
+  id: '/docs/$',
+  path: '/docs/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsChar123Char125DotmdRoute = DocsChar123Char125DotmdRouteImport.update({
+  id: '/docs/{$}.md',
+  path: '/docs/{$}.md',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OauthConsentRoute = OauthConsentRouteImport.update({
+  id: '/oauth/consent',
+  path: '/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OauthLoginRoute = OauthLoginRouteImport.update({
+  id: '/oauth/login',
+  path: '/oauth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MarketingArticlesBookmarkManagerForDevelopersRoute =
   MarketingArticlesBookmarkManagerForDevelopersRouteImport.update({
     id: '/articles_/bookmark-manager-for-developers',
@@ -165,6 +160,23 @@ const MarketingArticlesHowToOrganizeTooManyOpenTabsRoute =
     path: '/articles/how-to-organize-too-many-open-tabs',
     getParentRoute: () => MarketingRoute,
   } as any)
+const MarketingArticlesReadLaterAppChromeIphoneRoute =
+  MarketingArticlesReadLaterAppChromeIphoneRouteImport.update({
+    id: '/articles_/read-later-app-chrome-iphone',
+    path: '/articles/read-later-app-chrome-iphone',
+    getParentRoute: () => MarketingRoute,
+  } as any)
+const MarketingArticlesSaveLinksWithRaycastRoute =
+  MarketingArticlesSaveLinksWithRaycastRouteImport.update({
+    id: '/articles_/save-links-with-raycast',
+    path: '/articles/save-links-with-raycast',
+    getParentRoute: () => MarketingRoute,
+  } as any)
+const MarketingUHandleRoute = MarketingUHandleRouteImport.update({
+  id: '/u/$handle',
+  path: '/u/$handle',
+  getParentRoute: () => MarketingRoute,
+} as any)
 const AppLibraryFoldersFolderIdRoute =
   AppLibraryFoldersFolderIdRouteImport.update({
     id: '/library_/folders/$folderId',
@@ -175,6 +187,7 @@ const AppLibraryFoldersFolderIdRoute =
 export interface FileRoutesByFullPath {
   '/$': typeof SplatRoute
   '/': typeof MarketingIndexRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/connect': typeof AppConnectRoute
   '/inbox': typeof AppInboxRoute
   '/library': typeof AppLibraryRoute
@@ -196,11 +209,13 @@ export interface FileRoutesByFullPath {
   '/articles/how-to-organize-too-many-open-tabs': typeof MarketingArticlesHowToOrganizeTooManyOpenTabsRoute
   '/articles/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/articles/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
+  '/u/$handle': typeof MarketingUHandleRoute
   '/library/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
 }
 export interface FileRoutesByTo {
   '/$': typeof SplatRoute
   '/': typeof MarketingIndexRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/connect': typeof AppConnectRoute
   '/inbox': typeof AppInboxRoute
   '/library': typeof AppLibraryRoute
@@ -222,6 +237,7 @@ export interface FileRoutesByTo {
   '/articles/how-to-organize-too-many-open-tabs': typeof MarketingArticlesHowToOrganizeTooManyOpenTabsRoute
   '/articles/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/articles/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
+  '/u/$handle': typeof MarketingUHandleRoute
   '/library/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
 }
 export interface FileRoutesById {
@@ -229,6 +245,7 @@ export interface FileRoutesById {
   '/$': typeof SplatRoute
   '/_app': typeof AppRouteWithChildren
   '/_marketing': typeof MarketingRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_app/connect': typeof AppConnectRoute
   '/_app/inbox': typeof AppInboxRoute
   '/_app/library': typeof AppLibraryRoute
@@ -251,6 +268,7 @@ export interface FileRoutesById {
   '/_marketing/articles_/how-to-organize-too-many-open-tabs': typeof MarketingArticlesHowToOrganizeTooManyOpenTabsRoute
   '/_marketing/articles_/read-later-app-chrome-iphone': typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   '/_marketing/articles_/save-links-with-raycast': typeof MarketingArticlesSaveLinksWithRaycastRoute
+  '/_marketing/u/$handle': typeof MarketingUHandleRoute
   '/_app/library_/folders/$folderId': typeof AppLibraryFoldersFolderIdRoute
 }
 export interface FileRouteTypes {
@@ -258,6 +276,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/$'
     | '/'
+    | '/sitemap.xml'
     | '/connect'
     | '/inbox'
     | '/library'
@@ -279,11 +298,13 @@ export interface FileRouteTypes {
     | '/articles/how-to-organize-too-many-open-tabs'
     | '/articles/read-later-app-chrome-iphone'
     | '/articles/save-links-with-raycast'
+    | '/u/$handle'
     | '/library/folders/$folderId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/$'
     | '/'
+    | '/sitemap.xml'
     | '/connect'
     | '/inbox'
     | '/library'
@@ -305,12 +326,14 @@ export interface FileRouteTypes {
     | '/articles/how-to-organize-too-many-open-tabs'
     | '/articles/read-later-app-chrome-iphone'
     | '/articles/save-links-with-raycast'
+    | '/u/$handle'
     | '/library/folders/$folderId'
   id:
     | '__root__'
     | '/$'
     | '/_app'
     | '/_marketing'
+    | '/sitemap.xml'
     | '/_app/connect'
     | '/_app/inbox'
     | '/_app/library'
@@ -333,6 +356,7 @@ export interface FileRouteTypes {
     | '/_marketing/articles_/how-to-organize-too-many-open-tabs'
     | '/_marketing/articles_/read-later-app-chrome-iphone'
     | '/_marketing/articles_/save-links-with-raycast'
+    | '/_marketing/u/$handle'
     | '/_app/library_/folders/$folderId'
   fileRoutesById: FileRoutesById
 }
@@ -340,6 +364,7 @@ export interface RootRouteChildren {
   SplatRoute: typeof SplatRoute
   AppRoute: typeof AppRouteWithChildren
   MarketingRoute: typeof MarketingRouteWithChildren
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiSearchRoute: typeof ApiSearchRoute
   DocsSplatRoute: typeof DocsSplatRoute
   DocsChar123Char125DotmdRoute: typeof DocsChar123Char125DotmdRoute
@@ -349,11 +374,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/_marketing': {
-      id: '/_marketing'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof MarketingRouteImport
+    '/$': {
+      id: '/$'
+      path: '/$'
+      fullPath: '/$'
+      preLoaderRoute: typeof SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -363,123 +388,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$': {
-      id: '/$'
-      path: '/$'
-      fullPath: '/$'
-      preLoaderRoute: typeof SplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_marketing/': {
-      id: '/_marketing/'
-      path: '/'
+    '/_marketing': {
+      id: '/_marketing'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof MarketingIndexRouteImport
-      parentRoute: typeof MarketingRoute
-    }
-    '/oauth/login': {
-      id: '/oauth/login'
-      path: '/oauth/login'
-      fullPath: '/oauth/login'
-      preLoaderRoute: typeof OauthLoginRouteImport
+      preLoaderRoute: typeof MarketingRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/oauth/consent': {
-      id: '/oauth/consent'
-      path: '/oauth/consent'
-      fullPath: '/oauth/consent'
-      preLoaderRoute: typeof OauthConsentRouteImport
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/docs/{$}.md': {
-      id: '/docs/{$}.md'
-      path: '/docs/{$}.md'
-      fullPath: '/docs/{$}.md'
-      preLoaderRoute: typeof DocsChar123Char125DotmdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/docs/$': {
-      id: '/docs/$'
-      path: '/docs/$'
-      fullPath: '/docs/$'
-      preLoaderRoute: typeof DocsSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/search': {
-      id: '/api/search'
-      path: '/api/search'
-      fullPath: '/api/search'
-      preLoaderRoute: typeof ApiSearchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_marketing/web-companion': {
-      id: '/_marketing/web-companion'
-      path: '/web-companion'
-      fullPath: '/web-companion'
-      preLoaderRoute: typeof MarketingWebCompanionRouteImport
-      parentRoute: typeof MarketingRoute
-    }
-    '/_marketing/support': {
-      id: '/_marketing/support'
-      path: '/support'
-      fullPath: '/support'
-      preLoaderRoute: typeof MarketingSupportRouteImport
-      parentRoute: typeof MarketingRoute
-    }
-    '/_marketing/raycast': {
-      id: '/_marketing/raycast'
-      path: '/raycast'
-      fullPath: '/raycast'
-      preLoaderRoute: typeof MarketingRaycastRouteImport
-      parentRoute: typeof MarketingRoute
-    }
-    '/_marketing/privacy': {
-      id: '/_marketing/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof MarketingPrivacyRouteImport
-      parentRoute: typeof MarketingRoute
-    }
-    '/_marketing/pocket-alternative': {
-      id: '/_marketing/pocket-alternative'
-      path: '/pocket-alternative'
-      fullPath: '/pocket-alternative'
-      preLoaderRoute: typeof MarketingPocketAlternativeRouteImport
-      parentRoute: typeof MarketingRoute
-    }
-    '/_marketing/ios-app': {
-      id: '/_marketing/ios-app'
-      path: '/ios-app'
-      fullPath: '/ios-app'
-      preLoaderRoute: typeof MarketingIosAppRouteImport
-      parentRoute: typeof MarketingRoute
-    }
-    '/_marketing/chrome-extension': {
-      id: '/_marketing/chrome-extension'
-      path: '/chrome-extension'
-      fullPath: '/chrome-extension'
-      preLoaderRoute: typeof MarketingChromeExtensionRouteImport
-      parentRoute: typeof MarketingRoute
-    }
-    '/_marketing/articles': {
-      id: '/_marketing/articles'
-      path: '/articles'
-      fullPath: '/articles'
-      preLoaderRoute: typeof MarketingArticlesRouteImport
-      parentRoute: typeof MarketingRoute
-    }
-    '/_app/settings': {
-      id: '/_app/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/library': {
-      id: '/_app/library'
-      path: '/library'
-      fullPath: '/library'
-      preLoaderRoute: typeof AppLibraryRouteImport
+    '/_app/connect': {
+      id: '/_app/connect'
+      path: '/connect'
+      fullPath: '/connect'
+      preLoaderRoute: typeof AppConnectRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/inbox': {
@@ -489,26 +416,117 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInboxRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/connect': {
-      id: '/_app/connect'
-      path: '/connect'
-      fullPath: '/connect'
-      preLoaderRoute: typeof AppConnectRouteImport
+    '/_app/library': {
+      id: '/_app/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof AppLibraryRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_marketing/articles_/save-links-with-raycast': {
-      id: '/_marketing/articles_/save-links-with-raycast'
-      path: '/articles/save-links-with-raycast'
-      fullPath: '/articles/save-links-with-raycast'
-      preLoaderRoute: typeof MarketingArticlesSaveLinksWithRaycastRouteImport
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_marketing/': {
+      id: '/_marketing/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof MarketingIndexRouteImport
       parentRoute: typeof MarketingRoute
     }
-    '/_marketing/articles_/read-later-app-chrome-iphone': {
-      id: '/_marketing/articles_/read-later-app-chrome-iphone'
-      path: '/articles/read-later-app-chrome-iphone'
-      fullPath: '/articles/read-later-app-chrome-iphone'
-      preLoaderRoute: typeof MarketingArticlesReadLaterAppChromeIphoneRouteImport
+    '/_marketing/articles': {
+      id: '/_marketing/articles'
+      path: '/articles'
+      fullPath: '/articles'
+      preLoaderRoute: typeof MarketingArticlesRouteImport
       parentRoute: typeof MarketingRoute
+    }
+    '/_marketing/chrome-extension': {
+      id: '/_marketing/chrome-extension'
+      path: '/chrome-extension'
+      fullPath: '/chrome-extension'
+      preLoaderRoute: typeof MarketingChromeExtensionRouteImport
+      parentRoute: typeof MarketingRoute
+    }
+    '/_marketing/ios-app': {
+      id: '/_marketing/ios-app'
+      path: '/ios-app'
+      fullPath: '/ios-app'
+      preLoaderRoute: typeof MarketingIosAppRouteImport
+      parentRoute: typeof MarketingRoute
+    }
+    '/_marketing/pocket-alternative': {
+      id: '/_marketing/pocket-alternative'
+      path: '/pocket-alternative'
+      fullPath: '/pocket-alternative'
+      preLoaderRoute: typeof MarketingPocketAlternativeRouteImport
+      parentRoute: typeof MarketingRoute
+    }
+    '/_marketing/privacy': {
+      id: '/_marketing/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof MarketingPrivacyRouteImport
+      parentRoute: typeof MarketingRoute
+    }
+    '/_marketing/raycast': {
+      id: '/_marketing/raycast'
+      path: '/raycast'
+      fullPath: '/raycast'
+      preLoaderRoute: typeof MarketingRaycastRouteImport
+      parentRoute: typeof MarketingRoute
+    }
+    '/_marketing/support': {
+      id: '/_marketing/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof MarketingSupportRouteImport
+      parentRoute: typeof MarketingRoute
+    }
+    '/_marketing/web-companion': {
+      id: '/_marketing/web-companion'
+      path: '/web-companion'
+      fullPath: '/web-companion'
+      preLoaderRoute: typeof MarketingWebCompanionRouteImport
+      parentRoute: typeof MarketingRoute
+    }
+    '/api/search': {
+      id: '/api/search'
+      path: '/api/search'
+      fullPath: '/api/search'
+      preLoaderRoute: typeof ApiSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs/$': {
+      id: '/docs/$'
+      path: '/docs/$'
+      fullPath: '/docs/$'
+      preLoaderRoute: typeof DocsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs/{$}.md': {
+      id: '/docs/{$}.md'
+      path: '/docs/{$}.md'
+      fullPath: '/docs/{$}.md'
+      preLoaderRoute: typeof DocsChar123Char125DotmdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth/consent': {
+      id: '/oauth/consent'
+      path: '/oauth/consent'
+      fullPath: '/oauth/consent'
+      preLoaderRoute: typeof OauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth/login': {
+      id: '/oauth/login'
+      path: '/oauth/login'
+      fullPath: '/oauth/login'
+      preLoaderRoute: typeof OauthLoginRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_marketing/articles_/bookmark-manager-for-developers': {
       id: '/_marketing/articles_/bookmark-manager-for-developers'
@@ -522,6 +540,27 @@ declare module '@tanstack/react-router' {
       path: '/articles/how-to-organize-too-many-open-tabs'
       fullPath: '/articles/how-to-organize-too-many-open-tabs'
       preLoaderRoute: typeof MarketingArticlesHowToOrganizeTooManyOpenTabsRouteImport
+      parentRoute: typeof MarketingRoute
+    }
+    '/_marketing/articles_/read-later-app-chrome-iphone': {
+      id: '/_marketing/articles_/read-later-app-chrome-iphone'
+      path: '/articles/read-later-app-chrome-iphone'
+      fullPath: '/articles/read-later-app-chrome-iphone'
+      preLoaderRoute: typeof MarketingArticlesReadLaterAppChromeIphoneRouteImport
+      parentRoute: typeof MarketingRoute
+    }
+    '/_marketing/articles_/save-links-with-raycast': {
+      id: '/_marketing/articles_/save-links-with-raycast'
+      path: '/articles/save-links-with-raycast'
+      fullPath: '/articles/save-links-with-raycast'
+      preLoaderRoute: typeof MarketingArticlesSaveLinksWithRaycastRouteImport
+      parentRoute: typeof MarketingRoute
+    }
+    '/_marketing/u/$handle': {
+      id: '/_marketing/u/$handle'
+      path: '/u/$handle'
+      fullPath: '/u/$handle'
+      preLoaderRoute: typeof MarketingUHandleRouteImport
       parentRoute: typeof MarketingRoute
     }
     '/_app/library_/folders/$folderId': {
@@ -566,6 +605,7 @@ interface MarketingRouteChildren {
   MarketingArticlesHowToOrganizeTooManyOpenTabsRoute: typeof MarketingArticlesHowToOrganizeTooManyOpenTabsRoute
   MarketingArticlesReadLaterAppChromeIphoneRoute: typeof MarketingArticlesReadLaterAppChromeIphoneRoute
   MarketingArticlesSaveLinksWithRaycastRoute: typeof MarketingArticlesSaveLinksWithRaycastRoute
+  MarketingUHandleRoute: typeof MarketingUHandleRoute
 }
 
 const MarketingRouteChildren: MarketingRouteChildren = {
@@ -586,6 +626,7 @@ const MarketingRouteChildren: MarketingRouteChildren = {
     MarketingArticlesReadLaterAppChromeIphoneRoute,
   MarketingArticlesSaveLinksWithRaycastRoute:
     MarketingArticlesSaveLinksWithRaycastRoute,
+  MarketingUHandleRoute: MarketingUHandleRoute,
 }
 
 const MarketingRouteWithChildren = MarketingRoute._addFileChildren(
@@ -596,6 +637,7 @@ const rootRouteChildren: RootRouteChildren = {
   SplatRoute: SplatRoute,
   AppRoute: AppRouteWithChildren,
   MarketingRoute: MarketingRouteWithChildren,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiSearchRoute: ApiSearchRoute,
   DocsSplatRoute: DocsSplatRoute,
   DocsChar123Char125DotmdRoute: DocsChar123Char125DotmdRoute,

@@ -92,7 +92,7 @@ A named device or environment from which a user captures URLs, used as a recall 
 _Avoid_: Capture Channel, integration, client type
 
 **Capture Channel**:
-A way a user sends a URL into the app. Stored as a closed enum on each Saved Item: `chrome-extension`, `ios-app`, `ios-share-extension`, `raycast`, `web-companion`, `api`.
+A way a user sends a URL into the app. Stored as a closed enum on each Saved Item: `chrome-extension`, `ios-app`, `ios-share-extension`, `raycast`, `web-companion`, `api`, `public-profile`.
 _Avoid_: Integration, source, device
 
 **Chrome Extension**:
@@ -399,6 +399,38 @@ _Avoid_: Full summary, article replacement, abstract
 A consistent Saved Item row height that keeps scrolling smooth whether enrichment fields are present or missing.
 _Avoid_: Variable-height feed
 
+**Public Profile**:
+An opt-in public page that shows one Account's Handle, Reading Activity, and the Saved Items in its Published Folders.
+_Avoid_: Account, social profile, published collection, user page
+
+**Handle**:
+The Account-chosen unique public identifier used in a Public Profile URL, claimed when Profile Visibility is first turned on.
+_Avoid_: Slug, username, sign-in name, display name
+
+**Profile Visibility**:
+The Account setting that turns a Public Profile on or off. On its own it publishes no Saved Item: a Public Profile shows only what its Published Folders hold.
+_Avoid_: Per-item share, account privacy settings
+
+**Published Folder**:
+A Folder its Account chose to show on its Public Profile. Every Saved Item inside it is public while Profile Visibility is public, and a Folder is unpublished until its Account says otherwise.
+_Avoid_: Private Folder, shared folder, public collection, hidden navigation destination
+
+**Reading Activity**:
+Per-day counts of first captures for an Account, shown on a Public Profile as a rolling 52-week grid.
+_Avoid_: Read history, reading time, streak, contribution graph
+
+**Public Profile Endpoint**:
+An unauthenticated REST API operation under `/v1/public/` that serves one part of a Public Profile to an anonymous visitor.
+_Avoid_: Session endpoint, API Key endpoint, account administration
+
+**Public Profile Rate Limit**:
+A single per-address request budget of 60 requests per minute applied across every Public Profile Endpoint.
+_Avoid_: API Key Rate Limit, per-endpoint quota, per-Account budget
+
+**Search Indexability**:
+The server-computed boolean that tells a client whether a Public Profile may be offered to search engines.
+_Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
+
 ## Relationships
 
 - A **Read-Later App** contains many **Saved Items**.
@@ -600,6 +632,42 @@ _Avoid_: Variable-height feed
 - The **Command Palette** searches Saved Items across all Folders and unfiled Library content.
 - The **Command Palette** suppresses all global keyboard shortcuts while open and restores list selection state on close.
 - The **Web Companion** uses app-level selection state in a root-level React context rather than DOM focus for keyboard list navigation.
+- An **Account** has at most one **Public Profile**.
+- "Profile", alone, in code and in API paths, always names the **Public Profile** record — its **Handle** and its **Profile Visibility**. It never names an **Account**, which is why `/v1/profile` reads and changes those two settings and nothing else about the Account.
+- A **Public Profile** is addressed by one **Handle** at `/u/{handle}`.
+- A **Handle** is unique across Accounts after lowercasing, is 3 to 30 characters of `a-z`, `0-9`, `-`, and `_`, and may not use a reserved path name.
+- A **Handle** stays reserved to its Account while **Profile Visibility** is private. Renaming releases the old spelling at once, and anyone may claim it. Deleting the Account releases the Handle.
+- **Profile Visibility** is private by default and becomes public through one explicit confirmed action.
+- A **Saved Item** appears on a **Public Profile** only when Profile Visibility is public and the Saved Item is in a **Published Folder**.
+- A **Saved Item** in no Folder is never public, so a capture that files nothing publishes nothing.
+- A Saved Item outside a **Published Folder** is absent from a Public Profile without a placeholder or a count.
+- Publishing and unpublishing a **Folder** takes effect at once, so unpublishing is how an Account withdraws content.
+- A **Public Profile** withholds the Folder name, **Source** name, **Capture Channel**, and **Read State** of every listed Saved Item.
+- A **Public Profile** shows a **Handle** only, without a display name, biography, or avatar.
+- **Reading Activity** counts first captures only, bucketed by Saved Item creation time in UTC, and counts every Saved Item, including those outside a **Published Folder**.
+- **Reading Activity** covers a rolling 52 weeks ending on the current UTC day.
+- A **Duplicate Save** adds no **Reading Activity**.
+- A **Public Profile** becomes eligible for search indexing when its Account is at least 7 days old and has at least 5 public Saved Items.
+- A **Public Profile** marks every outbound Saved Item link `rel="ugc nofollow"`.
+- A request for an unknown **Handle** and a request for a private **Public Profile** return the same not-found response.
+- Every **Public Profile Endpoint** lives under `/v1/public/`, beginning with `GET /v1/public/profiles/{handle}`.
+- A **Public Profile Endpoint** requires no **App Session** and no **API Key**.
+- `GET /v1/public/profiles/{handle}` returns the **Handle**, the Account join date, the public Saved Item count, and **Search Indexability**.
+- `GET /v1/public/profiles/{handle}/activity` returns the **Handle**, the inclusive first and last UTC day of the **Reading Activity** window, and one count for every day inside it that has a save.
+- The Account join date on a **Public Profile** is when the **Account** was created, not when its **Handle** was claimed.
+- `GET /v1/public/profiles/{handle}/saved-items` returns one page of that Account's public **Saved Items**, newest first by Saved Item creation time, 50 to a page.
+- A public Saved Item page is addressed by page number, and page 1 answers even when an Account publishes nothing, so every page of a **Public Profile** is a URL a crawler can reach.
+- A public Saved Item representation carries the **Original URL**, host, title, favicon variants, image, **Type**, **Effective Tags**, **Preview Summary**, and the Saved Item creation time, and nothing else.
+- **Search Indexability** is true only when the **Account** is at least 7 days old and has at least 5 public **Saved Items**.
+- `GET /v1/public/indexable-profiles` returns one page of the **Handles** whose **Public Profile** has **Search Indexability**, 1000 to a page, each with the creation time of the newest **Saved Item** that Public Profile shows.
+- A **Public Profile** without **Search Indexability** is absent from `GET /v1/public/indexable-profiles`, and the route answers with an empty page rather than a not-found when no Handle qualifies.
+- The **Web Companion** serves `/sitemap.xml` from that listing together with its own fixed marketing and documentation URLs, and serves the fixed URLs alone when the listing cannot be read.
+- Every **Public Profile Endpoint** is subject to the **Public Profile Rate Limit** rather than the **API Key Rate Limit**.
+- A request over the **Public Profile Rate Limit** receives a **Rate Limit Response**.
+- A successful **Public Profile Endpoint** response may be cached for five minutes; a not-found response is not cached.
+- The public **Saved Item** rule is resolved in SQL and owned by Postgres, which decides the one-hour boundary.
+- A signed-in visitor may capture a listed Saved Item into their own Account through the `public-profile` **Capture Channel**.
+- Marking a Saved Item or a Folder private is a **Web Companion** action in v1.
 
 ## Flagged Ambiguities
 
@@ -659,3 +727,15 @@ These record the reasoning behind decisions that are not obvious from the defini
 - **Source** is lazily registered via the capture endpoint, not eagerly; resolved: the API finds-or-creates a Source by name within the Account when a `sourceName` is provided.
 - **Source** is deduplicated by name within an Account; resolved: reinstalls or re-setups reuse the existing Source if the auto-detected name matches.
 - **Source** is nullable; resolved: old items and raw API captures without a source name have no Source.
+- An **Account** is not a **Public Profile**; resolved: Account stays the private owner and keeps avoiding the word profile, while a Public Profile is a separate audience-facing surface an Account may publish.
+- A **Handle** is not a sign-in name; resolved: it is a product identifier stored with the Public Profile rather than an authentication credential.
+- Publishing is per **Folder**, and there is no per-item publishing; resolved: an Account publishes a Folder and everything inside it appears, because one audience decision per Folder is a thing a person can hold in their head, while a rule that publishes everything except marked exceptions asks them to audit a whole library.
+- A **Saved Item** carries no audience flag of its own; resolved: its Folder decides, so there is one place to look and one place to change.
+- **Reading Activity** is saves, not reads; resolved: **Read State** stays private and no read-derived statistic appears on a Public Profile.
+- **Reading Activity** is bucketed by creation time, not **Last Saved At**; resolved: a **Duplicate Save** would otherwise rewrite past activity.
+- **Reading Activity** day buckets use UTC, not the viewer timezone; resolved: per-viewer bucketing would make every response unique and prevent shared caching.
+- **Reading Activity** counts saves outside a **Published Folder**; resolved: a count is not a URL, and a grid restricted to published Saved Items would be too empty to be worth showing.
+- Public Saved Item responses are not the Saved Item REST representation; resolved: the public shape is an allow-list, so fields added to the private representation later cannot leak.
+- A public Saved Item page is not ordered by **Last Saved At**; resolved: Saved Item creation time orders it, so a **Duplicate Save** cannot reorder a published page.
+- A public Saved Item page is not addressed by cursor; resolved: numbered pages give every page a shareable URL, which a crawler can reach and infinite scroll cannot.
+- The first publish has no review step; resolved: opt-in confirmation copy states the item count and the automatic future behavior, and Sleevy accepts that an existing library publishes in full at that moment.
