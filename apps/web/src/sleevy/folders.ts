@@ -48,6 +48,27 @@ export function useRenameFolder() {
   })
 }
 
+// Marks one Folder as a Private Folder, withholding every Saved Item inside it
+// from the Public Profile. The payload carries `isPrivate` alone, because an
+// omitted field keeps its stored value and the name, emoji, and colour are not
+// being changed here. Saved Items are invalidated too, since every row carries
+// its Folder Summary and reads its Folder's marker from it.
+export function useSetFolderPrivate() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, isPrivate }: { readonly id: string; readonly isPrivate: boolean }) =>
+      apiFetch<Folder>(`/v1/folders/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isPrivate }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: foldersQueryKey })
+      void queryClient.invalidateQueries({ queryKey: savedItemsQueryKey })
+    },
+  })
+}
+
 export function useDeleteFolder() {
   const queryClient = useQueryClient()
 

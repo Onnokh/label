@@ -1,10 +1,11 @@
 import { useRef } from "react"
 import clsx from "clsx"
 import { differenceInHours, differenceInMinutes, format } from "date-fns"
-import { MoreVertical } from "lucide-react"
+import { EyeOff, MoreVertical } from "lucide-react"
 
-import type { SavedItem } from "../../sleevy/saved-items"
+import { type SavedItem, useSetSavedItemPrivate } from "../../sleevy/saved-items"
 import { SAVED_ITEM_DRAG_TYPE, useFolders, useMoveSavedItemToFolder } from "../../sleevy/folders"
+import { useIsProfilePublic } from "../../sleevy/profile"
 import { ContextMenu, type ContextMenuItem } from "../ui/context-menu/context-menu"
 import styles from "./saved-card.module.scss"
 
@@ -19,6 +20,16 @@ type Props = {
 
 function faviconUrl(host: string) {
   return `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${host}&size=64`
+}
+
+// What a visitor to the Public Profile will not see, and why. A Saved Item is
+// withheld on its own marker or through a Private Folder.
+function withheldLabel(item: SavedItem) {
+  if (item.isPrivate) return "Private. A visitor to your Public Profile does not see this item."
+  if (item.folder?.isPrivate) {
+    return `In the private folder ${item.folder.name}. A visitor to your Public Profile does not see this item.`
+  }
+  return null
 }
 
 function formatDate(value: string) {
@@ -39,6 +50,8 @@ function formatDate(value: string) {
 export function SavedCard({ item, isSelected, pendingDelete, onDelete, onOpen, onSetReadState }: Props) {
   const foldersQuery = useFolders()
   const moveMutation = useMoveSavedItemToFolder()
+  const setPrivateMutation = useSetSavedItemPrivate()
+  const isProfilePublic = useIsProfilePublic()
   const rowRef = useRef<HTMLDivElement>(null)
   const wasSelectedRef = useRef(false)
 
@@ -70,12 +83,23 @@ export function SavedCard({ item, isSelected, pendingDelete, onDelete, onOpen, o
   const items: readonly ContextMenuItem[] = [
     { key: "open", label: "Open", href: item.originalUrl },
     { key: "read", label: item.isRead ? "Mark Unread" : "Mark Read", onClick: () => onSetReadState(item.id, !item.isRead) },
+    {
+      key: "private",
+      // The label states the stored marker, which is how the flag stays legible
+      // while Profile Visibility is private and the row shows no marker.
+      label: item.isPrivate ? "Show on Public Profile" : "Hide from Public Profile",
+      onClick: () => setPrivateMutation.mutate({ id: item.id, isPrivate: !item.isPrivate }),
+    },
     { key: "copy", label: "Copy URL", onClick: copyUrl },
     ...(moveItems.length > 0 ? [{ key: "move", label: "Move to", items: moveItems }] : []),
     { key: "delete", label: "Delete", destructive: true, onClick: () => onDelete(item.id) },
   ]
 
   const date = formatDate(item.lastSavedAt)
+
+  // The marker only means something once there is a visitor to withhold from,
+  // so a private Public Profile leaves the row quiet.
+  const privateLabel = isProfilePublic ? withheldLabel(item) : null
 
   if (pendingDelete) {
     return (
@@ -118,6 +142,17 @@ export function SavedCard({ item, isSelected, pendingDelete, onDelete, onOpen, o
           <span className={styles.title}>{item.title ?? item.host}</span>
           <span className={styles.host}>{item.host}</span>
         </div>
+
+        {privateLabel ? (
+          <span
+            className={clsx(styles.privateMarker, !item.isPrivate && styles.privateMarkerFolder)}
+            role="img"
+            aria-label={privateLabel}
+            title={privateLabel}
+          >
+            <EyeOff size={12} />
+          </span>
+        ) : null}
 
         <span className={clsx(styles.date, !item.isRead && styles.unreadDate)}>{date}</span>
       </a>

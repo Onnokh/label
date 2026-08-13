@@ -158,3 +158,11 @@ export function useSetProfileVisibility() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: profileQueryKey }),
   })
 }
+
+// A private marker answers "what will a visitor not see?", so it only means
+// something while there is a visitor. Until Profile Visibility is public, every
+// Saved Item is already withheld and the rows stay quiet.
+export function useIsProfilePublic() {
+  const { profile } = useProfile()
+  return profile?.visibility === "public"
+}
