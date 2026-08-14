@@ -2,7 +2,18 @@ import type { PublicSavedItem } from "../../sleevy/public-profile"
 import { SaveToLibraryButton } from "./save-to-library-button"
 import styles from "./saved-item-card.module.scss"
 
-const dayMonth = new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" })
+// The date of a Saved Item is stated in UTC, the zone the month markers and the
+// Reading Activity grid above already use, so a card never disagrees with the
+// marker it sits under. State no zone and Intl uses the zone of the machine that
+// formats: UTC in the server container, the visitor's zone in the browser. The
+// two strings then disagree, and React discards the server markup and renders
+// the page again. Do not change this to the visitor's zone.
+const dayMonth = new Intl.DateTimeFormat("en", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+})
 
 // Every published outbound link carries ugc and nofollow, so a Public Profile is
 // not worth targeting for link spam.
