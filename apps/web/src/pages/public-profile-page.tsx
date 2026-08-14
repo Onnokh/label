@@ -72,22 +72,20 @@ const ReadingActivityGrid = ({
 
   return (
     <section className={styles.activitySection}>
-      <div className={styles.activity}>
-        {/* Nothing states this in view, so the grid carries the sentence as its
-            label: it reads as one image, and a screen reader hears the meaning
-            once rather than 365 empty cells. Each day still carries its own count
-            for a pointer. */}
-        <div className={styles.activityGrid} role="img" aria-label={sentence}>
-          {cells.map((cell, index) => (
-            <div
-              key={cell.date ?? `pad-${index}`}
-              className={`${styles.day} ${activityLevel(cell.count)}`}
-              title={cell.date && cell.count > 0
-                ? `${cell.count} ${cell.count === 1 ? "save" : "saves"} on ${cell.date}`
-                : undefined}
-            />
-          ))}
-        </div>
+      {/* Nothing states this in view, so the grid carries the sentence as its
+          label: it reads as one image, and a screen reader hears the meaning
+          once rather than 365 empty cells. Each day still carries its own count
+          for a pointer. */}
+      <div className={styles.activityGrid} role="img" aria-label={sentence}>
+        {cells.map((cell, index) => (
+          <div
+            key={cell.date ?? `pad-${index}`}
+            className={`${styles.day} ${activityLevel(cell.count)}`}
+            title={cell.date && cell.count > 0
+              ? `${cell.count} ${cell.count === 1 ? "save" : "saves"} on ${cell.date}`
+              : undefined}
+          />
+        ))}
       </div>
     </section>
   )
