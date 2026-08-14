@@ -16,7 +16,18 @@ export type PublicProfileData = {
   readonly activity: ReadingActivity
 }
 
-const shortMonthYear = new Intl.DateTimeFormat("en", { month: "short", year: "numeric" })
+// Every date on a Public Profile is stated in UTC, because the domain counts in
+// UTC: Reading Activity puts each save in a UTC day. State no zone and Intl uses
+// the zone of the machine that formats — UTC in the server container, the
+// visitor's zone in the browser — so the server markup and the browser markup
+// disagree, and React discards the server markup and renders the page again.
+// Do not change this to the visitor's zone: the page is cached at the edge, and
+// one copy goes to every visitor.
+const shortMonthYear = new Intl.DateTimeFormat("en", {
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+})
 
 // The API buckets Reading Activity by UTC day, so the grid reads those days back
 // as UTC too. Parsing "2026-08-13" as a local date would shift a save into the
