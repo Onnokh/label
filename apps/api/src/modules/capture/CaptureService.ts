@@ -35,7 +35,12 @@ const POST_PATTERNS: ReadonlyArray<RegExp> = [
 const isPostUrl = (host: string, pathname: string) =>
   POST_PATTERNS.some((pattern) => pattern.test(host)) && /^\/[^/]+\/status\/\d+/.test(pathname)
 
-const inferType = (url: URL): LinkType => {
+/**
+ * The Type a URL alone implies. Capture is the only writer of the Type, so a
+ * backfill of Saved Items captured before a Type existed has to ask the same
+ * question this asks, which is why it is exported rather than private.
+ */
+export const inferLinkType = (url: URL): LinkType => {
   const host = url.hostname.toLowerCase().replace(/^www\./, "")
   const href = url.toString().toLowerCase()
 
@@ -84,7 +89,7 @@ export const normalizeCaptureUrl = (input: string): Effect.Effect<NormalizedCapt
         originalUrl: original.toString(),
         normalizedUrl: normalized.toString(),
         host: normalized.host,
-        type: inferType(normalized),
+        type: inferLinkType(normalized),
       }
     },
     catch: () => new InvalidUrl({ url: input }),
