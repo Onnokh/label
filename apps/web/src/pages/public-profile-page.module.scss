@@ -68,6 +68,46 @@
   text-transform: uppercase;
 }
 
+/* Reading Activity ------------------------------------------------------- */
+
+// These rules are load-bearing in a way that is easy to miss: every class below
+// is read through `styles.` in the page, so deleting one does not soften the
+// grid, it renders a year of `class="undefined"` divs with no size at all and the
+// grid disappears while the markup stays. That is how it was lost once already.
+.activitySection {
+  margin-top: 1.75rem;
+}
+
+// Fitted to the measure rather than scrolled sideways. The grid is 53 columns of
+// seven days and each column takes an equal share of the page, so a whole year
+// lands inside the same width as the cards below it. A cell sized in pixels
+// would either overflow that measure or stop short of it, and it would ignore
+// the root font size the marketing tree sets from the viewport.
+.activityGrid {
+  display: grid;
+  // One column per week, seven rows for the days, filled column by column.
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, auto);
+  grid-auto-columns: 1fr;
+  gap: 0.1875rem;
+  width: 100%;
+}
+
+// The column share gives the width; the ratio turns it into a square. Nothing
+// here states a height, so the grid keeps its shape at every root font size.
+.day {
+  aspect-ratio: 1;
+  border-radius: 0.125rem;
+  background: rgb(255 255 255 / 6%);
+}
+
+// One hue at four strengths, so a busy week reads as darker rather than as a
+// different kind of day.
+.level1 { background: rgb(129 140 248 / 35%); }
+.level2 { background: rgb(129 140 248 / 55%); }
+.level3 { background: rgb(129 140 248 / 75%); }
+.level4 { background: rgb(129 140 248 / 100%); }
+
 .section {
   margin-top: 4rem;
 }
