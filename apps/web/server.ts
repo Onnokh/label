@@ -67,6 +67,29 @@ async function withDeferredHydration(req: Request, response: Response): Promise<
   return new Response(body, { status: response.status, statusText: response.statusText, headers })
 }
 
+// The app shell asks to stay out of the index with a robots meta tag, but its
+// routes are ssr: false, so that tag reaches a crawler only after hydration —
+// the served HTML carries no robots signal at all. /inbox needs one it can
+// actually read: it is already indexed from an earlier crawl, and robots.txt
+// keeps it crawlable on purpose so the noindex can arrive and drop it. A header
+// survives whether or not the route renders on the server, so send it here.
+const noindexPaths = new Set(["/connect", "/inbox", "/library", "/settings"])
+
+const isNoindexPath = (pathname: string) => {
+  const path = pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname
+
+  return noindexPaths.has(path) || path.startsWith("/library/") || path.startsWith("/oauth/")
+}
+
+function withRobotsTag(url: URL, response: Response): Response {
+  if (!isNoindexPath(url.pathname)) return response
+
+  const headers = new Headers(response.headers)
+  headers.set("X-Robots-Tag", "noindex, nofollow")
+
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
+}
+
 // Text assets (HTML, JS, CSS, JSON, SVG) ship uncompressed otherwise — the SSR
 // bundle alone is ~500 KB on the wire, which dominates load on slow links. Gzip
 // them on the fly; images are already compressed formats, so leave them be.
@@ -159,7 +182,7 @@ Bun.serve({
       return withCompression(req, staticResponse)
     }
 
-    return withCompression(req, await withDeferredHydration(req, await handler.fetch(req)))
+    return withCompression(req, withRobotsTag(url, await withDeferredHydration(req, await handler.fetch(req))))
   },
 })
 
