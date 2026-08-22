@@ -10,10 +10,16 @@ struct ReadingListView: View {
     @State private var captureErrorMessage: String?
     @State private var isReadingListScrolled = false
     @State private var capturePlacement: CapturePlacement = .inlineRow
+    @State private var headerScrollDistance: CGFloat = 0
+    @State private var headerTopInsetBaseline: CGFloat = 0
 
     var body: some View {
         GeometryReader { geometry in
-            readingList(emptyStateHeight: geometry.size.height)
+            readingList(
+                emptyStateHeight: geometry.size.height,
+                headerCardHeight: geometry.size.width * 9 / 16,
+                headerTopInset: geometry.safeAreaInsets.top
+            )
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
@@ -42,7 +48,11 @@ struct ReadingListView: View {
         }
     }
 
-    private func readingList(emptyStateHeight: CGFloat) -> some View {
+    private func readingList(
+        emptyStateHeight: CGFloat,
+        headerCardHeight: CGFloat,
+        headerTopInset: CGFloat
+    ) -> some View {
         List {
             if store.isLoading && store.savedItems().isEmpty && store.pendingSavedItems.isEmpty {
                 ReadingListLoadingRow(height: emptyStateHeight)
@@ -75,7 +85,7 @@ struct ReadingListView: View {
                         }
                         .listRowInsets(EdgeInsets(top: 0, leading: 18, bottom: 0, trailing: 18))
                         .listRowBackground(Color.clear)
-                        .listRowSeparatorTint(.white.opacity(0.08))
+                        .listRowSeparatorTint(.primary.opacity(0.08))
                     }
                 }
             }
@@ -121,8 +131,21 @@ struct ReadingListView: View {
                 }
                 .listRowInsets(EdgeInsets(top: 0, leading: 18, bottom: 0, trailing: 18))
                 .listRowBackground(Color.clear)
-                .listRowSeparatorTint(.white.opacity(0.08))
+                .listRowSeparatorTint(.primary.opacity(0.08))
+                // No line between the header card and the first row.
+                .listRowSeparator(item.id == unreadItems.first?.id ? .hidden : .automatic, edges: .top)
             }
+        }
+        // The large title stays native; the card is only painted behind it. The
+        // extra margin moves the first row below the card, since the navigation
+        // region alone is shorter than 16:9.
+        .contentMargins(.top, max(0, headerCardHeight - headerTopInset), for: .scrollContent)
+        .background(alignment: .top) {
+            InboxHeaderCard(
+                height: headerCardHeight + max(0, -headerScrollDistance)
+            )
+            .offset(y: -max(0, headerScrollDistance))
+            .ignoresSafeArea(edges: .top)
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             if isCaptureCapsuleOpen && capturePlacement == .pinnedInset {
@@ -138,6 +161,28 @@ struct ReadingListView: View {
             geometry.contentOffset.y > 8
         } action: { _, isScrolled in
             isReadingListScrolled = isScrolled
+        }
+        .onScrollGeometryChange(for: HeaderScrollReading.self) { geometry in
+            HeaderScrollReading(
+                offset: geometry.contentOffset.y,
+                inset: geometry.contentInsets.top
+            )
+        } action: { _, reading in
+            // Zero at rest, positive once the user scrolls, negative on
+            // pull-to-refresh. Drives the header card only.
+            //
+            // The native refresh spinner grows the top inset when it appears
+            // and hands the space back when it hides. Following the live
+            // inset makes the card snap ~19pt at both moments, so the card
+            // measures against a resting baseline instead. A larger inset is
+            // adopted only while the list rests -- the spinner's inset never
+            // qualifies, since it only shows mid-pull.
+            guard reading.inset > 0 else { return }
+
+            if reading.inset <= headerTopInsetBaseline || headerScrollDistance >= 0 {
+                headerTopInsetBaseline = reading.inset
+            }
+            headerScrollDistance = reading.offset + headerTopInsetBaseline
         }
         .animation(.snappy(duration: 0.24), value: isCaptureCapsuleOpen)
         .animation(.snappy(duration: 0.24), value: store.pendingSavedItems)
@@ -261,6 +306,30 @@ struct ReadingListView: View {
 private enum CapturePlacement {
     case inlineRow
     case pinnedInset
+}
+
+/// What the header card needs from the scroll geometry.
+private struct HeaderScrollReading: Equatable {
+    var offset: CGFloat
+    var inset: CGFloat
+}
+
+/// The 16:9 brand card behind the Inbox large title. It spans the physical
+/// top, leading, and trailing edges, scrolls away with the content, and
+/// stretches on pull-down so the top edge never opens a seam.
+private struct InboxHeaderCard: View {
+    let height: CGFloat
+
+    var body: some View {
+        AuroraBackground()
+            .frame(height: height)
+            .frame(maxWidth: .infinity)
+            .clipShape(.rect(
+                bottomLeadingRadius: 28,
+                bottomTrailingRadius: 28,
+                style: .continuous
+            ))
+    }
 }
 
 private struct NavigationSubtitleIfAvailable: ViewModifier {
