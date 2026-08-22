@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import WidgetKit
 
 @MainActor
 @Observable
@@ -82,6 +83,7 @@ final class AuthStore {
             tokenStore.rotate(to: restoredSession.token)
             session = displaySession
             cache(session: displaySession)
+            refreshSharedProfileHandle()
         } catch {
             if shouldDiscardSession(for: error) {
                 clearPersistedSession()
@@ -114,6 +116,7 @@ final class AuthStore {
             googleUserProfile = await googleSignInClient.restoreUserProfile()
             prefetchProfileImage(googleUserProfile)
             self.session = session
+            refreshSharedProfileHandle()
         } catch {
             errorMessage = AppConfig.userFacingNetworkMessage(for: error) ?? error.localizedDescription
         }
@@ -137,6 +140,7 @@ final class AuthStore {
             cache(session: session)
             googleUserProfile = nil
             self.session = session
+            refreshSharedProfileHandle()
         } catch {
             errorMessage = AppConfig.userFacingNetworkMessage(for: error) ?? error.localizedDescription
         }
@@ -324,6 +328,42 @@ final class AuthStore {
     private func clearPersistedSession() {
         tokenStore.clear()
         sharedDefaults?.removeObject(forKey: AppConfig.sharedAppSessionKey)
+
+        if SleevyUserPreferences.profileHandle != nil {
+            SleevyUserPreferences.profileHandle = nil
+            WidgetCenter.shared.reloadTimelines(ofKind: "ReadingActivityWidget")
+        }
+    }
+
+    /// The activity widget keys the public activity endpoint by profile
+    /// handle, which the session payload does not carry. Fetch it in the
+    /// background and share it through the app group; the widget follows the
+    /// signed-in account without holding credentials of its own.
+    private func refreshSharedProfileHandle() {
+        Task {
+            let token = tokenStore.current
+            guard !token.isEmpty else { return }
+
+            guard
+                let response = try? await api.send("/v1/profile", token: token),
+                let profile = try? decoder.decode(ProfileHandleResponse.self, from: response.data)
+            else { return }
+
+            // Mirror a rotated `set-auth-token` like every other authed call.
+            if
+                let rotated = response.http.value(forHTTPHeaderField: "set-auth-token")?
+                    .trimmingCharacters(in: .whitespacesAndNewlines),
+                !rotated.isEmpty
+            {
+                tokenStore.rotate(to: rotated)
+            }
+
+            SleevyUserPreferences.profileHandle = profile.handle
+
+            // Reload on every fetch, not only on a changed handle: the grid
+            // itself moves daily, and a reload here is once per app launch.
+            WidgetCenter.shared.reloadTimelines(ofKind: "ReadingActivityWidget")
+        }
     }
 
     private func shouldDiscardSession(for error: Error) -> Bool {
@@ -348,4 +388,9 @@ private struct NativeSocialSignInRequest: Encodable {
         let accessToken: String?
         let nonce: String?
     }
+}
+
+/// The slice of `GET /v1/profile` the shared handle needs.
+private struct ProfileHandleResponse: Decodable {
+    let handle: String
 }
