@@ -14,6 +14,7 @@ enum AppRoute: Hashable {
     case settings
     case folder(Folder)
     case allFolders
+    case myProfile
 }
 
 extension EnvironmentValues {
