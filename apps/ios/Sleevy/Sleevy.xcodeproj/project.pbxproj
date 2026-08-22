@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		98E5A58B2FA54E3100C9251A /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 98E5A58D2FA54E3100C9251A /* GoogleSignIn */; };
 		98E5A58E2FA54E3200C9251A /* SleevyShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 98E5A5902FA54E3200C9251A /* SleevyShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		98E5A6022FA54E3200C9251A /* SleevyWidgets.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 98E5A6012FA54E3200C9251A /* SleevyWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -33,6 +34,13 @@
 			remoteGlobalIDString = 98E5A5932FA54E3200C9251A;
 			remoteInfo = SleevyShareExtension;
 		};
+		98E5A6032FA54E3200C9251A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 98E5A5592FA54E2E00C9251A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 98E5A6092FA54E3200C9251A;
+			remoteInfo = SleevyWidgets;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -43,6 +51,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				98E5A58E2FA54E3200C9251A /* SleevyShareExtension.appex in Embed App Extensions */,
+				98E5A6022FA54E3200C9251A /* SleevyWidgets.appex in Embed App Extensions */,
 			);
 			name = "Embed App Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -54,8 +63,10 @@
 		98E5A56E2FA54E3000C9251A /* SleevyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SleevyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		98E5A5782FA54E3000C9251A /* SleevyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SleevyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		98E5A5902FA54E3200C9251A /* SleevyShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SleevyShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		98E5A6012FA54E3200C9251A /* SleevyWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SleevyWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		98E5A59B2FA54E3300C9251A /* Sleevy.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Sleevy.xcconfig; sourceTree = "<group>"; };
 		98E5A59C2FA54E3300C9251A /* SleevyShareExtension.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = SleevyShareExtension.xcconfig; sourceTree = "<group>"; };
+		98E5A60D2FA54E3200C9251A /* SleevyWidgets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = SleevyWidgets.xcconfig; sourceTree = "<group>"; };
 		98E5A59D2FA54E3300C9251A /* Local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig.example; sourceTree = "<group>"; };
 		98E5A59E2FA54E3300C9251A /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -79,6 +90,11 @@
 		98E5A5912FA54E3200C9251A /* SleevyShareExtension */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = SleevyShareExtension;
+			sourceTree = "<group>";
+		};
+		98E5A6052FA54E3200C9251A /* SleevyWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SleevyWidgets;
 			sourceTree = "<group>";
 		};
 		98E5A5A02FA54E3400C9251A /* Shared */ = {
@@ -118,6 +134,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		98E5A6072FA54E3200C9251A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -130,6 +153,7 @@
 				98E5A57B2FA54E3000C9251A /* SleevyUITests */,
 				98E5A5912FA54E3200C9251A /* SleevyShareExtension */,
 				98E5A5A02FA54E3400C9251A /* Shared */,
+				98E5A6052FA54E3200C9251A /* SleevyWidgets */,
 				98E5A5622FA54E2E00C9251A /* Products */,
 			);
 			sourceTree = "<group>";
@@ -141,6 +165,7 @@
 				98E5A56E2FA54E3000C9251A /* SleevyTests.xctest */,
 				98E5A5782FA54E3000C9251A /* SleevyUITests.xctest */,
 				98E5A5902FA54E3200C9251A /* SleevyShareExtension.appex */,
+				98E5A6012FA54E3200C9251A /* SleevyWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -150,6 +175,7 @@
 			children = (
 				98E5A59B2FA54E3300C9251A /* Sleevy.xcconfig */,
 				98E5A59C2FA54E3300C9251A /* SleevyShareExtension.xcconfig */,
+				98E5A60D2FA54E3200C9251A /* SleevyWidgets.xcconfig */,
 				98E5A59D2FA54E3300C9251A /* Local.xcconfig.example */,
 				98E5A59E2FA54E3300C9251A /* Shared.xcconfig */,
 			);
@@ -172,6 +198,7 @@
 			);
 			dependencies = (
 				98E5A5942FA54E3200C9251A /* PBXTargetDependency */,
+				98E5A6042FA54E3200C9251A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				98E5A5632FA54E2E00C9251A /* Sleevy */,
@@ -254,6 +281,29 @@
 			productReference = 98E5A5902FA54E3200C9251A /* SleevyShareExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		98E5A6092FA54E3200C9251A /* SleevyWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 98E5A60C2FA54E3200C9251A /* Build configuration list for PBXNativeTarget "SleevyWidgets" */;
+			buildPhases = (
+				98E5A6062FA54E3200C9251A /* Sources */,
+				98E5A6072FA54E3200C9251A /* Frameworks */,
+				98E5A6082FA54E3200C9251A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				98E5A6052FA54E3200C9251A /* SleevyWidgets */,
+				98E5A5A02FA54E3400C9251A /* Shared */,
+			);
+			name = SleevyWidgets;
+			packageProductDependencies = (
+			);
+			productName = SleevyWidgets;
+			productReference = 98E5A6012FA54E3200C9251A /* SleevyWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -276,6 +326,9 @@
 						TestTargetID = 98E5A5602FA54E2E00C9251A;
 					};
 					98E5A5932FA54E3200C9251A = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					98E5A6092FA54E3200C9251A = {
 						CreatedOnToolsVersion = 26.2;
 					};
 				};
@@ -301,6 +354,7 @@
 				98E5A56D2FA54E3000C9251A /* SleevyTests */,
 				98E5A5772FA54E3000C9251A /* SleevyUITests */,
 				98E5A5932FA54E3200C9251A /* SleevyShareExtension */,
+				98E5A6092FA54E3200C9251A /* SleevyWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -328,6 +382,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		98E5A59A2FA54E3200C9251A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		98E5A6082FA54E3200C9251A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -365,6 +426,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		98E5A6062FA54E3200C9251A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -382,6 +450,11 @@
 			isa = PBXTargetDependency;
 			target = 98E5A5932FA54E3200C9251A /* SleevyShareExtension */;
 			targetProxy = 98E5A58F2FA54E3200C9251A /* PBXContainerItemProxy */;
+		};
+		98E5A6042FA54E3200C9251A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 98E5A6092FA54E3200C9251A /* SleevyWidgets */;
+			targetProxy = 98E5A6032FA54E3200C9251A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -701,6 +774,52 @@
 			};
 			name = Release;
 		};
+		98E5A60A2FA54E3200C9251A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 98E5A60D2FA54E3200C9251A /* SleevyWidgets.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5Q5AZ5596L;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				MARKETING_VERSION = 1.0.4;
+				PRODUCT_BUNDLE_IDENTIFIER = app.sleevy.Widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		98E5A60B2FA54E3200C9251A /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 98E5A60D2FA54E3200C9251A /* SleevyWidgets.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5Q5AZ5596L;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				MARKETING_VERSION = 1.0.4;
+				PRODUCT_BUNDLE_IDENTIFIER = app.sleevy.Widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -745,6 +864,15 @@
 			buildConfigurations = (
 				98E5A5952FA54E3200C9251A /* Debug */,
 				98E5A5962FA54E3200C9251A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		98E5A60C2FA54E3200C9251A /* Build configuration list for PBXNativeTarget "SleevyWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				98E5A60A2FA54E3200C9251A /* Debug */,
+				98E5A60B2FA54E3200C9251A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
