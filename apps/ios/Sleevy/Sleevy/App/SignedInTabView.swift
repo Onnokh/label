@@ -30,6 +30,7 @@ struct SignedInTabView: View {
                         .navigationDestination(for: AppRoute.self) { route in
                             route.destination(store: store, session: session)
                         }
+                        .environment(\.pushRoute) { sleevyPath.append($0) }
                 }
             }
 
@@ -42,6 +43,7 @@ struct SignedInTabView: View {
                         .navigationDestination(for: AppRoute.self) { route in
                             route.destination(store: store, session: session)
                         }
+                        .environment(\.pushRoute) { libraryPath.append($0) }
                 }
             }
 

@@ -331,15 +331,3 @@ private struct InboxHeaderCard: View {
             ))
     }
 }
-
-private struct NavigationSubtitleIfAvailable: ViewModifier {
-    let subtitle: String?
-
-    func body(content: Content) -> some View {
-        if #available(iOS 26.0, *), let subtitle {
-            content.navigationSubtitle(subtitle)
-        } else {
-            content
-        }
-    }
-}

@@ -8,8 +8,57 @@ struct FolderLibraryView: View {
     @State private var sort = LibrarySort.newest
     @State private var isShowingFilters = false
     @State private var itemToMove: SavedItem?
+    @State private var headerScrollDistance: CGFloat = 0
+    @State private var headerTopInsetBaseline: CGFloat = 0
 
     var body: some View {
+        GeometryReader { geometry in
+            // Shorter than the Inbox's 16:9 — a folder header only carries
+            // the title and subtitle.
+            folderList(
+                headerCardHeight: geometry.size.width * 0.46,
+                headerTopInset: geometry.safeAreaInsets.top
+            )
+        }
+        // Outside the header-card background, so the card paints on top of it.
+        .background(Color(uiColor: .systemBackground))
+        .navigationTitle(folder.name)
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Picker("Sort", selection: $sort) {
+                        ForEach(LibrarySort.allCases) { sort in
+                            Text(sort.title).tag(sort)
+                        }
+                    }
+                    Button {
+                        isShowingFilters = true
+                    } label: {
+                        Label("Filters", systemImage: "line.3.horizontal.decrease.circle")
+                    }
+                } label: {
+                    Image(systemName: filter.isActive ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                }
+            }
+        }
+        .sheet(isPresented: $isShowingFilters) {
+            LibraryFilterSheet(filter: $filter, tags: tagFilters, sources: sourceFilters, types: typeFilters)
+        }
+        .sheet(item: $itemToMove) { item in
+            MoveToFolderSheet(item: item, folders: store.folders) { destination in
+                try await store.move(item, to: destination)
+            }
+        }
+        .task(id: folder.id) {
+            await store.loadIfNeeded()
+        }
+        .refreshable {
+            await store.refresh()
+        }
+    }
+
+    private func folderList(headerCardHeight: CGFloat, headerTopInset: CGFloat) -> some View {
         List {
             if filter.isActive {
                 ActiveLibraryFilters(filter: $filter)
@@ -62,46 +111,58 @@ struct FolderLibraryView: View {
                 }
                 .listRowInsets(EdgeInsets(top: 0, leading: 18, bottom: 0, trailing: 18))
                 .listRowBackground(Color.clear)
+                .listRowSeparatorTint(.primary.opacity(0.08))
+                // No line between the header card and the first row.
+                .listRowSeparator(item.id == visibleItems.first?.id ? .hidden : .automatic, edges: .top)
             }
         }
         .listStyle(.plain)
-        .navigationTitle(folder.name)
-        .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Picker("Sort", selection: $sort) {
-                        ForEach(LibrarySort.allCases) { sort in
-                            Text(sort.title).tag(sort)
-                        }
-                    }
-                    Button {
-                        isShowingFilters = true
-                    } label: {
-                        Label("Filters", systemImage: "line.3.horizontal.decrease.circle")
-                    }
-                } label: {
-                    Image(systemName: filter.isActive ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                }
+        .scrollContentBackground(.hidden)
+        .scrollBounceBehavior(.always, axes: .vertical)
+        // Same mechanics as the Inbox header card: the large title stays
+        // native, the card is painted behind it, scrolls away with the
+        // content, and stretches on pull-down. Here the card is a flat wash
+        // of the folder's color, telling a folder apart from the Inbox.
+        .contentMargins(.top, max(0, headerCardHeight - headerTopInset), for: .scrollContent)
+        .background(alignment: .top) {
+            FolderHeaderCard(
+                tint: FolderAccentColor(rawValue: folder.color ?? "")?.tint,
+                height: headerCardHeight + max(0, -headerScrollDistance),
+                subtitle: navigationSubtitleText
+            )
+            .offset(y: -max(0, headerScrollDistance))
+            .ignoresSafeArea(edges: .top)
+        }
+        .onScrollGeometryChange(for: FolderHeaderScrollReading.self) { geometry in
+            FolderHeaderScrollReading(
+                offset: geometry.contentOffset.y,
+                inset: geometry.contentInsets.top
+            )
+        } action: { _, reading in
+            // See the Inbox: measure against a resting baseline so the
+            // refresh spinner's transient inset never jolts the card.
+            guard reading.inset > 0 else { return }
+
+            if reading.inset <= headerTopInsetBaseline || headerScrollDistance >= 0 {
+                headerTopInsetBaseline = reading.inset
             }
-        }
-        .sheet(isPresented: $isShowingFilters) {
-            LibraryFilterSheet(filter: $filter, tags: tagFilters, sources: sourceFilters, types: typeFilters)
-        }
-        .sheet(item: $itemToMove) { item in
-            MoveToFolderSheet(item: item, folders: store.folders) { destination in
-                try await store.move(item, to: destination)
-            }
-        }
-        .task(id: folder.id) {
-            await store.loadIfNeeded()
-        }
-        .refreshable {
-            await store.refresh()
+            headerScrollDistance = reading.offset + headerTopInsetBaseline
         }
     }
 
     private var items: [SavedItem] { store.savedItems(.folder(folder.id)) }
+
+    /// "12 saves · 3 unread", dropping the unread part once everything is
+    /// read, and the whole subtitle while the folder is empty.
+    private var navigationSubtitleText: String? {
+        let total = items.count
+        guard total > 0 else { return nil }
+
+        let saves = total == 1 ? "1 save" : "\(total) saves"
+        let unread = items.count { !$0.isRead }
+        return unread > 0 ? "\(saves) · \(unread) unread" : saves
+    }
+
     private var visibleItems: [SavedItem] {
         items.filter {
             (filter.tag == nil || $0.tags.contains(filter.tag ?? ""))
@@ -124,55 +185,104 @@ struct FolderLibraryView: View {
     }
 }
 
-private struct FolderRow: View {
+/// One folder in the folders grid: a large tinted folder icon, a three-dot
+/// actions menu, the name, and how many Saved Items live inside. A folder
+/// with an accent color tints the whole card; one without stays neutral.
+struct FolderCard: View {
     let folder: Folder
-
-    var body: some View {
-        HStack(spacing: 12) {
-            FolderIcon(emoji: folder.emoji, color: FolderAccentColor(rawValue: folder.color ?? ""))
-                .frame(width: 32, height: 30)
-
-            Text(folder.name)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-
-            Spacer(minLength: 8)
-        }
-        .contentShape(Rectangle())
-        .padding(.vertical, 8)
-    }
-}
-
-struct FolderListRow: View {
-    let folder: Folder
+    let itemCount: Int
     let onRename: @MainActor () -> Void
     let onDelete: @MainActor () -> Void
 
+    @Environment(\.pushRoute) private var pushRoute
+
+    private var accent: Color? {
+        FolderAccentColor(rawValue: folder.color ?? "")?.tint
+    }
+
     var body: some View {
-        NavigationLink(value: AppRoute.folder(folder)) {
-            FolderRow(folder: folder)
+        // Layered by hand, pushing through `pushRoute` instead of being a
+        // NavigationLink (see the environment key for why). The clear button
+        // is the tap target, the visuals ignore touches, and only the menu
+        // floats above it.
+        ZStack(alignment: .topTrailing) {
+            Button {
+                pushRoute(AppRoute.folder(folder))
+            } label: {
+                Color.clear.contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 5) {
+                FolderGlyph(
+                    emoji: folder.emoji,
+                    tint: accent ?? Color(uiColor: .systemGray)
+                )
+                .frame(width: 54, height: 48)
+
+                Spacer(minLength: 14)
+
+                Text(folder.name)
+                    .font(.system(size: 23, weight: .bold))
+                    .foregroundStyle(accent ?? Color.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                Text(countLabel)
+                    .font(.system(size: 13, weight: .semibold))
+                    .kerning(0.5)
+                    .foregroundStyle(accent?.opacity(0.55) ?? Color.secondary)
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .allowsHitTesting(false)
+
+            Menu {
+                actions
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 17, weight: .semibold))
+                    .rotationEffect(.degrees(90))
+                    .foregroundStyle(accent?.opacity(0.75) ?? Color.secondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Folder Actions")
+            .padding(6)
         }
+        .aspectRatio(1.15, contentMode: .fit)
+        .background(
+            accent?.opacity(0.12) ?? Color(uiColor: .secondarySystemBackground),
+            in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+        )
         .contextMenu {
-            Button(action: onRename) {
-                Label("Rename", systemImage: "pencil")
-            }
-
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
-            }
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
-            }
-
-            Button(action: onRename) {
-                Label("Rename", systemImage: "pencil")
-            }
-            .tint(.blue)
+            actions
         }
     }
+
+    @ViewBuilder
+    private var actions: some View {
+        Button(action: onRename) {
+            Label("Rename", systemImage: "pencil")
+        }
+
+        Button(role: .destructive, action: onDelete) {
+            Label("Delete", systemImage: "trash")
+        }
+    }
+
+    private var countLabel: String {
+        itemCount == 1 ? "1 SAVE" : "\(itemCount) SAVES"
+    }
+}
+
+/// The two-column layout every folders grid shares.
+enum FolderGrid {
+    static let spacing: CGFloat = 12
+    static let columns = [
+        GridItem(.flexible(), spacing: spacing),
+        GridItem(.flexible(), spacing: spacing),
+    ]
 }
 
 struct AllFoldersView: View {
@@ -182,15 +292,21 @@ struct AllFoldersView: View {
 
     var body: some View {
         List {
-            ForEach(store.folders) { folder in
-                FolderListRow(folder: folder) {
-                    folderEditor = .rename(folder)
-                } onDelete: {
-                    folderToDelete = folder
+            LazyVGrid(columns: FolderGrid.columns, spacing: FolderGrid.spacing) {
+                ForEach(store.folders) { folder in
+                    FolderCard(
+                        folder: folder,
+                        itemCount: store.savedItems(.folder(folder.id)).count
+                    ) {
+                        folderEditor = .rename(folder)
+                    } onDelete: {
+                        folderToDelete = folder
+                    }
                 }
-                .listRowInsets(EdgeInsets(top: 0, leading: 18, bottom: 0, trailing: 18))
-                .listRowBackground(Color.clear)
             }
+            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
@@ -311,9 +427,137 @@ struct MoveToFolderSheet: View {
     }
 }
 
+/// What the header card needs from the scroll geometry.
+private struct FolderHeaderScrollReading: Equatable {
+    var offset: CGFloat
+    var inset: CGFloat
+}
+
+/// The card behind a folder's large title — the Inbox header card's sibling,
+/// with a flat wash of the folder's accent color instead of the aurora
+/// (neutral for a folder without one). The counts render inside the card:
+/// `navigationSubtitle` on a pushed screen collapses the large title to
+/// inline, so the system subtitle is not an option here.
+private struct FolderHeaderCard: View {
+    let tint: Color?
+    let height: CGFloat
+    let subtitle: String?
+
+    var body: some View {
+        Rectangle()
+            .fill(tint?.opacity(0.2) ?? Color(uiColor: .secondarySystemBackground))
+            .frame(height: height)
+            .frame(maxWidth: .infinity)
+            .overlay(alignment: .bottomLeading) {
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, 20)
+                        .padding(.bottom, 14)
+                }
+            }
+            .clipShape(.rect(
+                bottomLeadingRadius: 28,
+                bottomTrailingRadius: 28,
+                style: .continuous
+            ))
+    }
+}
+
+/// The folder silhouette the cards use: a tabbed body with rounded corners.
+/// `folder.fill` is too wide and flat for the card's hero position, so the
+/// glyph is drawn by hand and given depth with a darker extruded lip.
+private struct FolderGlyphShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let tabWidth = rect.width * 0.45
+        let tabHeight = rect.height * 0.20
+        let slant = rect.width * 0.10
+        let bodyRadius = min(rect.width, rect.height) * 0.18
+        let tabRadius = bodyRadius * 0.55
+
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.midY))
+        path.addArc(
+            tangent1End: CGPoint(x: rect.minX, y: rect.minY),
+            tangent2End: CGPoint(x: rect.minX + tabWidth, y: rect.minY),
+            radius: tabRadius
+        )
+        path.addArc(
+            tangent1End: CGPoint(x: rect.minX + tabWidth, y: rect.minY),
+            tangent2End: CGPoint(x: rect.minX + tabWidth + slant, y: rect.minY + tabHeight),
+            radius: tabRadius
+        )
+        path.addArc(
+            tangent1End: CGPoint(x: rect.minX + tabWidth + slant, y: rect.minY + tabHeight),
+            tangent2End: CGPoint(x: rect.maxX, y: rect.minY + tabHeight),
+            radius: tabRadius
+        )
+        path.addArc(
+            tangent1End: CGPoint(x: rect.maxX, y: rect.minY + tabHeight),
+            tangent2End: CGPoint(x: rect.maxX, y: rect.maxY),
+            radius: tabRadius
+        )
+        path.addArc(
+            tangent1End: CGPoint(x: rect.maxX, y: rect.maxY),
+            tangent2End: CGPoint(x: rect.minX, y: rect.maxY),
+            radius: bodyRadius
+        )
+        path.addArc(
+            tangent1End: CGPoint(x: rect.minX, y: rect.maxY),
+            tangent2End: CGPoint(x: rect.minX, y: rect.minY),
+            radius: bodyRadius
+        )
+        path.closeSubpath()
+        return path
+    }
+}
+
+struct FolderGlyph: View {
+    let emoji: String?
+    let tint: Color
+
+    var body: some View {
+        GeometryReader { proxy in
+            let size = proxy.size
+            let lip = size.height * 0.10
+            let glyph = CGRect(x: 0, y: 0, width: size.width, height: size.height - lip)
+
+            ZStack(alignment: .topLeading) {
+                FolderGlyphShape()
+                    .path(in: glyph.offsetBy(dx: 0, dy: lip))
+                    .fill(tint)
+                    .brightness(-0.22)
+
+                FolderGlyphShape()
+                    .path(in: glyph)
+                    .fill(tint)
+                    .overlay {
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.45), Color.white.opacity(0.02)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .blendMode(.softLight)
+                        .clipShape(FolderGlyphShape().path(in: glyph))
+                    }
+
+                if let emoji {
+                    Text(emoji)
+                        .font(.system(size: glyph.height * 0.42))
+                        .frame(width: glyph.width, height: glyph.height * 0.8)
+                        .offset(y: glyph.height * 0.2)
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
 struct FolderIcon: View {
     let emoji: String?
     let color: FolderAccentColor?
+    var fallbackTint: Color = .accentColor
 
     var body: some View {
         GeometryReader { proxy in
@@ -323,7 +567,7 @@ struct FolderIcon: View {
                 Image(systemName: "folder.fill")
                     .resizable()
                     .scaledToFit()
-                    .foregroundStyle((color?.tint ?? .accentColor).gradient)
+                    .foregroundStyle((color?.tint ?? fallbackTint).gradient)
 
                 if let emoji {
                     Text(emoji)

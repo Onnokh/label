@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 
 /// Every push destination in the signed-in navigation stacks, enumerated in one
 /// place. This is pure *vocabulary*: feature views push these values with
@@ -14,4 +14,12 @@ enum AppRoute: Hashable {
     case settings
     case folder(Folder)
     case allFolders
+}
+
+extension EnvironmentValues {
+    /// Pushes a route onto the enclosing tab's navigation stack. For views
+    /// that cannot be a `NavigationLink` — a `List` decorates every labeled
+    /// link with a disclosure chevron and forwards row taps to an arbitrary
+    /// one when several share a row, as the folder cards grid does.
+    @Entry var pushRoute: @MainActor (AppRoute) -> Void = { _ in }
 }
