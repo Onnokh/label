@@ -22,7 +22,7 @@ final class ShareViewController: UIViewController {
     }()
     private let activityIndicator = UIActivityIndicatorView(style: .medium)
     private let statusLabel = UILabel()
-    private let gradientLayer = CAGradientLayer()
+    private let gradientView = MeshGradientView()
     private var hasStarted = false
     private var captureClient: SleevyCaptureClient {
         SleevyCaptureClient(
@@ -44,15 +44,15 @@ final class ShareViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        // Gradient background
-        gradientLayer.colors = [
-            UIColor(red: 0.953, green: 0.753, blue: 0.529, alpha: 1).cgColor,
-            UIColor(red: 0.961, green: 0.588, blue: 0.514, alpha: 1).cgColor,
-            UIColor(red: 0.969, green: 0.333, blue: 0.671, alpha: 1).cgColor,
-        ]
-        gradientLayer.startPoint = CGPoint(x: 0, y: 0)
-        gradientLayer.endPoint = CGPoint(x: 1, y: 1)
-        view.layer.insertSublayer(gradientLayer, at: 0)
+        // The same mesh field the sign-in screen draws.
+        gradientView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(gradientView)
+        NSLayoutConstraint.activate([
+            gradientView.topAnchor.constraint(equalTo: view.topAnchor),
+            gradientView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            gradientView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            gradientView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+        ])
 
         // Brandmark
         let logoView = SleevyBrandmarkView()
@@ -80,18 +80,16 @@ final class ShareViewController: UIViewController {
         view.addSubview(stack)
 
         NSLayoutConstraint.activate([
-            logoView.widthAnchor.constraint(equalToConstant: 48),
             logoView.heightAnchor.constraint(equalToConstant: 72),
+            logoView.widthAnchor.constraint(
+                equalTo: logoView.heightAnchor,
+                multiplier: SleevyBrandmarkPath.aspectRatio
+            ),
             stack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             stack.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             stack.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 24),
             stack.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -24),
         ])
-    }
-
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        gradientLayer.frame = view.bounds
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -316,63 +314,6 @@ private final class SleevyBrandmarkView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        shapeLayer.path = brandmarkPath(in: bounds)
-    }
-
-    private func brandmarkPath(in rect: CGRect) -> CGPath {
-        let s = min(rect.width / 473, rect.height / 705)
-        let ox = (rect.width - 473 * s) / 2
-        let oy = (rect.height - 705 * s) / 2
-
-        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(x: ox + x * s, y: oy + y * s)
-        }
-
-        let path = CGMutablePath()
-        let r = 20 * s
-
-        // Top-left square
-        path.addRoundedRect(in: CGRect(origin: pt(9.1, 9.1), size: CGSize(width: 203 * s, height: 202 * s)), cornerWidth: r, cornerHeight: r)
-
-        // Top-right arrow
-        path.move(to: pt(278.07, 205.96))
-        path.addCurve(to: pt(244.1, 191.65), control1: pt(265.4, 218.32), control2: pt(244.1, 209.35))
-        path.addLine(to: pt(244.1, 29.1))
-        path.addCurve(to: pt(264.1, 9.1), control1: pt(244.1, 18.05), control2: pt(253.05, 9.1))
-        path.addLine(to: pt(425.22, 9.1))
-        path.addCurve(to: pt(439.66, 42.94), control1: pt(442.84, 9.1), control2: pt(451.85, 30.22))
-        path.addLine(to: pt(360.01, 126.03))
-        path.addLine(to: pt(278.07, 205.96))
-        path.closeSubpath()
-
-        // Middle-left arrow
-        path.move(to: pt(15.24, 277.65))
-        path.addCurve(to: pt(29.55, 243.69), control1: pt(2.88, 264.99), control2: pt(11.85, 243.69))
-        path.addLine(to: pt(192.1, 243.69))
-        path.addCurve(to: pt(212.1, 263.69), control1: pt(203.15, 243.69), control2: pt(212.1, 252.64))
-        path.addLine(to: pt(212.1, 424.81))
-        path.addCurve(to: pt(178.26, 439.25), control1: pt(212.1, 442.42), control2: pt(190.98, 451.44))
-        path.addLine(to: pt(95.18, 359.6))
-        path.addLine(to: pt(15.24, 277.65))
-        path.closeSubpath()
-
-        // Center-right square
-        path.addRoundedRect(in: CGRect(origin: pt(244.1, 243.69), size: CGSize(width: 203 * s, height: 202 * s)), cornerWidth: r, cornerHeight: r)
-
-        // Bottom-left arrow
-        path.move(to: pt(15.24, 645.72))
-        path.addCurve(to: pt(29.55, 679.69), control1: pt(2.88, 658.39), control2: pt(11.85, 679.69))
-        path.addLine(to: pt(192.1, 679.69))
-        path.addCurve(to: pt(212.1, 659.69), control1: pt(203.15, 679.69), control2: pt(212.1, 670.73))
-        path.addLine(to: pt(212.1, 498.57))
-        path.addCurve(to: pt(178.26, 484.13), control1: pt(212.1, 480.95), control2: pt(190.98, 471.94))
-        path.addLine(to: pt(95.18, 563.78))
-        path.addLine(to: pt(15.24, 645.72))
-        path.closeSubpath()
-
-        // Bottom-right square
-        path.addRoundedRect(in: CGRect(origin: pt(244.1, 477.69), size: CGSize(width: 203 * s, height: 202 * s)), cornerWidth: r, cornerHeight: r)
-
-        return path
+        shapeLayer.path = SleevyBrandmarkPath.path(in: bounds)
     }
 }

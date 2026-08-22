@@ -41,7 +41,7 @@ struct ContentView: View {
 
                 SleevyBrandmark()
                     .fill(.white)
-                    .frame(width: 80, height: 120)
+                    .frame(width: 88, height: 112)
                     .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
                     .padding(.bottom, 48)
 

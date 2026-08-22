@@ -1,188 +1,37 @@
 {
   "fill" : {
-    "automatic-gradient" : "srgb:0.00000,0.00000,0.00000,1.00000"
+    "automatic-gradient" : "display-p3:0.27368,0.27368,0.61475,1.00000",
+    "orientation" : {
+      "start" : {
+        "x" : 0.5,
+        "y" : 0
+      },
+      "stop" : {
+        "x" : 0.5,
+        "y" : 0.7
+      }
+    }
   },
   "groups" : [
-    {
-      "layers" : [
-        {
-          "fill-specializations" : [
-            {
-              "appearance" : "dark",
-              "value" : {
-                "automatic-gradient" : "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            }
-          ],
-          "image-name" : "Rectangle 46 3.svg",
-          "name" : "Rectangle 46 3",
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              116.29003773392537,
-              240.47668849970785
-            ]
-          }
-        },
-        {
-          "fill-specializations" : [
-            {
-              "appearance" : "dark",
-              "value" : {
-                "automatic-gradient" : "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            }
-          ],
-          "image-name" : "Rectangle 48.svg",
-          "name" : "Rectangle 48",
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              -113.01104364899811,
-              8.725142245267307
-            ]
-          }
-        },
-        {
-          "fill-specializations" : [
-            {
-              "appearance" : "dark",
-              "value" : {
-                "automatic-gradient" : "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            }
-          ],
-          "image-name" : "Rectangle 51.svg",
-          "name" : "Rectangle 51",
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              115.37019499999974,
-              8.805310499999905
-            ]
-          }
-        },
-        {
-          "fill-specializations" : [
-            {
-              "appearance" : "dark",
-              "value" : {
-                "automatic-gradient" : "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            }
-          ],
-          "image-name" : "Rectangle 56.svg",
-          "name" : "Rectangle 56",
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              -113.01104364899811,
-              240.81668849970788
-            ]
-          }
-        }
-      ],
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.7
-      },
-      "specular" : true,
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.35
-      }
-    },
     {
       "blur-material" : 0.5,
       "layers" : [
         {
-          "fill-specializations" : [
-            {
-              "appearance" : "dark",
-              "value" : {
-                "automatic-gradient" : "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            }
-          ],
           "glass" : false,
-          "image-name" : "Rectangle 49.svg",
-          "name" : "Rectangle 49",
-          "opacity" : 1,
+          "image-name" : "SVG Image.svg",
+          "name" : "SVG Image",
           "position" : {
-            "scale" : 1,
+            "scale" : 0.89,
             "translation-in-points" : [
-              -112.51104189331846,
-              -217.71902862747817
-            ]
-          }
-        },
-        {
-          "fill-specializations" : [
-            {
-              "appearance" : "dark",
-              "value" : {
-                "automatic-gradient" : "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            }
-          ],
-          "glass" : false,
-          "image-name" : "Rectangle 55.svg",
-          "name" : "Rectangle 55",
-          "opacity" : 1,
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              116.20989046785076,
-              -218.01294297047798
+              0,
+              0
             ]
           }
         }
       ],
-      "opacity" : 0.6,
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.5
-      },
-      "specular" : true,
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.7
-      }
-    },
-    {
-      "blur-material" : null,
-      "hidden" : true,
-      "layers" : [
-        {
-          "fill-specializations" : [
-            {
-              "appearance" : "dark",
-              "value" : {
-                "solid" : "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            },
-            {
-              "appearance" : "tinted",
-              "value" : {
-                "solid" : "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            }
-          ],
-          "glass" : false,
-          "image-name" : "Group 10.svg",
-          "name" : "Group 10",
-          "position" : {
-            "scale" : 0.95,
-            "translation-in-points" : [
-              8.40019499999994,
-              8.10600999999997
-            ]
-          }
-        }
-      ],
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 1
       },
       "specular" : true,
       "translucency" : {
@@ -191,31 +40,12 @@
       }
     },
     {
-      "blend-mode-specializations" : [
-        {
-          "value" : "lighten"
-        },
-        {
-          "appearance" : "tinted",
-          "value" : "normal"
-        }
-      ],
       "layers" : [
         {
-          "glass" : false,
-          "image-name" : "bg.png",
-          "name" : "bg",
-          "opacity-specializations" : [
-            {
-              "value" : 1
-            },
-            {
-              "appearance" : "tinted",
-              "value" : 0.15
-            }
-          ],
+          "image-name" : "Image.png",
+          "name" : "Image",
           "position" : {
-            "scale" : 1.1700000000000002,
+            "scale" : 0.56,
             "translation-in-points" : [
               0,
               0
@@ -223,19 +53,12 @@
           }
         }
       ],
-      "opacity-specializations" : [
-        {
-          "appearance" : "dark",
-          "value" : 0
-        }
-      ],
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.5
       },
-      "specular" : false,
       "translucency" : {
-        "enabled" : false,
+        "enabled" : true,
         "value" : 0.5
       }
     }
