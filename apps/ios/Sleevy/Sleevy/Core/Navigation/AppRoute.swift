@@ -12,7 +12,7 @@ import SwiftUI
 /// `Core` free of any dependency on `Features`.
 enum AppRoute: Hashable {
     case settings
-    case folder(Folder)
+    case folder(id: Folder.ID)
     case allFolders
     case myProfile
 }

@@ -22,7 +22,7 @@ struct FolderLibraryView: View {
         }
         // Outside the header-card background, so the card paints on top of it.
         .background(Color(uiColor: .systemBackground))
-        .navigationTitle(folder.name)
+        .navigationTitle(currentFolder.name)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -50,7 +50,7 @@ struct FolderLibraryView: View {
                 try await store.move(item, to: destination)
             }
         }
-        .task(id: folder.id) {
+        .task(id: currentFolder.id) {
             await store.loadIfNeeded()
         }
         .refreshable {
@@ -126,7 +126,7 @@ struct FolderLibraryView: View {
         .contentMargins(.top, max(0, headerCardHeight - headerTopInset), for: .scrollContent)
         .background(alignment: .top) {
             FolderHeaderCard(
-                tint: FolderAccentColor(rawValue: folder.color ?? "")?.tint,
+                tint: FolderAccentColor(rawValue: currentFolder.color ?? "")?.tint,
                 height: headerCardHeight + max(0, -headerScrollDistance),
                 subtitle: navigationSubtitleText
             )
@@ -150,7 +150,11 @@ struct FolderLibraryView: View {
         }
     }
 
-    private var items: [SavedItem] { store.savedItems(.folder(folder.id)) }
+    private var currentFolder: Folder {
+        store.folders.first(where: { $0.id == folder.id }) ?? folder
+    }
+
+    private var items: [SavedItem] { store.savedItems(.folder(currentFolder.id)) }
 
     /// "12 saves · 3 unread", dropping the unread part once everything is
     /// read, and the whole subtitle while the folder is empty.
@@ -207,11 +211,13 @@ struct FolderCard: View {
         // floats above it.
         ZStack(alignment: .topTrailing) {
             Button {
-                pushRoute(AppRoute.folder(folder))
+                pushRoute(.folder(id: folder.id))
             } label: {
                 Color.clear.contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(folder.name)
+            .accessibilityValue(accessibilityCountLabel)
 
             VStack(alignment: .leading, spacing: 5) {
                 FolderGlyph(
@@ -236,6 +242,7 @@ struct FolderCard: View {
             .padding(18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .allowsHitTesting(false)
+            .accessibilityHidden(true)
 
             Menu {
                 actions
@@ -273,6 +280,10 @@ struct FolderCard: View {
 
     private var countLabel: String {
         itemCount == 1 ? "1 SAVE" : "\(itemCount) SAVES"
+    }
+
+    private var accessibilityCountLabel: String {
+        itemCount == 1 ? "1 saved item" : "\(itemCount) saved items"
     }
 }
 

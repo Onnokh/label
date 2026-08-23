@@ -11,8 +11,12 @@ extension AppRoute {
         switch self {
         case .settings:
             SettingsView(session: session)
-        case .folder(let folder):
-            FolderLibraryView(folder: folder, store: store)
+        case .folder(let id):
+            if let folder = store.folders.first(where: { $0.id == id }) {
+                FolderLibraryView(folder: folder, store: store)
+            } else {
+                ContentUnavailableView("Folder Unavailable", systemImage: "folder.badge.questionmark")
+            }
         case .allFolders:
             AllFoldersView(store: store)
         case .myProfile:
