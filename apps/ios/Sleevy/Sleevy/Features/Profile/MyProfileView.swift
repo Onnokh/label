@@ -276,7 +276,10 @@ struct MyProfileView: View {
             for: .scrollContent
         )
         .background(alignment: .top) {
-            ProfileHeroCard(height: headerCardHeight + max(0, -headerScrollDistance)) {
+            ProfileHeroCard(
+                height: headerCardHeight + max(0, -headerScrollDistance),
+                isVisible: headerScrollDistance < headerCardHeight
+            ) {
                 ProfileAvatar(
                     name: session.displayName,
                     imageURL: session.provider == .google ? authStore.googleUserProfile?.imageURL : nil
@@ -346,10 +349,11 @@ private let profileAvatarSize: CGFloat = 96
 /// rides along when a pull-down stretches the card.
 private struct ProfileHeroCard<Avatar: View>: View {
     let height: CGFloat
+    let isVisible: Bool
     @ViewBuilder let avatar: Avatar
 
     var body: some View {
-        DriftBackground()
+        DriftBackground(isVisible: isVisible)
             .frame(height: height)
             .frame(maxWidth: .infinity)
             .clipShape(.rect(

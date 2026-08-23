@@ -7,25 +7,45 @@ import SwiftUI
 /// with a time uniform, unlike the static mesh gradients.
 struct DriftBackground: UIViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
+
+    var isVisible = true
 
     func makeUIView(context: Context) -> DriftView {
         let view = DriftView()
         view.isLightMode = colorScheme == .light
+        updatePlayback(of: view)
         return view
     }
 
     func updateUIView(_ uiView: DriftView, context: Context) {
         uiView.isLightMode = colorScheme == .light
+        updatePlayback(of: uiView)
+    }
+
+    static func dismantleUIView(_ uiView: DriftView, coordinator: Void) {
+        uiView.shouldAnimate = false
+    }
+
+    private func updatePlayback(of view: DriftView) {
+        view.shouldAnimate = isVisible
+            && scenePhase == .active
+            && !accessibilityReduceMotion
     }
 }
 
-final class DriftView: MTKView {
+final class DriftView: AnimatedMetalView {
     /// `MTKView.delegate` is weak, so the renderer has to be held here.
     private var renderer: DriftRenderer?
 
     /// Light mode draws the pastel wash instead of added light.
     var isLightMode = false {
-        didSet { renderer?.isLightMode = isLightMode }
+        didSet {
+            guard isLightMode != oldValue else { return }
+            renderer?.isLightMode = isLightMode
+            redrawIfPaused()
+        }
     }
 
     init() {
@@ -38,20 +58,12 @@ final class DriftView: MTKView {
         // card's backdrop IS the list background -- no seam possible.
         isOpaque = false
         clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
-        // The field drifts slowly, so 30 fps is enough and saves battery.
-        isPaused = false
-        enableSetNeedsDisplay = false
-        preferredFramesPerSecond = 30
 
         guard let device else { return }
 
         renderer = DriftRenderer(device: device)
         delegate = renderer
-    }
-
-    @available(*, unavailable)
-    required init(coder: NSCoder) {
-        fatalError("DriftView is created in code, never from a nib.")
+        rendererDidBecomeReady()
     }
 }
 
