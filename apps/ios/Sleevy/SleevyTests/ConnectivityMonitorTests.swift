@@ -27,7 +27,7 @@ struct ConnectivityMonitorTests {
         let store = Library(
             userId: userId,
             network: InMemoryNetworkAdapter(),
-            cache: SavedItemCache(
+            cache: RetrievalIndexCache(
                 userId: userId,
                 directory: container,
                 encoder: .sharedISO8601,

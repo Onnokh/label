@@ -4,7 +4,7 @@ enum RetrievalRequest: Hashable {
     case readingQueue
 }
 
-enum RetrievalCoverage: Equatable {
+nonisolated enum RetrievalCoverage: String, Codable, Equatable, Sendable {
     case notRequested
     case cached
     case loading
@@ -20,7 +20,7 @@ struct RetrievalSnapshot: Equatable {
     static let notRequested = RetrievalSnapshot(items: [], coverage: .notRequested)
 }
 
-struct RetrievalIndex: Equatable {
+nonisolated struct RetrievalIndex: Equatable, Sendable {
     private var itemsByID: [String: SavedItem]
     private var globalIDs: Set<String>
     var globalCoverage: RetrievalCoverage

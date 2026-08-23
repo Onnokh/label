@@ -28,7 +28,8 @@ struct LibraryTests {
         #expect(store.savedItems().map(\.id) == ["a"])
         #expect(store.isAPIReachable)
         #expect(store.lastSuccessfulSyncAt != nil)
-        #expect(env.cache.load()?.map(\.id) == ["a"]) // persisted through the injected cache
+        let cached = await env.cache.load()
+        #expect(cached?.index.globalItems.map(\.id) == ["a"]) // persisted through the injected cache
     }
 
     @Test func captureWhileOfflineQueuesItemWithoutHittingNetwork() async throws {
@@ -87,7 +88,8 @@ struct LibraryTests {
         await store.delete(item)
 
         #expect(store.savedItems().isEmpty)
-        #expect(env.cache.load()?.isEmpty == true)
+        let cached = await env.cache.load()
+        #expect(cached?.index.globalItems.isEmpty == true)
     }
 
     // MARK: - Derived-view invariants
@@ -187,7 +189,7 @@ struct LibraryTests {
     /// can both inject them into the store and assert against them afterwards.
     private final class Environment {
         let connectivity = StubConnectivityMonitor()
-        let cache: SavedItemCache
+        let cache: RetrievalIndexCache
         let readStateQueue: ReadStateQueue
         let pendingCaptureQueue: PendingCaptureQueue
         private let sleevyAPI: SleevyAPIClient
@@ -198,7 +200,7 @@ struct LibraryTests {
             let container = FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString, isDirectory: true)
 
-            cache = SavedItemCache(userId: userId, directory: container, encoder: .sharedISO8601, decoder: .sharedISO8601)
+            cache = RetrievalIndexCache(userId: userId, directory: container, encoder: .sharedISO8601, decoder: .sharedISO8601)
             readStateQueue = ReadStateQueue(userId: userId, containerURL: container)
             pendingCaptureQueue = PendingCaptureQueue(
                 userId: userId,
@@ -228,7 +230,7 @@ struct LibraryTests {
                 api: sleevyAPI,
                 pendingCaptureQueue: pendingCaptureQueue,
                 readStateQueue: readStateQueue,
-                savedItemCache: cache,
+                retrievalIndexCache: cache,
                 statusDefaults: statusDefaults
             )
         }

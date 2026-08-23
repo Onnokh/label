@@ -22,7 +22,8 @@ struct LibrarySyncTests {
         #expect(library.savedItems().map(\.id) == ["a"])
         #expect(library.status.isAPIReachable)
         #expect(library.status.lastSuccessfulSyncAt != nil)
-        #expect(env.cache.load()?.map(\.id) == ["a"]) // persisted through the cache
+        let cached = await env.cache.load()
+        #expect(cached?.index.globalItems.map(\.id) == ["a"]) // persisted through the cache
     }
 
     @Test func captureOnlineReturnsSavedItem() async throws {
@@ -371,7 +372,7 @@ struct LibrarySyncTests {
     private final class Environment {
         let network = InMemoryNetworkAdapter()
         let connectivity = StubConnectivityMonitor()
-        let cache: SavedItemCache
+        let cache: RetrievalIndexCache
         let readState: ReadStateQueue
         let captures: PendingCaptureQueue
         let statusDefaults: UserDefaults
@@ -380,7 +381,7 @@ struct LibrarySyncTests {
         @MainActor init(captureContainer: URL? = nil) {
             let container = FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString, isDirectory: true)
-            cache = SavedItemCache(userId: userId, directory: container, encoder: .sharedISO8601, decoder: .sharedISO8601)
+            cache = RetrievalIndexCache(userId: userId, directory: container, encoder: .sharedISO8601, decoder: .sharedISO8601)
             readState = ReadStateQueue(userId: userId, containerURL: container)
             captures = PendingCaptureQueue(
                 userId: userId,

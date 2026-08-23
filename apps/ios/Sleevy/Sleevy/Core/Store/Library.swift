@@ -33,7 +33,7 @@ struct ReadingListError: LocalizedError {
 /// (`HTTPReadingListAdapter`), tests wire an in-memory one, and — crucially —
 /// every network failure arrives already classified as a `SyncFault`, so
 /// "should I re-queue this?" is answered in exactly one place (`classify(_:)`).
-/// Persistence stays the concrete per-user file stores (`SavedItemCache`,
+/// Persistence stays the concrete per-user file stores (`RetrievalIndexCache`,
 /// `ReadStateQueue`, `PendingCaptureQueue`) shared with the share extension.
 @MainActor
 @Observable
@@ -72,7 +72,7 @@ final class Library {
     private let userId: String
     private let network: any ReadingListNetworkPort
     private let connectivity: any ConnectivityMonitoring
-    private let cache: SavedItemCache
+    private let cache: RetrievalIndexCache
     private let readStateQueue: ReadStateQueue
     private let pendingCaptureQueue: PendingCaptureQueue
     private let statusDefaults: UserDefaults
@@ -106,7 +106,7 @@ final class Library {
     init(
         userId: String,
         network: any ReadingListNetworkPort,
-        cache: SavedItemCache,
+        cache: RetrievalIndexCache,
         readStateQueue: ReadStateQueue,
         pendingCaptureQueue: PendingCaptureQueue,
         statusDefaults: UserDefaults,
@@ -159,7 +159,7 @@ final class Library {
         api: SleevyAPIClient? = nil,
         pendingCaptureQueue: PendingCaptureQueue? = nil,
         readStateQueue: ReadStateQueue? = nil,
-        savedItemCache: SavedItemCache? = nil,
+        retrievalIndexCache: RetrievalIndexCache? = nil,
         statusDefaults: UserDefaults = .standard
     ) {
         let decoder = JSONDecoder()
@@ -182,7 +182,7 @@ final class Library {
                 forSecurityApplicationGroupIdentifier: AppConfig.appGroupIdentifier
             )
         )
-        let cache = savedItemCache ?? SavedItemCache(
+        let cache = retrievalIndexCache ?? RetrievalIndexCache(
             userId: session.userId,
             directory: Self.applicationSupportDirectory(),
             encoder: encoder,
@@ -264,7 +264,7 @@ final class Library {
         activate()
         guard retrievalIndex.isEmpty, !hasAttemptedInitialLoad else { return }
         hasAttemptedInitialLoad = true
-        restoreCachedItems()
+        await restoreCachedItems()
         refreshPendingCaptureState()
         await load()
     }
@@ -351,17 +351,19 @@ final class Library {
                     coverage: .complete
                 )
             }
-            persistItems()
             let now = Date()
             status.lastSuccessfulSyncAt = now
             statusDefaults.set(now, forKey: Self.lastSyncDefaultsKey(for: userId))
             status.isAPIReachable = true
             status.errorMessage = nil
+            await persistItems(at: now)
             await loadFolders()
             return true
         } catch {
             updateIndex {
-                $0.globalCoverage = $0.isEmpty ? .failed : .stale
+                $0.globalCoverage = $0.globalCoverage == .cached || !$0.isEmpty
+                    ? .stale
+                    : .failed
             }
             handleRequestFault(asFault(error))
             return false
@@ -411,6 +413,7 @@ final class Library {
             folders.append(renamed)
             sortFolders()
             applyFolderSummary(renamed)
+            await persistItems()
             status.libraryErrorMessage = nil
         } catch {
             throw faultThrowing(error)
@@ -424,7 +427,7 @@ final class Library {
             // Detaching the summary returns these items to the Library root — the
             // `.unfiled` view picks them up automatically, no re-fetch needed.
             mutateItems(where: { $0.folder?.id == folder.id }) { $0 = $0.withFolder(nil) }
-            persistItems()
+            await persistItems()
         } catch {
             throw faultThrowing(error)
         }
@@ -434,7 +437,7 @@ final class Library {
         do {
             let updated = try await network.moveItem(id: item.id, toFolder: folder?.id)
             upsert([updated])
-            persistItems()
+            await persistItems()
             status.libraryErrorMessage = nil
         } catch {
             throw faultThrowing(error)
@@ -454,7 +457,7 @@ final class Library {
         do {
             let savedItem = try await network.capture(url: url, sourceName: Self.sourceName, captureChannel: CaptureChannel.app.rawValue)
             upsert([savedItem])
-            persistItems()
+            await persistItems()
             status.isAPIReachable = true
             status.errorMessage = nil
             return .saved(savedItem)
@@ -475,13 +478,16 @@ final class Library {
     /// Optimistically marks an item read for the open animation, before the
     /// `markOpened` round-trip runs.
     func prepareForAnimatedReadStateChange(_ item: SavedItem) {
-        updateLocalReadState(for: item.id, isRead: true)
+        guard updateLocalReadState(for: item.id, isRead: true) else { return }
+        Task { await persistItems() }
     }
 
     func markOpened(_ item: SavedItem) async {
         guard let url = URL(string: item.originalURL) else { return }
 
-        updateLocalReadState(for: item.id, isRead: true)
+        if updateLocalReadState(for: item.id, isRead: true) {
+            await persistItems()
+        }
 
         await UIApplication.shared.open(url)
 
@@ -507,7 +513,7 @@ final class Library {
 
                 if self.currentReadState(for: updated.id) == true {
                     self.upsert([updated])
-                    self.persistItems()
+                    await self.persistItems()
                 }
 
                 self.status.errorMessage = nil
@@ -525,7 +531,9 @@ final class Library {
     }
 
     func setRead(_ item: SavedItem, isRead: Bool) async {
-        updateLocalReadState(for: item.id, isRead: isRead)
+        if updateLocalReadState(for: item.id, isRead: isRead) {
+            await persistItems()
+        }
 
         guard status.isOnline else {
             readStateQueue.enqueue(itemId: item.id, isRead: isRead)
@@ -542,7 +550,7 @@ final class Library {
 
             if currentReadState(for: updated.id) == isRead {
                 upsert([updated])
-                persistItems()
+                await persistItems()
             }
 
             status.errorMessage = nil
@@ -562,7 +570,7 @@ final class Library {
         do {
             try await network.deleteItem(itemId: item.id)
             updateIndex { $0.remove(id: item.id) }
-            persistItems()
+            await persistItems()
         } catch {
             handleRequestFault(asFault(error))
         }
@@ -703,7 +711,7 @@ final class Library {
         }
 
         readStateQueue.removeProcessed(processed)
-        if didUpdate { persistItems() }
+        if didUpdate { await persistItems() }
         status.errorMessage = nil
     }
 
@@ -762,12 +770,13 @@ final class Library {
         }
     }
 
-    private func updateLocalReadState(for itemId: String, isRead: Bool) {
-        guard let item = retrievalIndex.item(id: itemId), item.isRead != isRead else { return }
+    @discardableResult
+    private func updateLocalReadState(for itemId: String, isRead: Bool) -> Bool {
+        guard let item = retrievalIndex.item(id: itemId), item.isRead != isRead else { return false }
         updateIndex {
             $0.mutate(where: { $0.id == itemId }) { $0 = $0.withReadState(isRead) }
         }
-        persistItems()
+        return true
     }
 
     private func currentReadState(for itemId: String) -> Bool? {
@@ -778,7 +787,6 @@ final class Library {
     private func applyFolderSummary(_ folder: Folder) {
         let summary = FolderSummary(id: folder.id, name: folder.name, emoji: folder.emoji, color: folder.color)
         mutateItems(where: { $0.folder?.id == folder.id }) { $0 = $0.withFolder(summary) }
-        persistItems()
     }
 
     private func mutateItems(where predicate: (SavedItem) -> Bool, transform: (inout SavedItem) -> Void) {
@@ -793,18 +801,18 @@ final class Library {
 
     // MARK: - Persistence & pending captures
 
-    private func restoreCachedItems() {
-        guard let cachedItems = cache.load() else { return }
-        updateIndex {
-            $0.replaceGlobal(
-                with: readStateQueue.apply(to: cachedItems),
-                coverage: .cached
-            )
-        }
+    private func restoreCachedItems() async {
+        guard let cached = await cache.load() else { return }
+        var index = cached.index
+        index.replaceGlobal(
+            with: readStateQueue.apply(to: index.globalItems),
+            coverage: .cached
+        )
+        updateIndex { $0 = index }
     }
 
-    private func persistItems() {
-        cache.save(savedItems())
+    private func persistItems(at date: Date = Date()) async {
+        await cache.save(retrievalIndex, savedAt: date, scopeUpdatedAt: date)
     }
 
     private func updateIndex(_ update: (inout RetrievalIndex) -> Void) {

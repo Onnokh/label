@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct FolderSummary: Codable, Equatable, Identifiable, Hashable {
+nonisolated struct FolderSummary: Codable, Equatable, Identifiable, Hashable, Sendable {
     let id: String
     let name: String
     let emoji: String?
@@ -14,7 +14,7 @@ nonisolated struct Folder: Codable, Equatable, Identifiable, Hashable {
     let color: String?
 }
 
-nonisolated struct SavedItem: Codable, Identifiable, Equatable {
+nonisolated struct SavedItem: Codable, Identifiable, Equatable, Sendable {
     var id: String
     var originalURL: String
     var normalizedURL: String
@@ -141,7 +141,7 @@ nonisolated extension SavedItem {
     }
 }
 
-nonisolated enum EnrichmentStatus: String, Codable {
+nonisolated enum EnrichmentStatus: String, Codable, Sendable {
     case pending
     case enriched
     case failed

@@ -50,7 +50,12 @@ struct RetrievalTests {
         #expect(emptyLibrary.snapshot(for: .readingQueue).coverage == .failed)
 
         let cachedEnvironment = RetrievalTestEnvironment()
-        cachedEnvironment.cache.save([.fixture(id: "cached", isRead: false)])
+        await cachedEnvironment.cache.save(
+            RetrievalIndex(
+                globalItems: [.fixture(id: "cached", isRead: false)],
+                globalCoverage: .complete
+            )
+        )
         cachedEnvironment.network.faults["loadSavedItems"] = .unreachable(reason: "offline")
         let cachedLibrary = cachedEnvironment.makeLibrary()
 
@@ -58,6 +63,20 @@ struct RetrievalTests {
 
         #expect(cachedLibrary.snapshot(for: .readingQueue).items.map(\.id) == ["cached"])
         #expect(cachedLibrary.snapshot(for: .readingQueue).coverage == .stale)
+    }
+
+    @Test func failedRefreshKeepsKnownEmptyCacheDistinctFromUnloadedScope() async {
+        let environment = RetrievalTestEnvironment()
+        await environment.cache.save(
+            RetrievalIndex(globalItems: [], globalCoverage: .complete)
+        )
+        environment.network.faults["loadSavedItems"] = .unreachable(reason: "offline")
+        let library = environment.makeLibrary()
+
+        await library.loadIfNeeded()
+
+        #expect(library.snapshot(for: .readingQueue).items.isEmpty)
+        #expect(library.snapshot(for: .readingQueue).coverage == .stale)
     }
 
     @Test func readingQueueSnapshotTracksCaptureAndDelete() async throws {
@@ -82,7 +101,7 @@ struct RetrievalTests {
 private final class RetrievalTestEnvironment {
     let network = InMemoryNetworkAdapter()
     let connectivity = StubConnectivityMonitor()
-    let cache: SavedItemCache
+    let cache: RetrievalIndexCache
     let readState: ReadStateQueue
     let captures: PendingCaptureQueue
     let statusDefaults: UserDefaults
@@ -91,7 +110,7 @@ private final class RetrievalTestEnvironment {
     init() {
         let container = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        cache = SavedItemCache(
+        cache = RetrievalIndexCache(
             userId: userId,
             directory: container,
             encoder: .sharedISO8601,
