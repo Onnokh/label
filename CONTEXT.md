@@ -76,7 +76,7 @@ The REST API action that records a Saved Item as opened and therefore read.
 _Avoid_: Manual read toggle, generic patch
 
 **Native iOS App**:
-The primary iPhone app for viewing the Reading Queue, browsing the Library, and supporting native capture.
+The primary iPhone app for triaging the Inbox, browsing the Library, and supporting native capture.
 _Avoid_: Mobile website, wrapper app
 
 **SwiftUI App**:
@@ -120,7 +120,7 @@ A lightweight on-device preview shown before saving a clipboard URL.
 _Avoid_: Enrichment preview, server preview, metadata fetch
 
 **Capture Capsule**:
-An inline native iOS capture surface that appears at the top of the Reading Queue without moving the app chrome.
+An inline native iOS capture surface that appears at the top of the Inbox without moving the app chrome.
 _Avoid_: Bottom sheet, modal form, full-screen composer
 
 **Pending Capture**:
@@ -307,12 +307,8 @@ _Avoid_: Client-only folder filtering, empty folder identifier, Inbox selector
 An embedded Folder identifier and name returned in a Saved Item response when that item belongs to a Folder.
 _Avoid_: Folder contents, folder statistics, folder name without identity
 
-**Reading Queue**:
-The primary list of all Saved Items, ordered with the most recently saved item first.
-_Avoid_: Library, dashboard, feed
-
 **Inbox**:
-The triage surface for recently saved unread Saved Items.
+The triage surface for recently saved unread Saved Items, ordered with the most recently saved item first.
 _Avoid_: Reading Queue, Library, feed
 
 **Library**:
@@ -346,10 +342,6 @@ _Avoid_: Library (as a store or type name), per-screen store
 **V1 Library**:
 A lightweight Library browsing surface that reuses Saved Item list UI across the unfiled root and Folder Views with Type and Tag filters.
 _Avoid_: Knowledge base, advanced search
-
-**Queue Tab**:
-The native iOS tab that shows the Reading Queue.
-_Avoid_: Home, feed
 
 **Home Tab**:
 The native iOS tab label for the Inbox.
@@ -499,7 +491,7 @@ _Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
 - The API implements the **REST API** with **Effect HttpApi**.
 - iOS uses **Hand-Written DTOs** with a hand-written API client.
 - The public API and adapted backend domain use **Saved Item** terminology rather than bookmark terminology.
-- The **Native iOS App** is a primary surface for the **Reading Queue** and **Library**.
+- The **Native iOS App** is a primary surface for the **Inbox** and **Library**.
 - The **Inbox** contains unread **Saved Items** for quick triage, while the **Library** contains the complete saved collection for browsing and filtering.
 - The **Library** is the primary **Retrieval Surface** for the complete saved collection.
 - A **Folder View** is a Library navigation destination, while **Type** and **Tag** remain filters within Library browsing.
@@ -597,19 +589,19 @@ _Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
 - **Clipboard Capture** opens empty **Manual URL Capture** when the clipboard does not contain a URL.
 - **Clipboard URL Preview** is lightweight and on-device; backend **Enrichment** still happens only after capture.
 - **Capture Capsule** is opened and closed by the same navigation action, which morphs between add and close states.
-- **Capture Capsule** appears inline at the top of the **Reading Queue** and should not shift the navigation title, toolbar, or tab chrome.
+- **Capture Capsule** appears inline at the top of the **Inbox** and should not shift the navigation title, toolbar, or tab chrome.
 - **Capture Capsule** uses one subtle editable URL field for both clipboard preview and manual entry.
 - **Capture Capsule** follows the **Capture Endpoint** definition of a valid URL rather than introducing stricter client-only URL rules.
 - **Capture Capsule** may disable saving for obviously empty or locally unparseable input, while the **Capture Endpoint** remains the final URL validation authority.
 - **Capture Capsule** remains visible and locked while save confirmation is in flight.
-- **Capture Capsule** collapses after successful capture and the Saved Item appears at the top of the **Reading Queue**.
+- **Capture Capsule** collapses after successful capture and the Saved Item appears at the top of the **Inbox**.
 - **Capture Capsule** keeps the entered URL visible with a compact inline error when capture fails.
 - **Capture Capsule** creates a **Pending Capture** when the API is temporarily unavailable.
 - The **iOS Share Extension** creates a **Pending Capture** when the API is temporarily unavailable.
-- A **Pending Capture** appears in the **Reading Queue** until it syncs.
+- A **Pending Capture** appears in the **Inbox** until it syncs.
 - **Pending Capture** sync uses the same native iOS behavior for **iOS Share Extension** and **Capture Capsule**.
 - **Capture Capsule** collapses once a URL is accepted as a **Pending Capture**.
-- A **Duplicate Save** moves the existing **Saved Item** to the top of the **Reading Queue**.
+- A **Duplicate Save** moves the existing **Saved Item** to the top of the **Inbox**.
 - A **Duplicate Save** does not create another **Saved Item**.
 - A **Duplicate Save** sets the existing **Saved Item** to unread.
 - A **Duplicate Save** updates the **Source** and **Capture Channel** to the latest capture.
@@ -650,14 +642,14 @@ _Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
 - A Duplicate Save with a **Folder** assignment moves the existing **Saved Item** into that Folder.
 - A Duplicate Save without a Folder identifier moves the existing **Saved Item** into **No Folder**.
 - Clients receive **Effective Tags** as `tags` in the REST API.
-- The **Reading Queue** presents all **Saved Items** in reverse capture order.
+- The **Inbox** presents unread **Saved Items** in reverse capture order.
 - The **Library** provides browsing across unfiled Saved Items and **Folder Views** with filtering and categorization controls.
 - The **V1 Library** reuses Saved Item list UI for its root and **Folder Views**, with **Type** and **Tag** filters.
 - The **V1 Library** supports at most one active **Type** filter and one active **Tag** filter.
 - The **V1 Library** may include a **No Tag Filter** for Saved Items without any **Tags**.
 - The Library root in product apps shows Saved Items in the **No Folder Filter** state without requiring a visible **No Folder** navigation destination.
 - V1 does not include a general manual tag editor outside capture-time **Saved Item Tags**.
-- The **Native iOS App** has a **Queue Tab** and **Library Tab** in v1.
+- The **Native iOS App** has a **Home Tab**, **Library Tab**, and **Search Tab** in v1.
 - The **Native iOS App** exposes the **Move to Folder Action** through native item interaction, allowing a Saved Item to return to the Library root without presenting **No Folder** as a named navigation destination.
 - The **Native iOS App** navigates into a **Folder View** rather than representing Folders only inside the filter sheet.
 - Selecting a **Folder** in the **Native iOS App** pushes a native Folder View on the Library navigation stack, keeping the Library overview as the root.
@@ -792,3 +784,4 @@ These record the reasoning behind decisions that are not obvious from the defini
 - A public Saved Item page is not ordered by **Last Saved At**; resolved: Saved Item creation time orders it, so a **Duplicate Save** cannot reorder a published page.
 - A public Saved Item page is not addressed by cursor; resolved: numbered pages give every page a shareable URL, which a crawler can reach and infinite scroll cannot.
 - The first publish has no review step; resolved: opt-in confirmation copy states the item count and the automatic future behavior, and Sleevy accepts that an existing library publishes in full at that moment.
+- "Reading Queue" named the pre-Inbox home list of all Saved Items, and later specs and iOS code reused it for the unread-only surface; resolved: **Inbox** is the canonical name for the unread triage surface and the **Library** for the complete collection, so Reading Queue and Queue Tab are retired (see ADR 0019).

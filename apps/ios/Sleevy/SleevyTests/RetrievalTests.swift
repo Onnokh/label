@@ -4,7 +4,7 @@ import Testing
 
 @MainActor
 struct RetrievalTests {
-    @Test func readingQueueProjectsUnreadItemsNewestFirst() {
+    @Test func inboxProjectsUnreadItemsNewestFirst() {
         var olderUnread = SavedItem.fixture(id: "older", isRead: false)
         olderUnread.lastSavedAt = .init(timeIntervalSince1970: 100)
         var newerUnread = SavedItem.fixture(id: "newer", isRead: false)
@@ -17,7 +17,7 @@ struct RetrievalTests {
             globalCoverage: .complete
         )
 
-        let snapshot = RetrievalProjector.snapshot(for: .readingQueue, in: index)
+        let snapshot = RetrievalProjector.snapshot(for: .inbox, in: index)
 
         #expect(snapshot.items.map(\.id) == ["newer", "older"])
         #expect(snapshot.coverage == .complete)
@@ -183,7 +183,7 @@ struct RetrievalTests {
         #expect(after.unreadDestinationCount == 0)
     }
 
-    @Test func readingQueueSnapshotTracksLoadAndOptimisticReadState() async {
+    @Test func inboxSnapshotTracksLoadAndOptimisticReadState() async {
         let environment = RetrievalTestEnvironment()
         environment.network.items["unread"] = .fixture(id: "unread", isRead: false)
         environment.network.items["read"] = .fixture(id: "read", isRead: true)
@@ -191,13 +191,13 @@ struct RetrievalTests {
 
         await library.load()
 
-        #expect(library.snapshot(for: .readingQueue).items.map(\.id) == ["unread"])
-        #expect(library.snapshot(for: .readingQueue).coverage == .complete)
+        #expect(library.snapshot(for: .inbox).items.map(\.id) == ["unread"])
+        #expect(library.snapshot(for: .inbox).coverage == .complete)
 
         environment.connectivity.emit(false)
         await library.setRead(library.snapshot(for: .completeLibrary).items.first(where: { $0.id == "unread" })!, isRead: true)
 
-        #expect(library.snapshot(for: .readingQueue).items.isEmpty)
+        #expect(library.snapshot(for: .inbox).items.isEmpty)
     }
 
     @Test func failedLoadsDistinguishMissingDataFromStaleCache() async {
@@ -207,7 +207,7 @@ struct RetrievalTests {
 
         await emptyLibrary.load()
 
-        #expect(emptyLibrary.snapshot(for: .readingQueue).coverage == .failed)
+        #expect(emptyLibrary.snapshot(for: .inbox).coverage == .failed)
 
         let cachedEnvironment = RetrievalTestEnvironment()
         await cachedEnvironment.cache.save(
@@ -221,8 +221,8 @@ struct RetrievalTests {
 
         await cachedLibrary.loadIfNeeded()
 
-        #expect(cachedLibrary.snapshot(for: .readingQueue).items.map(\.id) == ["cached"])
-        #expect(cachedLibrary.snapshot(for: .readingQueue).coverage == .stale)
+        #expect(cachedLibrary.snapshot(for: .inbox).items.map(\.id) == ["cached"])
+        #expect(cachedLibrary.snapshot(for: .inbox).coverage == .stale)
     }
 
     @Test func failedRefreshKeepsKnownEmptyCacheDistinctFromUnloadedScope() async {
@@ -235,11 +235,11 @@ struct RetrievalTests {
 
         await library.loadIfNeeded()
 
-        #expect(library.snapshot(for: .readingQueue).items.isEmpty)
-        #expect(library.snapshot(for: .readingQueue).coverage == .stale)
+        #expect(library.snapshot(for: .inbox).items.isEmpty)
+        #expect(library.snapshot(for: .inbox).coverage == .stale)
     }
 
-    @Test func readingQueueSnapshotTracksCaptureAndDelete() async throws {
+    @Test func inboxSnapshotTracksCaptureAndDelete() async throws {
         let environment = RetrievalTestEnvironment()
         let library = environment.makeStore()
 
@@ -249,11 +249,11 @@ struct RetrievalTests {
             return
         }
 
-        #expect(library.snapshot(for: .readingQueue).items.map(\.id) == [captured.id])
+        #expect(library.snapshot(for: .inbox).items.map(\.id) == [captured.id])
 
         await library.delete(captured)
 
-        #expect(library.snapshot(for: .readingQueue).items.isEmpty)
+        #expect(library.snapshot(for: .inbox).items.isEmpty)
     }
 }
 

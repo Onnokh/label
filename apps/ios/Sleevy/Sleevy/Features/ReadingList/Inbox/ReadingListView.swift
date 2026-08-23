@@ -14,7 +14,7 @@ struct ReadingListView: View {
     @State private var headerTopInsetBaseline: CGFloat = 0
 
     var body: some View {
-        let snapshot = store.snapshot(for: .readingQueue)
+        let snapshot = store.snapshot(for: .inbox)
 
         GeometryReader { geometry in
             readingList(
