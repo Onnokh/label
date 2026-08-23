@@ -19,9 +19,32 @@ struct ConnectivityMonitorTests {
         }
     }
 
-    @Test func storeReflectsConnectivityTransitions() {
+    @Test func storeReflectsConnectivityTransitions() async {
         let monitor = StubConnectivityMonitor()
-        let store = Library(session: makeSession(), connectivityMonitor: monitor)
+        let container = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let userId = "connectivity-test-user"
+        let store = Library(
+            userId: userId,
+            network: InMemoryNetworkAdapter(),
+            cache: SavedItemCache(
+                userId: userId,
+                directory: container,
+                encoder: .sharedISO8601,
+                decoder: .sharedISO8601
+            ),
+            readStateQueue: ReadStateQueue(userId: userId, containerURL: container),
+            pendingCaptureQueue: PendingCaptureQueue(
+                userId: userId,
+                store: SleevyPendingCaptureStore(
+                    appGroupIdentifier: "group.test",
+                    containerURLOverride: container
+                )
+            ),
+            statusDefaults: UserDefaults(suiteName: "connectivity-test-\(UUID().uuidString)")!,
+            connectivity: monitor
+        )
+        await store.loadIfNeeded()
 
         #expect(store.isOnline == true) // default before any path update
 
@@ -32,7 +55,4 @@ struct ConnectivityMonitorTests {
         #expect(store.isOnline == true)
     }
 
-    private func makeSession() -> AppSession {
-        AppSession(token: "t", userId: "connectivity-test-user", email: "a@b.c", name: "Tester", provider: nil)
-    }
 }

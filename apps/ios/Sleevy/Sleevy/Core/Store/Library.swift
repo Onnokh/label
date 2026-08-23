@@ -427,7 +427,7 @@ final class Library {
         let url = rawURL.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard status.isOnline else {
-            enqueuePendingCapture(url: url)
+            try enqueuePendingCapture(url: url)
             return .queued
         }
 
@@ -442,7 +442,7 @@ final class Library {
             let fault = asFault(error)
             switch classify(fault) {
             case .retain:
-                enqueuePendingCapture(url: url)
+                try enqueuePendingCapture(url: url)
                 status.errorMessage = nil
                 return .queued
             case .drop, .signOut:
@@ -549,7 +549,12 @@ final class Library {
     }
 
     func removePendingSavedItem(_ item: PendingSavedItem) {
-        pendingCaptureQueue.remove(id: item.id)
+        do {
+            try pendingCaptureQueue.remove(id: item.id)
+            status.errorMessage = nil
+        } catch {
+            status.errorMessage = error.localizedDescription
+        }
         refreshPendingCaptureState()
     }
 
@@ -625,7 +630,13 @@ final class Library {
     /// Pushes queued captures (made offline, or that failed to sync) to the
     /// server. Only ever called from `sync()`, which serializes it.
     private func drainPendingCaptures() async {
-        let pending = pendingCaptureQueue.load()
+        let pending: [SleevyPendingCapture]
+        do {
+            pending = try pendingCaptureQueue.load()
+        } catch {
+            status.errorMessage = error.localizedDescription
+            return
+        }
         guard !pending.isEmpty else { return }
 
         let processed = await drain(pending) { capture in
@@ -637,7 +648,16 @@ final class Library {
             }
         }
 
-        pendingCaptureQueue.removeProcessed(ids: Set(processed.map(\.id)))
+        do {
+            try pendingCaptureQueue.removeProcessed(ids: Set(processed.map(\.id)))
+        } catch {
+            // The server may have accepted these captures, but until their
+            // durable queue entries are removed they remain pending. Retaining
+            // them is safer than reporting completion and losing the retry.
+            status.errorMessage = error.localizedDescription
+            refreshPendingCaptureState()
+            return
+        }
         refreshPendingCaptureState()
         status.errorMessage = nil
     }
@@ -765,13 +785,23 @@ final class Library {
     }
 
     private func refreshPendingCaptureState() {
-        let pendingItems = pendingCaptureQueue.pendingSavedItems()
-        pendingCaptureCount = pendingItems.count
-        pendingSavedItems = pendingItems
+        do {
+            let pendingItems = try pendingCaptureQueue.pendingSavedItems()
+            pendingCaptureCount = pendingItems.count
+            pendingSavedItems = pendingItems
+        } catch {
+            // Keep the last known items rather than showing an unreadable queue
+            // as empty.
+            status.errorMessage = error.localizedDescription
+        }
     }
 
-    private func enqueuePendingCapture(url: String) {
-        pendingCaptureQueue.enqueue(url: url, sourceName: Self.sourceName, captureChannel: CaptureChannel.app.rawValue)
+    private func enqueuePendingCapture(url: String) throws {
+        try pendingCaptureQueue.enqueue(
+            url: url,
+            sourceName: Self.sourceName,
+            captureChannel: CaptureChannel.app.rawValue
+        )
         refreshPendingCaptureState()
     }
 

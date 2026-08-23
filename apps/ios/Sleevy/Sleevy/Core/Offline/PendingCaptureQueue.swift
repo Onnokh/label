@@ -17,34 +17,29 @@ struct PendingCaptureQueue {
         self.store = store
     }
 
-    func load() -> [SleevyPendingCapture] {
-        store.load(for: userId)
+    func load() throws -> [SleevyPendingCapture] {
+        try store.load(for: userId)
     }
 
-    func pendingSavedItems() -> [PendingSavedItem] {
-        load().map(PendingSavedItem.init)
+    func pendingSavedItems() throws -> [PendingSavedItem] {
+        try load().map(PendingSavedItem.init)
     }
 
-    func enqueue(url: String, sourceName: String?, captureChannel: String?) {
-        try? store.enqueue(url: url, for: userId, sourceName: sourceName, captureChannel: captureChannel)
+    func enqueue(url: String, sourceName: String?, captureChannel: String?) throws {
+        try store.enqueue(url: url, for: userId, sourceName: sourceName, captureChannel: captureChannel)
     }
 
-    func remove(id: UUID) {
-        store.remove(id: id, for: userId)
+    func remove(id: UUID) throws {
+        try store.remove(id: id, for: userId)
     }
 
-    /// Removes the given capture ids by re-reading the *current* on-disk queue and
-    /// persisting the remainder. Unlike `persist(_:)` (which overwrites with a
-    /// whole-list snapshot), this preserves any captures enqueued concurrently —
-    /// e.g. while a drain was suspended awaiting the network — so a confirmed
-    /// drain only ever removes exactly the captures it processed.
-    func removeProcessed(ids: Set<UUID>) {
-        guard !ids.isEmpty else { return }
-        try? store.persist(load().filter { !ids.contains($0.id) }, for: userId)
+    /// Removes confirmed captures without dropping captures added during a drain.
+    func removeProcessed(ids: Set<UUID>) throws {
+        try store.removeProcessed(ids: ids, for: userId)
     }
 
-    func persist(_ captures: [SleevyPendingCapture]) {
-        try? store.persist(captures, for: userId)
+    func persist(_ captures: [SleevyPendingCapture]) throws {
+        try store.persist(captures, for: userId)
     }
 }
 

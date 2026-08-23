@@ -41,6 +41,7 @@ Thumbs.db
 # Xcode
 DerivedData/
 apps/ios/Sleevy/.build/
+apps/ios/Sleevy/.build-device/
 *.xcuserstate
 xcuserdata/
 *.xcodeproj/project.xcworkspace/xcuserdata/

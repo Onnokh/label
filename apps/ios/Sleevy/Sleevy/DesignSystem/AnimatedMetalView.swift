@@ -15,7 +15,7 @@ class AnimatedMetalView: MTKView {
         }
     }
 
-    private var powerStateObserver: NSObjectProtocol?
+    private var powerStateTask: Task<Void, Never>?
 
     override init(frame frameRect: CGRect, device: MTLDevice?) {
         super.init(frame: frameRect, device: device)
@@ -25,12 +25,12 @@ class AnimatedMetalView: MTKView {
         enableSetNeedsDisplay = true
         isPaused = true
 
-        powerStateObserver = NotificationCenter.default.addObserver(
-            forName: .NSProcessInfoPowerStateDidChange,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.updatePlaybackState()
+        powerStateTask = Task { @MainActor [weak self] in
+            for await _ in NotificationCenter.default.notifications(
+                named: .NSProcessInfoPowerStateDidChange
+            ) {
+                self?.updatePlaybackState()
+            }
         }
     }
 
@@ -40,9 +40,7 @@ class AnimatedMetalView: MTKView {
     }
 
     deinit {
-        if let powerStateObserver {
-            NotificationCenter.default.removeObserver(powerStateObserver)
-        }
+        powerStateTask?.cancel()
     }
 
     override func didMoveToWindow() {

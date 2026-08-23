@@ -66,7 +66,7 @@ nonisolated struct SavedItem: Codable, Identifiable, Equatable {
     }
 }
 
-extension SavedItem {
+nonisolated extension SavedItem {
     // Decode-only keys: identical to `CodingKeys` plus the retired `topic`
     // field, so stale cached payloads from older clients still load.
     private enum DecodingKeys: String, CodingKey {
@@ -127,7 +127,7 @@ extension SavedItem {
     }
 }
 
-extension SavedItem {
+nonisolated extension SavedItem {
     func withReadState(_ isRead: Bool) -> SavedItem {
         var copy = self
         copy.isRead = isRead

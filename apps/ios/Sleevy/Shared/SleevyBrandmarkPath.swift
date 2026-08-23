@@ -7,7 +7,7 @@ import CoreGraphics
 /// both draw the mark. They each used to hold their own hand-copied path, and
 /// the copies drifted: the extension kept drawing the previous six-tile mark
 /// after the app had moved on. One path means that cannot happen again.
-enum SleevyBrandmarkPath {
+nonisolated enum SleevyBrandmarkPath {
     private static let width: CGFloat = 462
     private static let height: CGFloat = 587
 

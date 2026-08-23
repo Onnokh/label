@@ -1,4 +1,6 @@
+import Darwin
 import Foundation
+import os
 
 struct SleevyCaptureClient {
     let apiBaseURL: URL
@@ -71,67 +73,155 @@ enum SleevyCaptureError: LocalizedError {
     }
 }
 
-struct SleevyPendingCaptureStore {
+/// Durable, user-scoped Pending Capture storage shared by the app and Share
+/// Extension. Mutations use both an in-process mutex and a per-user `flock`;
+/// atomic writes keep readers from seeing partial JSON.
+nonisolated struct SleevyPendingCaptureStore: Sendable {
+    /// `flock` coordinates processes, but not separate file descriptors opened
+    /// within one process.
+    private static let processLock = OSAllocatedUnfairLock(initialState: ())
+
     let appGroupIdentifier: String
     /// Overrides the app group container; used by tests to point at a temp directory.
     var containerURLOverride: URL? = nil
 
     func enqueue(url: String, for userId: String, sourceName: String? = nil, captureChannel: String? = nil) throws {
-        var pendingCaptures = load(for: userId)
-        pendingCaptures.insert(
-            SleevyPendingCapture(
-                id: UUID(),
-                url: url,
-                queuedAt: Date(),
-                sourceName: sourceName,
-                captureChannel: captureChannel
-            ),
-            at: 0
-        )
-        try persist(pendingCaptures, for: userId)
-    }
-
-    func remove(id: UUID, for userId: String) {
-        let pendingCaptures = load(for: userId)
-        let updatedCaptures = pendingCaptures.filter { $0.id != id }
-        try? persist(updatedCaptures, for: userId)
-    }
-
-    func load(for userId: String) -> [SleevyPendingCapture] {
-        guard
-            let queueURL = pendingCapturesURL(for: userId),
-            let data = try? Data(contentsOf: queueURL),
-            let pendingCaptures = try? JSONDecoder.sharedISO8601.decode([SleevyPendingCapture].self, from: data)
-        else {
-            return []
+        try withExclusiveAccess(for: userId) { queueURL in
+            var pendingCaptures = try load(from: queueURL)
+            pendingCaptures.insert(
+                SleevyPendingCapture(
+                    id: UUID(),
+                    url: url,
+                    queuedAt: Date(),
+                    sourceName: sourceName,
+                    captureChannel: captureChannel
+                ),
+                at: 0
+            )
+            try persist(pendingCaptures, to: queueURL)
         }
+    }
 
-        return pendingCaptures
+    func remove(id: UUID, for userId: String) throws {
+        try removeProcessed(ids: [id], for: userId)
+    }
+
+    /// Removes confirmed captures without dropping captures added during a drain.
+    func removeProcessed(ids: Set<UUID>, for userId: String) throws {
+        guard !ids.isEmpty else { return }
+
+        try withExclusiveAccess(for: userId) { queueURL in
+            let pendingCaptures = try load(from: queueURL)
+            try persist(pendingCaptures.filter { !ids.contains($0.id) }, to: queueURL)
+        }
+    }
+
+    func load(for userId: String) throws -> [SleevyPendingCapture] {
+        try withExclusiveAccess(for: userId) { queueURL in
+            try load(from: queueURL)
+        }
     }
 
     func persist(_ pendingCaptures: [SleevyPendingCapture], for userId: String) throws {
-        guard let queueURL = pendingCapturesURL(for: userId) else { return }
+        try withExclusiveAccess(for: userId) { queueURL in
+            try persist(pendingCaptures, to: queueURL)
+        }
+    }
 
+    private func load(from queueURL: URL) throws -> [SleevyPendingCapture] {
+        guard FileManager.default.fileExists(atPath: queueURL.path) else { return [] }
+        let data = try Data(contentsOf: queueURL)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .sleevyISO8601
+        return try decoder.decode([SleevyPendingCapture].self, from: data)
+    }
+
+    private func persist(_ pendingCaptures: [SleevyPendingCapture], to queueURL: URL) throws {
         try FileManager.default.createDirectory(
             at: queueURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
 
         if pendingCaptures.isEmpty {
-            try? FileManager.default.removeItem(at: queueURL)
+            if FileManager.default.fileExists(atPath: queueURL.path) {
+                try FileManager.default.removeItem(at: queueURL)
+            }
             return
         }
 
-        let data = try JSONEncoder.sharedISO8601.encode(pendingCaptures)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let data = try encoder.encode(pendingCaptures)
         try data.write(to: queueURL, options: .atomic)
     }
 
-    private func pendingCapturesURL(for userId: String) -> URL? {
-        let container = containerURLOverride
-            ?? FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)
-        return container?
-            .appendingPathComponent("PendingCaptures", isDirectory: true)
-            .appendingPathComponent("\(userId).json", isDirectory: false)
+    private func withExclusiveAccess<Result: Sendable>(
+        for userId: String,
+        operation: @Sendable (URL) throws -> Result
+    ) throws -> Result {
+        try Self.processLock.withLock { _ in
+            do {
+                guard let container = containerURLOverride
+                    ?? FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)
+                else {
+                    throw SleevyPendingCaptureStoreError.containerUnavailable
+                }
+
+                let queueURL = container
+                    .appendingPathComponent("PendingCaptures", isDirectory: true)
+                    .appendingPathComponent("\(userId).json", isDirectory: false)
+                let directoryURL = queueURL.deletingLastPathComponent()
+                try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+
+                let lockURL = directoryURL.appendingPathComponent("\(userId).lock", isDirectory: false)
+                if !FileManager.default.fileExists(atPath: lockURL.path) {
+                    _ = FileManager.default.createFile(atPath: lockURL.path, contents: nil)
+                    guard FileManager.default.fileExists(atPath: lockURL.path) else {
+                        throw SleevyPendingCaptureStoreError.lockUnavailable
+                    }
+                }
+
+                let lockHandle = try FileHandle(forUpdating: lockURL)
+                defer { try? lockHandle.close() }
+                try lockExclusively(lockHandle.fileDescriptor)
+                defer { flock(lockHandle.fileDescriptor, LOCK_UN) }
+
+                return try operation(queueURL)
+            } catch let error as SleevyPendingCaptureStoreError {
+                throw error
+            } catch {
+                throw SleevyPendingCaptureStoreError.operationFailed(underlying: error)
+            }
+        }
+    }
+
+    private func lockExclusively(_ fileDescriptor: Int32) throws {
+        while flock(fileDescriptor, LOCK_EX) != 0 {
+            guard errno == EINTR else {
+                throw SleevyPendingCaptureStoreError.operationFailed(
+                    underlying: NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
+                )
+            }
+        }
+    }
+}
+
+nonisolated enum SleevyPendingCaptureStoreError: LocalizedError {
+    case containerUnavailable
+    case lockUnavailable
+    case operationFailed(underlying: Error)
+
+    var errorDescription: String? {
+        "Sleevy couldn’t safely save this link for later. Keep this screen open and try again."
+    }
+
+    var underlyingError: Error? {
+        switch self {
+        case .operationFailed(let error):
+            return error
+        case .containerUnavailable, .lockUnavailable:
+            return nil
+        }
     }
 }
 
@@ -180,7 +270,7 @@ extension JSONEncoder {
 }
 
 extension JSONDecoder.DateDecodingStrategy {
-    static let sleevyISO8601 = custom { decoder in
+    nonisolated static let sleevyISO8601 = custom { decoder in
         let container = try decoder.singleValueContainer()
 
         if let timestamp = try? container.decode(Double.self) {

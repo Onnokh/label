@@ -4,7 +4,7 @@ import UIKit
 // MARK: - Contract
 
 /// Mirror of `GET /v1/public/profiles/:handle` (`PublicProfileDto`).
-struct PublicProfile: Decodable {
+nonisolated struct PublicProfile: Decodable {
     let handle: String
     let joinedAt: Date
     let publicSavedItemCount: Int
@@ -14,7 +14,7 @@ struct PublicProfile: Decodable {
 /// Mirror of one entry of `GET /v1/public/profiles/:handle/saved-items`
 /// (`PublicSavedItemDto`). A profile publishes a Link at most once, so the
 /// original URL identifies the row.
-struct PublicSavedItem: Decodable, Identifiable, Equatable {
+nonisolated struct PublicSavedItem: Decodable, Identifiable, Equatable {
     let originalUrl: String
     let host: String
     let title: String?
@@ -30,7 +30,7 @@ struct PublicSavedItem: Decodable, Identifiable, Equatable {
     var id: String { originalUrl }
 }
 
-private struct PublicSavedItemsPage: Decodable {
+nonisolated private struct PublicSavedItemsPage: Decodable {
     let savedItems: [PublicSavedItem]
     let page: Int
     let pageSize: Int

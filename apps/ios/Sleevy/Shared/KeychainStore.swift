@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-struct KeychainStore {
+nonisolated struct KeychainStore {
     private let service: String
     private let accessGroup: String?
 

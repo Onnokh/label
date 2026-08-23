@@ -42,6 +42,8 @@ struct LibrarySyncTests {
     @Test func captureWhileOfflineQueuesWithoutHittingNetwork() async throws {
         let env = Environment()
         let library = env.makeLibrary()
+        await library.loadIfNeeded()
+        env.network.resetCalls()
         env.connectivity.emit(false)
 
         let outcome = try await library.capture("https://example.com/x")
@@ -58,7 +60,8 @@ struct LibrarySyncTests {
         let env = Environment()
         env.network.items["a"] = .fixture(id: "a", isRead: false)
         let library = env.makeLibrary()
-        await library.load()
+        await library.loadIfNeeded()
+        env.network.resetCalls()
         env.connectivity.emit(false) // keep the toggle local — no reconciliation
 
         let item = library.savedItems().first!
@@ -108,20 +111,26 @@ struct LibrarySyncTests {
 
     /// Same data-loss regression for the capture queue: a capture enqueued while a
     /// drain is suspended mid-network-call must survive the drain's cleanup.
-    @Test func concurrentEnqueueDuringCaptureDrainSurvives() async {
+    @Test func concurrentEnqueueDuringCaptureDrainSurvives() async throws {
         let env = Environment()
-        env.captures.enqueue(url: "https://example.com/a", sourceName: nil, captureChannel: nil)
+        try env.captures.enqueue(url: "https://example.com/a", sourceName: nil, captureChannel: nil)
         let library = env.makeLibrary()
+        var concurrentEnqueueError: Error?
 
         // While the "a" capture is draining, simulate a concurrent enqueue of "b".
         env.network.onCapture = { [captures = env.captures] in
-            guard captures.load().count == 1 else { return }
-            captures.enqueue(url: "https://example.com/b", sourceName: nil, captureChannel: nil)
+            do {
+                guard try captures.load().count == 1 else { return }
+                try captures.enqueue(url: "https://example.com/b", sourceName: nil, captureChannel: nil)
+            } catch {
+                concurrentEnqueueError = error
+            }
         }
 
         await library.refresh()
 
-        let urls = env.captures.load().map(\.url)
+        let urls = try env.captures.load().map(\.url)
+        #expect(concurrentEnqueueError == nil)
         #expect(urls.contains("https://example.com/b"))          // concurrently enqueued → preserved
         #expect(urls.contains("https://example.com/a") == false) // processed → removed
     }
@@ -133,8 +142,10 @@ struct LibrarySyncTests {
     /// not just when there's local queued work.
     @Test func returningOnlineWithEmptyQueuesPullsInbox() async {
         let env = Environment()
-        env.network.items["server-side"] = .fixture(id: "server-side", isRead: false)
         let library = env.makeLibrary()
+        await library.loadIfNeeded()
+        env.network.resetCalls()
+        env.network.items["server-side"] = .fixture(id: "server-side", isRead: false)
 
         // No local pending work at all.
         #expect(library.pendingCaptureCount == 0)
@@ -154,6 +165,8 @@ struct LibrarySyncTests {
         let env = Environment()
         env.network.items["a"] = .fixture(id: "a", isRead: false)
         let library = env.makeLibrary()
+        await library.loadIfNeeded()
+        env.network.resetCalls()
 
         env.connectivity.emit(true)  // first genuine online observation → one reconcile
         await env.settle()
@@ -177,6 +190,8 @@ struct LibrarySyncTests {
         let env = Environment()
         env.network.items["a"] = .fixture(id: "a", isRead: false)
         let library = env.makeLibrary()
+        await library.loadIfNeeded()
+        env.network.resetCalls()
 
         for _ in 0..<20 {
             env.connectivity.emit(false)
@@ -187,6 +202,23 @@ struct LibrarySyncTests {
         let calls = env.network.calls.filter { $0 == "loadSavedItems" }.count
         #expect(calls == 1)
         _ = library
+    }
+
+    @Test func offlineCaptureDoesNotReportQueuedWhenPersistenceFails() async throws {
+        let blockedContainer = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: false)
+        try Data("not a directory".utf8).write(to: blockedContainer)
+
+        let env = Environment(captureContainer: blockedContainer)
+        let library = env.makeLibrary()
+        await library.loadIfNeeded()
+        env.connectivity.emit(false)
+
+        await #expect(throws: SleevyPendingCaptureStoreError.self) {
+            try await library.capture("https://example.com/not-lost")
+        }
+        #expect(library.pendingCaptureCount == 0)
+        #expect(env.network.calls.contains("capture") == false)
     }
 
     // MARK: - Refresh during an in-flight sync
@@ -345,14 +377,17 @@ struct LibrarySyncTests {
         let statusDefaults: UserDefaults
         private let userId = "library-sync-test-user"
 
-        @MainActor init() {
+        @MainActor init(captureContainer: URL? = nil) {
             let container = FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString, isDirectory: true)
             cache = SavedItemCache(userId: userId, directory: container, encoder: .sharedISO8601, decoder: .sharedISO8601)
             readState = ReadStateQueue(userId: userId, containerURL: container)
             captures = PendingCaptureQueue(
                 userId: userId,
-                store: SleevyPendingCaptureStore(appGroupIdentifier: "group.test", containerURLOverride: container)
+                store: SleevyPendingCaptureStore(
+                    appGroupIdentifier: "group.test",
+                    containerURLOverride: captureContainer ?? container
+                )
             )
             statusDefaults = UserDefaults(suiteName: "library-sync-test-\(UUID().uuidString)")!
         }
@@ -387,6 +422,10 @@ final class InMemoryNetworkAdapter: ReadingListNetworkPort {
     /// A fault armed per verb name; consumed on the next call to that verb.
     var faults: [String: SyncFault] = [:]
     private(set) var calls: [String] = []
+
+    func resetCalls() {
+        calls = []
+    }
 
     private func record(_ verb: String) throws(SyncFault) {
         calls.append(verb)

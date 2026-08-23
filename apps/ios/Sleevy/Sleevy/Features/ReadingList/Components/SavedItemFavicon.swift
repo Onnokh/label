@@ -42,18 +42,7 @@ private struct RemoteRasterImage<Content: View, Fallback: View>: View {
     let content: (Image) -> Content
     let fallback: () -> Fallback
 
-    @State private var loader: RemoteRasterImageLoader
-
-    init(
-        url: URL,
-        @ViewBuilder content: @escaping (Image) -> Content,
-        @ViewBuilder fallback: @escaping () -> Fallback
-    ) {
-        self.url = url
-        self.content = content
-        self.fallback = fallback
-        _loader = State(wrappedValue: RemoteRasterImageLoader(url: url))
-    }
+    @State private var loader = RemoteRasterImageLoader()
 
     var body: some View {
         Group {
@@ -63,10 +52,9 @@ private struct RemoteRasterImage<Content: View, Fallback: View>: View {
                 fallback()
             }
         }
-        .task {
-            await loader.loadIfNeeded()
+        .task(id: url) {
+            await loader.load(url)
         }
-        .id(url.absoluteString)
     }
 }
 
@@ -75,32 +63,38 @@ private struct RemoteRasterImage<Content: View, Fallback: View>: View {
 private final class RemoteRasterImageLoader {
     private(set) var image: UIImage?
 
-    private let url: URL
-    private var hasStarted = false
+    private var requestedURL: URL?
+    private var loadedURL: URL?
 
-    private static let cache = NSCache<NSURL, UIImage>()
+    private static let cache: NSCache<NSURL, UIImage> = {
+        let cache = NSCache<NSURL, UIImage>()
+        cache.countLimit = 128
+        return cache
+    }()
 
-    init(url: URL) {
-        self.url = url
-    }
-
-    func loadIfNeeded() async {
-        guard !hasStarted else { return }
-        hasStarted = true
+    func load(_ url: URL) async {
+        guard loadedURL != url || image == nil else { return }
+        requestedURL = url
+        image = nil
 
         let cacheKey = url as NSURL
         if let cached = Self.cache.object(forKey: cacheKey) {
+            loadedURL = url
             image = cached
             return
         }
 
         do {
             let data = try await RemoteImageDiskCache.shared.data(for: url)
-            guard let loadedImage = UIImage(data: data) else { return }
+            try Task.checkCancellation()
+            guard requestedURL == url, let loadedImage = UIImage(data: data) else { return }
             Self.cache.setObject(loadedImage, forKey: cacheKey)
+            loadedURL = url
             image = loadedImage
         } catch {
-            return
+            if requestedURL == url {
+                requestedURL = nil
+            }
         }
     }
 }
@@ -110,20 +104,7 @@ private struct SVGRemoteImage<Fallback: View>: View {
     let colorScheme: ColorScheme
     let fallback: () -> Fallback
 
-    @State private var loader: SVGSnapshotLoader
-
-    init(
-        url: URL,
-        colorScheme: ColorScheme,
-        @ViewBuilder fallback: @escaping () -> Fallback
-    ) {
-        self.url = url
-        self.colorScheme = colorScheme
-        self.fallback = fallback
-        _loader = State(
-            wrappedValue: SVGSnapshotLoader(url: url, size: 30, colorScheme: colorScheme)
-        )
-    }
+    @State private var loader = SVGSnapshotLoader()
 
     var body: some View {
         Group {
@@ -135,10 +116,13 @@ private struct SVGRemoteImage<Fallback: View>: View {
                 fallback()
             }
         }
-        .task {
-            await loader.loadIfNeeded()
+        .task(id: cacheKey) {
+            await loader.load(url: url, size: 30, colorScheme: colorScheme)
         }
-        .id("\(url.absoluteString)|\(colorScheme.cacheKey)")
+    }
+
+    private var cacheKey: String {
+        "\(url.absoluteString)|30|\(colorScheme.cacheKey)"
     }
 }
 
@@ -147,25 +131,24 @@ private struct SVGRemoteImage<Fallback: View>: View {
 private final class SVGSnapshotLoader {
     private(set) var image: UIImage?
 
-    private let url: URL
-    private let size: CGFloat
-    private let colorScheme: ColorScheme
-    private var hasStarted = false
+    private var requestedKey: String?
+    private var loadedKey: String?
 
-    private static let cache = NSCache<NSString, UIImage>()
+    private static let cache: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.countLimit = 128
+        return cache
+    }()
 
-    init(url: URL, size: CGFloat, colorScheme: ColorScheme) {
-        self.url = url
-        self.size = size
-        self.colorScheme = colorScheme
-    }
+    func load(url: URL, size: CGFloat, colorScheme: ColorScheme) async {
+        let key = "\(url.absoluteString)|\(Int(size))|\(colorScheme.cacheKey)"
+        guard loadedKey != key || image == nil else { return }
+        requestedKey = key
+        image = nil
 
-    func loadIfNeeded() async {
-        guard !hasStarted else { return }
-        hasStarted = true
-
-        let cacheKey = "\(url.absoluteString)|\(Int(size))|\(colorScheme.cacheKey)" as NSString
+        let cacheKey = key as NSString
         if let cached = Self.cache.object(forKey: cacheKey) {
+            loadedKey = key
             image = cached
             return
         }
@@ -177,10 +160,15 @@ private final class SVGSnapshotLoader {
                 size: size,
                 colorScheme: colorScheme
             )
+            try Task.checkCancellation()
+            guard requestedKey == key else { return }
             Self.cache.setObject(renderedImage, forKey: cacheKey)
+            loadedKey = key
             image = renderedImage
         } catch {
-            return
+            if requestedKey == key {
+                requestedKey = nil
+            }
         }
     }
 
