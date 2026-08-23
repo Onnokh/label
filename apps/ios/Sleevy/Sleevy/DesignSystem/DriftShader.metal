@@ -122,25 +122,34 @@ fragment float4 drift_fragment(
     nearTint = drift_rich(nearTint);
 
     if (lightMode > 0.5) {
-        // A pastel wash over the page: a constant base gives the card its
-        // body, and the sheets deepen it where they pass. Premultiplied.
+        // A real coloured sky, not a veil: a strong periwinkle base carries
+        // the card, brightening toward the bottom edge like dusk light near
+        // the horizon, and the sheets deepen it where they pass.
+        // Premultiplied.
+        float3 baseTint = drift_rich(mix(
+            driftPeriwinkle,
+            driftBlue,
+            0.35 * drift_fbm(float2(uv.x * 1.2 + 6.1, time * 0.010))
+        ));
+        baseTint = mix(baseTint, float3(0.78, 0.80, 0.96), uv.y * 0.55);
+
         float3 premul = float3(0.0);
         float alpha = 0.0;
 
-        float m0 = 0.20;
-        premul = drift_rich(driftPeriwinkle) * m0 + premul * (1.0 - m0);
+        float m0 = 0.55;
+        premul = baseTint * m0 + premul * (1.0 - m0);
         alpha = m0 + alpha * (1.0 - m0);
 
-        float m1 = far * 0.16;
+        float m1 = far * 0.24;
         premul = drift_rich(driftBlue) * m1 + premul * (1.0 - m1);
         alpha = m1 + alpha * (1.0 - m1);
 
-        float m2 = near * 0.26;
+        float m2 = near * 0.34;
         premul = nearTint * m2 + premul * (1.0 - m2);
         alpha = m2 + alpha * (1.0 - m2);
 
-        float m3 = near * near * 0.14;
-        premul = (nearTint * 0.75) * m3 + premul * (1.0 - m3);
+        float m3 = near * near * 0.18;
+        premul = (nearTint * 0.72) * m3 + premul * (1.0 - m3);
         alpha = m3 + alpha * (1.0 - m3);
 
         return float4(clamp(premul, 0.0, 1.0), clamp(alpha, 0.0, 1.0));
