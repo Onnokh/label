@@ -14,6 +14,15 @@
 #   SERVICE_URL_API              - public API URL (e.g. https://api.sleevy.app)
 #   SERVICE_URL_WEB              - public web URL (e.g. https://sleevy.app)
 
+# Every service below states start_interval next to its interval. Coolify
+# removes the old containers before it creates the new ones, so a deploy is a
+# gap in service, and depends_on makes that gap the sum of the chain: postgres,
+# then redis, then api, then web, each waiting on the one before to report
+# healthy. interval alone is the delay before the *first* probe as well as the
+# spacing between later ones, so four services at 10s spend most of the gap
+# waiting to be asked. start_interval is the spacing that applies only while a
+# container is still inside start_period, which is exactly the window that
+# decides how fast the chain resolves.
 services:
   postgres:
     image: postgres:17-alpine
@@ -29,6 +38,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 30s
+      start_interval: 1s
 
   redis:
     image: redis:7-alpine
@@ -41,6 +52,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 30s
+      start_interval: 1s
 
   api:
     build:
@@ -93,6 +106,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+      start_interval: 1s
     expose:
       - "3002"
 
@@ -131,6 +145,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+      start_interval: 1s
     expose:
       - "3000"
 
