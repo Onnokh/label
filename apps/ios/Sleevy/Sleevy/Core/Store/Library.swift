@@ -42,6 +42,8 @@ final class Library {
     /// `savedItems(_:)` provides destination selectors over the same index.
     private var retrievalIndex = RetrievalIndex()
     private(set) var readingQueueSnapshot = RetrievalSnapshot.notRequested
+    private(set) var searchSnapshot = SearchSnapshot.notRequested
+    @ObservationIgnored private(set) var searchProjectionCount = 0
     private(set) var folders: [Folder] = []
     private(set) var pendingSavedItems: [PendingSavedItem] = []
     private(set) var pendingCaptureCount = 0
@@ -78,6 +80,7 @@ final class Library {
     private let statusDefaults: UserDefaults
 
     private var hasAttemptedInitialLoad = false
+    private var searchQuery = ""
     /// Serializes sync cycles (and the standalone retry pull) so two never run at
     /// once — the single re-entrancy guard for all server coordination.
     private var isSyncing = false
@@ -239,6 +242,13 @@ final class Library {
         case .readingQueue:
             readingQueueSnapshot
         }
+    }
+
+    func setSearchQuery(_ query: String) {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard query != searchQuery else { return }
+        searchQuery = query
+        updateSearchSnapshot()
     }
 
     /// Destination selector over the canonical keyed retrieval index.
@@ -820,10 +830,28 @@ final class Library {
         update(&updatedIndex)
         guard updatedIndex != retrievalIndex else { return }
 
+        let itemsChanged = updatedIndex.itemRevision != retrievalIndex.itemRevision
         retrievalIndex = updatedIndex
         let snapshot = RetrievalProjector.snapshot(for: .readingQueue, in: updatedIndex)
         if snapshot != readingQueueSnapshot {
             readingQueueSnapshot = snapshot
+        }
+        if itemsChanged {
+            updateSearchSnapshot()
+        } else if searchSnapshot.coverage != updatedIndex.globalCoverage {
+            searchSnapshot = SearchSnapshot(
+                items: searchSnapshot.items,
+                coverage: updatedIndex.globalCoverage,
+                hasSavedItems: searchSnapshot.hasSavedItems
+            )
+        }
+    }
+
+    private func updateSearchSnapshot() {
+        searchProjectionCount += 1
+        let snapshot = RetrievalProjector.searchSnapshot(for: searchQuery, in: retrievalIndex)
+        if snapshot != searchSnapshot {
+            searchSnapshot = snapshot
         }
     }
 

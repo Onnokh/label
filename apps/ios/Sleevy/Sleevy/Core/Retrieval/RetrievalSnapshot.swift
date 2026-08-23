@@ -20,18 +20,35 @@ struct RetrievalSnapshot: Equatable {
     static let notRequested = RetrievalSnapshot(items: [], coverage: .notRequested)
 }
 
+nonisolated struct SearchSnapshot: Equatable, Sendable {
+    let items: [SavedItem]
+    let coverage: RetrievalCoverage
+    let hasSavedItems: Bool
+
+    static let notRequested = SearchSnapshot(
+        items: [],
+        coverage: .notRequested,
+        hasSavedItems: false
+    )
+}
+
 nonisolated struct RetrievalIndex: Equatable, Sendable {
     private var itemsByID: [String: SavedItem]
+    private var searchContentByID: [String: SearchContent]
     private var globalIDs: Set<String>
     var globalCoverage: RetrievalCoverage
+    private(set) var searchContentBuildCount: Int
+    private(set) var itemRevision = 0
 
     init(
         globalItems: [SavedItem] = [],
         globalCoverage: RetrievalCoverage = .notRequested
     ) {
         itemsByID = Dictionary(globalItems.map { ($0.id, $0) }, uniquingKeysWith: { _, newest in newest })
+        searchContentByID = itemsByID.mapValues(SearchContent.init)
         globalIDs = Set(globalItems.map(\.id))
         self.globalCoverage = globalCoverage
+        searchContentBuildCount = itemsByID.count
     }
 
     var globalItems: [SavedItem] {
@@ -51,6 +68,17 @@ nonisolated struct RetrievalIndex: Equatable, Sendable {
         return itemsByID[id]
     }
 
+    func searchItems(matching query: String) -> [SavedItem] {
+        let query = Self.normalizedSearchQuery(query)
+        guard !query.isEmpty else { return [] }
+
+        return globalIDs.compactMap { id in
+            guard searchContentByID[id]?.text.contains(query) == true else { return nil }
+            return itemsByID[id]
+        }
+        .sorted { ($0.lastSavedAt, $0.id) > ($1.lastSavedAt, $1.id) }
+    }
+
     mutating func replaceGlobal(
         with items: [SavedItem],
         coverage: RetrievalCoverage
@@ -58,9 +86,11 @@ nonisolated struct RetrievalIndex: Equatable, Sendable {
         let replacementIDs = Set(items.map(\.id))
         for id in globalIDs.subtracting(replacementIDs) {
             itemsByID[id] = nil
+            searchContentByID[id] = nil
+            itemRevision &+= 1
         }
         for item in items {
-            itemsByID[item.id] = item
+            store(item)
         }
         globalIDs = replacementIDs
         globalCoverage = coverage
@@ -68,14 +98,17 @@ nonisolated struct RetrievalIndex: Equatable, Sendable {
 
     mutating func upsert(_ items: [SavedItem]) {
         for item in items {
-            itemsByID[item.id] = item
+            store(item)
             globalIDs.insert(item.id)
         }
     }
 
     mutating func remove(id: String) {
+        guard globalIDs.contains(id) else { return }
         globalIDs.remove(id)
         itemsByID[id] = nil
+        searchContentByID[id] = nil
+        itemRevision &+= 1
     }
 
     mutating func mutate(
@@ -85,8 +118,24 @@ nonisolated struct RetrievalIndex: Equatable, Sendable {
         for id in globalIDs {
             guard var item = itemsByID[id], predicate(item) else { continue }
             transform(&item)
-            itemsByID[id] = item
+            store(item)
         }
+    }
+
+    private mutating func store(_ item: SavedItem) {
+        if itemsByID[item.id] != item {
+            itemRevision &+= 1
+        }
+        let fields = SearchContent.Fields(item)
+        if searchContentByID[item.id]?.fields != fields {
+            searchContentByID[item.id] = SearchContent(fields: fields)
+            searchContentBuildCount += 1
+        }
+        itemsByID[item.id] = item
+    }
+
+    private static func normalizedSearchQuery(_ query: String) -> String {
+        query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 }
 
@@ -104,5 +153,77 @@ enum RetrievalProjector {
                 coverage: index.globalCoverage
             )
         }
+    }
+
+    static func searchSnapshot(
+        for query: String,
+        in index: RetrievalIndex
+    ) -> SearchSnapshot {
+        SearchSnapshot(
+            items: index.searchItems(matching: query),
+            coverage: index.globalCoverage,
+            hasSavedItems: !index.isEmpty
+        )
+    }
+}
+
+private nonisolated struct SearchContent: Equatable, Sendable {
+    struct Fields: Equatable, Sendable {
+        let title: String?
+        let siteName: String?
+        let domain: String
+        let description: String?
+        let previewSummary: String?
+        let type: String
+        let tags: [String]
+        let originalURL: String
+        let canonicalURL: String?
+        let sourceName: String?
+        let captureChannel: String?
+
+        init(_ item: SavedItem) {
+            title = item.title
+            siteName = item.siteName
+            domain = item.host.replacingOccurrences(
+                of: #"^www\."#,
+                with: "",
+                options: .regularExpression
+            )
+            description = item.description
+            previewSummary = item.previewSummary
+            type = item.type
+            tags = item.tags
+            originalURL = item.originalURL
+            canonicalURL = item.canonicalURL
+            sourceName = item.sourceName
+            captureChannel = item.captureChannel
+        }
+    }
+
+    let fields: Fields
+    let text: String
+
+    init(_ item: SavedItem) {
+        self.init(fields: Fields(item))
+    }
+
+    init(fields: Fields) {
+        self.fields = fields
+        text = [
+            fields.title,
+            fields.siteName,
+            fields.domain,
+            fields.description,
+            fields.previewSummary,
+            fields.type,
+            fields.tags.joined(separator: " "),
+            fields.originalURL,
+            fields.canonicalURL,
+            fields.sourceName,
+            fields.captureChannel,
+        ]
+        .compactMap { $0 }
+        .joined(separator: " ")
+        .lowercased()
     }
 }

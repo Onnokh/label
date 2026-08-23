@@ -7,11 +7,13 @@ struct SearchView: View {
     @State private var isRetryingLoad = false
 
     var body: some View {
+        let snapshot = store.searchSnapshot
+
         Group {
-            if store.isLoading && store.savedItems().isEmpty {
+            if store.isLoading && !snapshot.hasSavedItems {
                 ProgressView("Loading your Sleevy...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if store.savedItems().isEmpty, let loadFailureMessage {
+            } else if !snapshot.hasSavedItems, let loadFailureMessage {
                 VStack(spacing: 16) {
                     ContentUnavailableView(
                         "Unable to Load Sleevy",
@@ -40,10 +42,10 @@ struct SearchView: View {
                     systemImage: "magnifyingglass",
                     description: Text("Search saved titles, domains, tags, and links.")
                 )
-            } else if filteredItems.isEmpty {
+            } else if snapshot.items.isEmpty {
                 ContentUnavailableView.search(text: trimmedQuery)
             } else {
-                List(filteredItems) { item in
+                List(snapshot.items) { item in
                     SavedItemRow(item: item) {
                         await store.markOpened(item)
                     } onToggleRead: {
@@ -85,20 +87,14 @@ struct SearchView: View {
         .navigationTitle("Search")
         .navigationBarTitleDisplayMode(.large)
         .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always))
+        .onChange(of: query, initial: true) {
+            store.setSearchQuery(query)
+        }
         .task {
             await store.loadIfNeeded()
         }
         .refreshable {
             await store.refresh()
-        }
-    }
-
-    private var filteredItems: [SavedItem] {
-        let query = trimmedQuery.lowercased()
-        guard !query.isEmpty else { return [] }
-
-        return store.savedItems().filter { item in
-            item.searchableText.localizedCaseInsensitiveContains(query)
         }
     }
 
@@ -127,57 +123,5 @@ struct SearchView: View {
         isRetryingLoad = true
         defer { isRetryingLoad = false }
         await store.retryLoad()
-    }
-}
-
-private extension SavedItem {
-    var searchTitle: String {
-        title?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
-            ?? siteName?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
-            ?? searchDomain
-    }
-
-    var searchDomain: String {
-        host.replacingOccurrences(
-            of: #"^www\."#,
-            with: "",
-            options: .regularExpression
-        )
-    }
-
-    var searchableText: String {
-        [
-            searchTitle,
-            searchDomain,
-            description,
-            previewSummary,
-            type,
-            tags.joined(separator: " "),
-            originalURL,
-            canonicalURL,
-        ]
-        .compactMap { $0 }
-        .joined(separator: " ")
-    }
-
-    var searchURL: URL? {
-        Self.safeURL(canonicalURL) ?? Self.safeURL(originalURL)
-    }
-
-    var searchMonogram: String {
-        String(searchDomain.prefix(1)).uppercased()
-    }
-
-    private static func safeURL(_ value: String?) -> URL? {
-        guard
-            let value,
-            let url = URL(string: value),
-            let scheme = url.scheme?.lowercased(),
-            scheme == "http" || scheme == "https"
-        else {
-            return nil
-        }
-
-        return url
     }
 }
