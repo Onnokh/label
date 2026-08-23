@@ -2,7 +2,7 @@ import SwiftUI
 
 @MainActor
 struct LibraryView: View {
-    var store: Library
+    var store: ReadingListStore
     @State private var filter = LibraryFilter()
     @State private var sort = LibrarySort.newest
     @State private var isShowingFilters = false
@@ -11,18 +11,25 @@ struct LibraryView: View {
     @State private var itemToMove: SavedItem?
 
     var body: some View {
+        let projection = store.libraryProjection(
+            for: .libraryRoot,
+            filter: filter,
+            sort: sort,
+            facetOrder: .frequency
+        )
+
         Group {
-            if store.isLoading && rootItems.isEmpty && store.folders.isEmpty {
+            if store.isLoading && projection.destinationCount == 0 && store.folders.isEmpty {
                 ProgressView("Loading your library...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if rootItems.isEmpty && store.folders.isEmpty && store.libraryErrorMessage == nil {
+            } else if projection.destinationCount == 0 && store.folders.isEmpty && store.libraryErrorMessage == nil {
                 ContentUnavailableView(
                     "Library",
                     systemImage: "books.vertical",
                     description: Text("Saved reads you organize will appear here.")
                 )
             } else {
-                libraryList
+                libraryList(projection: projection)
             }
         }
         .navigationTitle("Library")
@@ -74,9 +81,9 @@ struct LibraryView: View {
         .sheet(isPresented: $isShowingFilters) {
             LibraryFilterSheet(
                 filter: $filter,
-                tags: tagFilters,
-                sources: sourceFilters,
-                types: typeFilters
+                tags: projection.tags,
+                sources: projection.sources,
+                types: projection.types
             )
         }
         .sheet(item: $itemToMove) { item in
@@ -93,17 +100,13 @@ struct LibraryView: View {
         }
     }
 
-    private var libraryList: some View {
-        libraryItemsList
-    }
-
     private let folderPreviewLimit = 3
 
     private var previewFolders: [Folder] {
         Array(store.folders.prefix(folderPreviewLimit))
     }
 
-    private var libraryItemsList: some View {
+    private func libraryList(projection: LibraryProjection) -> some View {
         List {
             if !store.folders.isEmpty {
                 Section {
@@ -111,7 +114,7 @@ struct LibraryView: View {
                         ForEach(previewFolders) { folder in
                             FolderCard(
                                 folder: folder,
-                                itemCount: folderCount(folder.id)
+                                itemCount: projection.folderCounts[folder.id, default: 0]
                             ) {
                                 folderEditor = .rename(folder)
                             } onDelete: {
@@ -171,7 +174,7 @@ struct LibraryView: View {
                 .listRowBackground(Color.clear)
             }
 
-            if visibleItems.isEmpty {
+            if projection.items.isEmpty {
                 ContentUnavailableView(
                     filter.isActive ? "No Matching Items" : "Library is Empty",
                     systemImage: filter.isActive ? "line.3.horizontal.decrease.circle" : "books.vertical",
@@ -181,9 +184,9 @@ struct LibraryView: View {
                 .listRowSeparator(.hidden)
             }
 
-            if !visibleItems.isEmpty {
+            if !projection.items.isEmpty {
                 Section {
-                    ForEach(visibleItems) { item in
+                    ForEach(projection.items) { item in
                         SavedItemRow(item: item) {
                             await store.markOpened(item)
                         } onToggleRead: {
@@ -229,31 +232,4 @@ struct LibraryView: View {
         .background(Color(uiColor: .systemBackground))
     }
 
-    private var visibleItems: [SavedItem] {
-        libraryItems.filtered(by: filter, sortedBy: sort)
-    }
-
-    private var tagFilters: [LibraryFilterOption] {
-        libraryItems.options(for: .tag, order: .frequency)
-    }
-
-    private var sourceFilters: [LibraryFilterOption] {
-        libraryItems.options(for: .source, order: .frequency)
-    }
-
-    private var typeFilters: [LibraryFilterOption] {
-        libraryItems.options(for: .type, order: .frequency)
-    }
-
-    private var libraryItems: LibraryItems {
-        LibraryItems(items: rootItems)
-    }
-
-    private var rootItems: [SavedItem] {
-        store.snapshot(for: .libraryRoot).items
-    }
-
-    private func folderCount(_ id: String) -> Int {
-        store.snapshot(for: .completeLibrary).items.count { $0.folder?.id == id }
-    }
 }

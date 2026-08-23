@@ -24,7 +24,7 @@ struct ConnectivityMonitorTests {
         let container = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         let userId = "connectivity-test-user"
-        let store = Library(
+        let store = ReadingListStore(
             userId: userId,
             network: InMemoryNetworkAdapter(),
             cache: RetrievalIndexCache(

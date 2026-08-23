@@ -6,8 +6,8 @@ import Foundation
 ///
 /// Owns the user-scoped queue operations and the `PendingSavedItem` projection
 /// the inbox renders. Retry classification lives in one place
-/// (`HTTPReadingListAdapter` → `SyncFault` → `Library`); the network submission
-/// and applying synced results stay with `Library`.
+/// (`HTTPReadingListAdapter` → `SyncFault` → `ReadingListStore`); the network submission
+/// and applying synced results stay with `ReadingListStore`.
 struct PendingCaptureQueue {
     let userId: String
     private let store: SleevyPendingCaptureStore

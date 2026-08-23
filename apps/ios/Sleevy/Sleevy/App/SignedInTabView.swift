@@ -7,7 +7,7 @@ struct SignedInTabView: View {
     @Environment(AuthStore.self) private var authStore
     @Environment(\.scenePhase) private var scenePhase
     let session: AppSession
-    @State private var store: Library
+    @State private var store: ReadingListStore
     @State private var profileLoader = PublicProfileLoader()
     @State private var selectedTab: AppTab = .sleevy
     @State private var sleevyPath: [AppRoute] = []
@@ -16,7 +16,7 @@ struct SignedInTabView: View {
 
     init(session: AppSession, tokenStore: SessionTokenStore) {
         self.session = session
-        _store = State(wrappedValue: Library(session: session, tokenStore: tokenStore))
+        _store = State(wrappedValue: ReadingListStore(session: session, tokenStore: tokenStore))
     }
 
     var body: some View {

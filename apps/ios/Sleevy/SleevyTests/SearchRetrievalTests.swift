@@ -73,7 +73,7 @@ struct SearchRetrievalTests {
         var item = SavedItem.fixture(id: "item", isRead: false, folderId: "folder")
         item.title = "Needle"
         environment.network.items[item.id] = item
-        let library = environment.makeLibrary()
+        let library = environment.makeStore()
 
         library.setSearchQuery("needle")
         await library.load()
@@ -99,7 +99,7 @@ struct SearchRetrievalTests {
 
     @Test func searchRowsShareCaptureOpenReadFolderAndDeleteLifecycle() async throws {
         let environment = SearchRetrievalEnvironment()
-        let library = environment.makeLibrary()
+        let library = environment.makeStore()
         library.setSearchQuery("example.com")
 
         let outcome = try await library.capture("https://example.com/new")
@@ -129,7 +129,7 @@ struct SearchRetrievalTests {
     @Test func searchKeepsBlankCachedAndFailureStateInputs() async {
         let failedEnvironment = SearchRetrievalEnvironment()
         failedEnvironment.network.faults["loadSavedItems"] = .unreachable(reason: "offline")
-        let failedLibrary = failedEnvironment.makeLibrary()
+        let failedLibrary = failedEnvironment.makeStore()
 
         await failedLibrary.load()
 
@@ -143,7 +143,7 @@ struct SearchRetrievalTests {
             RetrievalIndex(globalItems: [cached], globalCoverage: .complete)
         )
         cachedEnvironment.network.faults["loadSavedItems"] = .unreachable(reason: "offline")
-        let cachedLibrary = cachedEnvironment.makeLibrary()
+        let cachedLibrary = cachedEnvironment.makeStore()
         cachedLibrary.setSearchQuery("cached")
 
         await cachedLibrary.loadIfNeeded()
@@ -188,8 +188,8 @@ private final class SearchRetrievalEnvironment {
         statusDefaults = UserDefaults(suiteName: "search-retrieval-\(UUID().uuidString)")!
     }
 
-    func makeLibrary() -> Library {
-        Library(
+    func makeStore() -> ReadingListStore {
+        ReadingListStore(
             userId: userId,
             network: network,
             cache: cache,

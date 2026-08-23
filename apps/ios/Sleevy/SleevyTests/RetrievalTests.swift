@@ -43,7 +43,7 @@ struct RetrievalTests {
     @Test func libraryRootLoadsAndKeepsKnownEmptyCoverage() async {
         let environment = RetrievalTestEnvironment()
         environment.network.items["filed"] = .fixture(id: "filed", isRead: false, folderId: "work")
-        let library = environment.makeLibrary()
+        let library = environment.makeStore()
 
         await library.load()
         await library.loadIfNeeded(for: .libraryRoot)
@@ -57,7 +57,7 @@ struct RetrievalTests {
     @Test func failedRefreshKeepsKnownEmptyLibraryRootAsStale() async {
         let environment = RetrievalTestEnvironment()
         environment.network.items["filed"] = .fixture(id: "filed", isRead: false, folderId: "work")
-        let library = environment.makeLibrary()
+        let library = environment.makeStore()
         await library.load()
         await library.loadIfNeeded(for: .libraryRoot)
         var shouldArmScopeFailure = true
@@ -80,7 +80,7 @@ struct RetrievalTests {
         environment.network.folders = [work.id: work, later.id: later]
         environment.network.items["root"] = .fixture(id: "root", isRead: false)
         environment.network.items["filed"] = .fixture(id: "filed", isRead: true, folderId: work.id)
-        let library = environment.makeLibrary()
+        let library = environment.makeStore()
 
         await library.load()
         await library.loadIfNeeded(for: .libraryRoot)
@@ -104,7 +104,7 @@ struct RetrievalTests {
         #expect(library.snapshot(for: .libraryRoot).items.map(\.id).sorted() == ["filed", "root"])
     }
 
-    @Test func libraryItemsKeepDestinationFiltersSortsAndFacetCounts() {
+    @Test func libraryProjectionKeepsDestinationFiltersSortsAndFacetCounts() {
         var older = SavedItem.fixture(id: "older", isRead: true)
         older.lastSavedAt = .init(timeIntervalSince1970: 100)
         older.tags = ["Swift", "Design"]
@@ -113,26 +113,81 @@ struct RetrievalTests {
         newer.lastSavedAt = .init(timeIntervalSince1970: 200)
         newer.tags = ["Swift"]
         newer.sourceName = "iPhone"
-        let libraryItems = LibraryItems(items: [older, newer])
-
-        let filtered = libraryItems.filtered(
-            by: LibraryFilter(tag: "Swift", source: "iPhone", type: "article"),
-            sortedBy: .oldest
+        let index = RetrievalIndex(globalItems: [older, newer], globalCoverage: .complete)
+        let projection = RetrievalProjector.libraryProjection(
+            for: .libraryRoot,
+            filter: LibraryFilter(tag: "Swift", source: "iPhone", type: "article"),
+            sort: .oldest,
+            facetOrder: .frequency,
+            in: index
         )
 
-        #expect(filtered.map(\.id) == ["newer"])
-        #expect(libraryItems.options(for: .tag, order: .frequency) == [
+        #expect(projection.items.map(\.id) == ["newer"])
+        #expect(projection.destinationCount == 2)
+        #expect(projection.unreadDestinationCount == 1)
+        #expect(projection.tags == [
             LibraryFilterOption(value: "Swift", count: 2),
             LibraryFilterOption(value: "Design", count: 1),
         ])
-        #expect(libraryItems.filtered(by: LibraryFilter(), sortedBy: .unread).map(\.id) == ["newer", "older"])
+        #expect(projection.folderCounts.isEmpty)
+    }
+
+    @Test func unchangedLibraryProjectionReadsReusePreparedWork() async {
+        let environment = RetrievalTestEnvironment()
+        environment.network.items["root"] = .fixture(id: "root", isRead: false)
+        let store = environment.makeStore()
+        await store.load()
+
+        let first = store.libraryProjection(
+            for: .libraryRoot,
+            filter: LibraryFilter(),
+            sort: .newest,
+            facetOrder: .frequency
+        )
+        let buildCount = store.libraryProjectionCount
+        let second = store.libraryProjection(
+            for: .libraryRoot,
+            filter: LibraryFilter(),
+            sort: .newest,
+            facetOrder: .frequency
+        )
+
+        #expect(first == second)
+        #expect(store.libraryProjectionCount == buildCount)
+    }
+
+    @Test func retrievalMutationInvalidatesLibraryProjection() async {
+        let environment = RetrievalTestEnvironment()
+        environment.network.items["root"] = .fixture(id: "root", isRead: false)
+        let store = environment.makeStore()
+        await store.load()
+
+        let before = store.libraryProjection(
+            for: .libraryRoot,
+            filter: LibraryFilter(),
+            sort: .newest,
+            facetOrder: .frequency
+        )
+        #expect(before.unreadDestinationCount == 1)
+
+        environment.connectivity.emit(false) // keep the toggle local
+        await store.setRead(before.items.first!, isRead: true)
+
+        let after = store.libraryProjection(
+            for: .libraryRoot,
+            filter: LibraryFilter(),
+            sort: .newest,
+            facetOrder: .frequency
+        )
+        #expect(after.items.first?.isRead == true)
+        #expect(after.unreadDestinationCount == 0)
     }
 
     @Test func readingQueueSnapshotTracksLoadAndOptimisticReadState() async {
         let environment = RetrievalTestEnvironment()
         environment.network.items["unread"] = .fixture(id: "unread", isRead: false)
         environment.network.items["read"] = .fixture(id: "read", isRead: true)
-        let library = environment.makeLibrary()
+        let library = environment.makeStore()
 
         await library.load()
 
@@ -140,7 +195,7 @@ struct RetrievalTests {
         #expect(library.snapshot(for: .readingQueue).coverage == .complete)
 
         environment.connectivity.emit(false)
-        await library.setRead(library.savedItems().first(where: { $0.id == "unread" })!, isRead: true)
+        await library.setRead(library.snapshot(for: .completeLibrary).items.first(where: { $0.id == "unread" })!, isRead: true)
 
         #expect(library.snapshot(for: .readingQueue).items.isEmpty)
     }
@@ -148,7 +203,7 @@ struct RetrievalTests {
     @Test func failedLoadsDistinguishMissingDataFromStaleCache() async {
         let emptyEnvironment = RetrievalTestEnvironment()
         emptyEnvironment.network.faults["loadSavedItems"] = .unreachable(reason: "offline")
-        let emptyLibrary = emptyEnvironment.makeLibrary()
+        let emptyLibrary = emptyEnvironment.makeStore()
 
         await emptyLibrary.load()
 
@@ -162,7 +217,7 @@ struct RetrievalTests {
             )
         )
         cachedEnvironment.network.faults["loadSavedItems"] = .unreachable(reason: "offline")
-        let cachedLibrary = cachedEnvironment.makeLibrary()
+        let cachedLibrary = cachedEnvironment.makeStore()
 
         await cachedLibrary.loadIfNeeded()
 
@@ -176,7 +231,7 @@ struct RetrievalTests {
             RetrievalIndex(globalItems: [], globalCoverage: .complete)
         )
         environment.network.faults["loadSavedItems"] = .unreachable(reason: "offline")
-        let library = environment.makeLibrary()
+        let library = environment.makeStore()
 
         await library.loadIfNeeded()
 
@@ -186,7 +241,7 @@ struct RetrievalTests {
 
     @Test func readingQueueSnapshotTracksCaptureAndDelete() async throws {
         let environment = RetrievalTestEnvironment()
-        let library = environment.makeLibrary()
+        let library = environment.makeStore()
 
         let outcome = try await library.capture("https://example.com/new")
         guard case .saved(let captured) = outcome else {
@@ -232,8 +287,8 @@ private final class RetrievalTestEnvironment {
         statusDefaults = UserDefaults(suiteName: "retrieval-test-\(UUID().uuidString)")!
     }
 
-    func makeLibrary() -> Library {
-        Library(
+    func makeStore() -> ReadingListStore {
+        ReadingListStore(
             userId: userId,
             network: network,
             cache: cache,

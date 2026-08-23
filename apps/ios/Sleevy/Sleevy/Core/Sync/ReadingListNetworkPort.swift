@@ -6,7 +6,7 @@ nonisolated enum SavedItemFetchRequest: Hashable, Sendable {
     case folder(String)
 }
 
-/// The reading-list verbs `Library` needs, expressed in domain terms. The
+/// The reading-list verbs `ReadingListStore` needs, expressed in domain terms. The
 /// production adapter (`HTTPReadingListAdapter`) wraps `SleevyAPIClient` and maps
 /// its errors into `SyncFault`; the test adapter is an in-memory dictionary.
 ///

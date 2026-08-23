@@ -2,7 +2,7 @@ import SwiftUI
 
 @MainActor
 struct SearchView: View {
-    var store: Library
+    var store: ReadingListStore
     @State private var query = ""
     @State private var isRetryingLoad = false
 

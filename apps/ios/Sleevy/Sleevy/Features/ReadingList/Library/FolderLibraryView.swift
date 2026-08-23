@@ -3,7 +3,7 @@ import SwiftUI
 @MainActor
 struct FolderLibraryView: View {
     let folder: Folder
-    var store: Library
+    var store: ReadingListStore
     @State private var filter = LibraryFilter()
     @State private var sort = LibrarySort.newest
     @State private var isShowingFilters = false
@@ -12,10 +12,18 @@ struct FolderLibraryView: View {
     @State private var headerTopInsetBaseline: CGFloat = 0
 
     var body: some View {
+        let projection = store.libraryProjection(
+            for: .folder(currentFolder.id),
+            filter: filter,
+            sort: sort,
+            facetOrder: .name
+        )
+
         GeometryReader { geometry in
             // Shorter than the Inbox's 16:9 — a folder header only carries
             // the title and subtitle.
             folderList(
+                projection: projection,
                 headerCardHeight: geometry.size.width * 0.46,
                 headerTopInset: geometry.safeAreaInsets.top
             )
@@ -43,7 +51,12 @@ struct FolderLibraryView: View {
             }
         }
         .sheet(isPresented: $isShowingFilters) {
-            LibraryFilterSheet(filter: $filter, tags: tagFilters, sources: sourceFilters, types: typeFilters)
+            LibraryFilterSheet(
+                filter: $filter,
+                tags: projection.tags,
+                sources: projection.sources,
+                types: projection.types
+            )
         }
         .sheet(item: $itemToMove) { item in
             MoveToFolderSheet(item: item, folders: store.folders) { destination in
@@ -58,7 +71,11 @@ struct FolderLibraryView: View {
         }
     }
 
-    private func folderList(headerCardHeight: CGFloat, headerTopInset: CGFloat) -> some View {
+    private func folderList(
+        projection: LibraryProjection,
+        headerCardHeight: CGFloat,
+        headerTopInset: CGFloat
+    ) -> some View {
         List {
             if filter.isActive {
                 ActiveLibraryFilters(filter: $filter)
@@ -74,7 +91,7 @@ struct FolderLibraryView: View {
                     .listRowBackground(Color.clear)
             }
 
-            if visibleItems.isEmpty {
+            if projection.items.isEmpty {
                 ContentUnavailableView(
                     filter.isActive ? "No Matching Items" : "Folder is Empty",
                     systemImage: filter.isActive ? "line.3.horizontal.decrease.circle" : "folder",
@@ -84,7 +101,7 @@ struct FolderLibraryView: View {
                 .listRowSeparator(.hidden)
             }
 
-            ForEach(visibleItems) { item in
+            ForEach(projection.items) { item in
                 SavedItemRow(item: item) {
                     await store.markOpened(item)
                 } onToggleRead: {
@@ -113,7 +130,7 @@ struct FolderLibraryView: View {
                 .listRowBackground(Color.clear)
                 .listRowSeparatorTint(.primary.opacity(0.08))
                 // No line between the header card and the first row.
-                .listRowSeparator(item.id == visibleItems.first?.id ? .hidden : .automatic, edges: .top)
+                .listRowSeparator(item.id == projection.items.first?.id ? .hidden : .automatic, edges: .top)
             }
         }
         .listStyle(.plain)
@@ -128,7 +145,10 @@ struct FolderLibraryView: View {
             FolderHeaderCard(
                 tint: FolderAccentColor(rawValue: currentFolder.color ?? "")?.tint,
                 height: headerCardHeight + max(0, -headerScrollDistance),
-                subtitle: navigationSubtitleText
+                subtitle: navigationSubtitleText(
+                    total: projection.destinationCount,
+                    unread: projection.unreadDestinationCount
+                )
             )
             .offset(y: -max(0, headerScrollDistance))
             .ignoresSafeArea(edges: .top)
@@ -154,30 +174,13 @@ struct FolderLibraryView: View {
         store.folders.first(where: { $0.id == folder.id }) ?? folder
     }
 
-    private var items: [SavedItem] {
-        store.snapshot(for: .folder(currentFolder.id)).items
-    }
-
     /// "12 saves · 3 unread", dropping the unread part once everything is
     /// read, and the whole subtitle while the folder is empty.
-    private var navigationSubtitleText: String? {
-        let total = items.count
+    private func navigationSubtitleText(total: Int, unread: Int) -> String? {
         guard total > 0 else { return nil }
 
         let saves = total == 1 ? "1 save" : "\(total) saves"
-        let unread = items.count { !$0.isRead }
         return unread > 0 ? "\(saves) · \(unread) unread" : saves
-    }
-
-    private var visibleItems: [SavedItem] {
-        libraryItems.filtered(by: filter, sortedBy: sort)
-    }
-    private var tagFilters: [LibraryFilterOption] { libraryItems.options(for: .tag, order: .name) }
-    private var sourceFilters: [LibraryFilterOption] { libraryItems.options(for: .source, order: .name) }
-    private var typeFilters: [LibraryFilterOption] { libraryItems.options(for: .type, order: .name) }
-
-    private var libraryItems: LibraryItems {
-        LibraryItems(items: items)
     }
 }
 
@@ -289,17 +292,24 @@ enum FolderGrid {
 }
 
 struct AllFoldersView: View {
-    var store: Library
+    var store: ReadingListStore
     @State private var folderEditor: FolderEditor?
     @State private var folderToDelete: Folder?
 
     var body: some View {
+        let projection = store.libraryProjection(
+            for: .completeLibrary,
+            filter: LibraryFilter(),
+            sort: .newest,
+            facetOrder: .name
+        )
+
         List {
             LazyVGrid(columns: FolderGrid.columns, spacing: FolderGrid.spacing) {
                 ForEach(store.folders) { folder in
                     FolderCard(
                         folder: folder,
-                        itemCount: folderCount(folder.id)
+                        itemCount: projection.folderCounts[folder.id, default: 0]
                     ) {
                         folderEditor = .rename(folder)
                     } onDelete: {
@@ -331,14 +341,10 @@ struct AllFoldersView: View {
             await store.refresh()
         }
     }
-
-    private func folderCount(_ id: String) -> Int {
-        store.snapshot(for: .completeLibrary).items.count { $0.folder?.id == id }
-    }
 }
 
 private struct FolderActionsModifier: ViewModifier {
-    var store: Library
+    var store: ReadingListStore
     @Binding var editor: FolderEditor?
     @Binding var folderToDelete: Folder?
 
@@ -381,7 +387,7 @@ private struct FolderActionsModifier: ViewModifier {
 
 extension View {
     func folderActions(
-        store: Library,
+        store: ReadingListStore,
         editor: Binding<FolderEditor?>,
         folderToDelete: Binding<Folder?>
     ) -> some View {

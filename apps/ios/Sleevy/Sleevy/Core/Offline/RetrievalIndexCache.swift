@@ -10,7 +10,7 @@ nonisolated struct CachedRetrievalIndex: Equatable, Sendable {
 
 /// Per-Account disk cache for the canonical Retrieval Index.
 ///
-/// The actor keeps file and JSON work off `Library`'s MainActor. Reads and
+/// The actor keeps file and JSON work off `ReadingListStore`'s MainActor. Reads and
 /// writes are best-effort, so Cached Viewing never blocks network-backed use.
 actor RetrievalIndexCache {
     private let fileURL: URL

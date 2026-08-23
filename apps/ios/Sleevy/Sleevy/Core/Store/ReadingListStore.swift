@@ -2,18 +2,6 @@ import Foundation
 import Observation
 import UIKit
 
-/// Selects which slice of the library a view wants, mirroring the web app's
-/// `useSavedItems(sort, folder)` selector (`undefined` | `"none"` | id):
-///
-/// - `.all` — the complete **Library**: every Saved Item.
-/// - `.unfiled` — the **Library** root: items not in any folder.
-/// - `.folder(id)` — a **Folder**: items filed under it.
-enum FolderSelector: Equatable {
-    case all
-    case unfiled
-    case folder(String)
-}
-
 /// A folder/move command that failed against the server, surfaced to the caller
 /// with the human-facing reason. Folder operations have no offline queue, so
 /// (unlike captures and read-state) their failures are thrown rather than
@@ -37,13 +25,15 @@ struct ReadingListError: LocalizedError {
 /// `ReadStateQueue`, `PendingCaptureQueue`) shared with the share extension.
 @MainActor
 @Observable
-final class Library {
-    /// The one truth for retrieved Saved Items. Screens observe cached snapshots;
-    /// `savedItems(_:)` remains the legacy selector for destinations not yet migrated.
+final class ReadingListStore {
+    /// The one truth for retrieved Saved Items. Screens observe cached snapshots
+    /// and prepared projections derived from this index.
     private var retrievalIndex = RetrievalIndex()
     private(set) var readingQueueSnapshot = RetrievalSnapshot.notRequested
     private(set) var searchSnapshot = SearchSnapshot.notRequested
     @ObservationIgnored private(set) var searchProjectionCount = 0
+    @ObservationIgnored private var libraryProjectionCache: [LibraryProjectionKey: LibraryProjection] = [:]
+    @ObservationIgnored private(set) var libraryProjectionCount = 0
     private(set) var completeLibrarySnapshot = RetrievalSnapshot.notRequested
     private(set) var libraryRootSnapshot = RetrievalSnapshot.notRequested
     private var folderSnapshots: [String: RetrievalSnapshot] = [:]
@@ -134,7 +124,7 @@ final class Library {
 
     /// The effectful part of construction, separated from `init` on purpose.
     ///
-    /// `SignedInTabView.init` constructs a `Library` inside
+    /// `SignedInTabView.init` constructs a `ReadingListStore` inside
     /// `State(wrappedValue:)`, which SwiftUI evaluates on *every* parent body
     /// evaluation and then discards in favour of the retained first instance.
     /// That construction runs inside the enclosing view's observation
@@ -253,26 +243,39 @@ final class Library {
         }
     }
 
+    func libraryProjection(
+        for request: RetrievalRequest,
+        filter: LibraryFilter,
+        sort: LibrarySort,
+        facetOrder: LibraryFacetOrder
+    ) -> LibraryProjection {
+        let key = LibraryProjectionKey(
+            request: request,
+            filter: filter,
+            sort: sort,
+            facetOrder: facetOrder
+        )
+        if let cached = libraryProjectionCache[key] {
+            return cached
+        }
+
+        libraryProjectionCount += 1
+        let projection = RetrievalProjector.libraryProjection(
+            for: request,
+            filter: filter,
+            sort: sort,
+            facetOrder: facetOrder,
+            in: retrievalIndex
+        )
+        libraryProjectionCache[key] = projection
+        return projection
+    }
+
     func setSearchQuery(_ query: String) {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard query != searchQuery else { return }
         searchQuery = query
         updateSearchSnapshot()
-    }
-
-    /// Destination selector over the canonical keyed retrieval index.
-    func savedItems(_ selector: FolderSelector = .all) -> [SavedItem] {
-        let items = retrievalIndex.globalItems
-        let filtered: [SavedItem]
-        switch selector {
-        case .all:
-            filtered = items
-        case .unfiled:
-            filtered = items.filter { $0.folder == nil }
-        case .folder(let id):
-            filtered = items.filter { $0.folder?.id == id }
-        }
-        return filtered.sortedNewest()
     }
 
     // MARK: - Loading
@@ -860,12 +863,18 @@ final class Library {
 
     private func restoreCachedItems() async {
         guard let cached = await cache.load() else { return }
-        var index = cached.index
-        index.replaceGlobal(
-            with: readStateQueue.apply(to: index.globalItems),
-            coverage: .cached
-        )
-        updateIndex { $0 = index }
+        // Mutate the live index rather than swapping in the decoded instance:
+        // `updateIndex` detects item changes by comparing `itemRevision`, and
+        // revisions are only comparable within one instance's lifetime. A fresh
+        // decoded index starts at revision 0 — the same as the empty live index —
+        // so swapping instances would look item-unchanged and leave the search
+        // snapshot empty.
+        updateIndex {
+            $0.replaceGlobal(
+                with: readStateQueue.apply(to: cached.index.globalItems),
+                coverage: .cached
+            )
+        }
     }
 
     private func persistItems(at date: Date = Date()) async {
@@ -878,6 +887,7 @@ final class Library {
         guard updatedIndex != retrievalIndex else { return }
 
         let itemsChanged = updatedIndex.itemRevision != retrievalIndex.itemRevision
+        libraryProjectionCache.removeAll(keepingCapacity: true)
         retrievalIndex = updatedIndex
         setSnapshot(RetrievalProjector.snapshot(for: .readingQueue, in: updatedIndex), at: .readingQueue)
         setSnapshot(RetrievalProjector.snapshot(for: .completeLibrary, in: updatedIndex), at: .completeLibrary)
@@ -983,13 +993,6 @@ final class Library {
 
     private static func lastSyncDefaultsKey(for userId: String) -> String {
         "reading-list-last-sync.\(userId)"
-    }
-}
-
-private extension Sequence where Element == SavedItem {
-    /// Reproduces the server's canonical "newest" ordering: `desc(lastSavedAt, id)`.
-    func sortedNewest() -> [SavedItem] {
-        sorted { ($0.lastSavedAt, $0.id) > ($1.lastSavedAt, $1.id) }
     }
 }
 

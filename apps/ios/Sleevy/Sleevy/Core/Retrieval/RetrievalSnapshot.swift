@@ -1,6 +1,6 @@
 import Foundation
 
-enum RetrievalRequest: Hashable {
+nonisolated enum RetrievalRequest: Hashable, Sendable {
     case readingQueue
     case completeLibrary
     case libraryRoot
@@ -16,7 +16,7 @@ nonisolated enum RetrievalCoverage: String, Codable, Equatable, Sendable {
     case stale
 }
 
-struct RetrievalSnapshot: Equatable {
+nonisolated struct RetrievalSnapshot: Equatable, Sendable {
     let items: [SavedItem]
     let coverage: RetrievalCoverage
 
@@ -208,7 +208,7 @@ nonisolated struct RetrievalIndex: Equatable, Sendable {
     }
 }
 
-enum RetrievalProjector {
+nonisolated enum RetrievalProjector {
     static func snapshot(
         for request: RetrievalRequest,
         in index: RetrievalIndex

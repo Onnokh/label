@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 struct ReadingListView: View {
-    var store: Library
+    var store: ReadingListStore
     @State private var isCaptureCapsuleOpen = false
     @State private var captureDraft = ""
     @State private var shouldFocusCaptureDraft = false
