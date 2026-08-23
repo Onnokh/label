@@ -142,7 +142,8 @@ struct ReadingListView: View {
         .contentMargins(.top, max(0, headerCardHeight - headerTopInset), for: .scrollContent)
         .background(alignment: .top) {
             InboxHeaderCard(
-                height: headerCardHeight + max(0, -headerScrollDistance)
+                height: headerCardHeight + max(0, -headerScrollDistance),
+                isVisible: headerScrollDistance < headerCardHeight
             )
             .offset(y: -max(0, headerScrollDistance))
             .ignoresSafeArea(edges: .top)
@@ -319,9 +320,10 @@ private struct HeaderScrollReading: Equatable {
 /// stretches on pull-down so the top edge never opens a seam.
 private struct InboxHeaderCard: View {
     let height: CGFloat
+    let isVisible: Bool
 
     var body: some View {
-        AuroraBackground()
+        AuroraBackground(isVisible: isVisible)
             .frame(height: height)
             .frame(maxWidth: .infinity)
             .clipShape(.rect(
@@ -329,17 +331,5 @@ private struct InboxHeaderCard: View {
                 bottomTrailingRadius: 28,
                 style: .continuous
             ))
-    }
-}
-
-private struct NavigationSubtitleIfAvailable: ViewModifier {
-    let subtitle: String?
-
-    func body(content: Content) -> some View {
-        if #available(iOS 26.0, *), let subtitle {
-            content.navigationSubtitle(subtitle)
-        } else {
-            content
-        }
     }
 }

@@ -15,6 +15,8 @@ extension AppRoute {
             FolderLibraryView(folder: folder, store: store)
         case .allFolders:
             AllFoldersView(store: store)
+        case .myProfile:
+            MyProfileView(session: session)
         }
     }
 }

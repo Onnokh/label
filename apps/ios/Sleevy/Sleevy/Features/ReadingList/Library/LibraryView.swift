@@ -28,13 +28,17 @@ struct LibraryView: View {
         .navigationTitle("Library")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    folderEditor = .create
-                } label: {
-                    Image(systemName: "folder.badge.plus")
+            // Once folders exist their section header carries the add button,
+            // so the toolbar only needs it for creating the first one.
+            if store.folders.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        folderEditor = .create
+                    } label: {
+                        Image(systemName: "folder.badge.plus")
+                    }
+                    .accessibilityLabel("New Folder")
                 }
-                .accessibilityLabel("New Folder")
             }
 
             ToolbarItem(placement: .topBarTrailing) {
@@ -103,25 +107,28 @@ struct LibraryView: View {
         List {
             if !store.folders.isEmpty {
                 Section {
-                    ForEach(Array(previewFolders.enumerated()), id: \.element.id) { index, folder in
-                        FolderListRow(folder: folder) {
-                            folderEditor = .rename(folder)
-                        } onDelete: {
-                            folderToDelete = folder
+                    LazyVGrid(columns: FolderGrid.columns, spacing: FolderGrid.spacing) {
+                        ForEach(previewFolders) { folder in
+                            FolderCard(
+                                folder: folder,
+                                itemCount: store.savedItems(.folder(folder.id)).count
+                            ) {
+                                folderEditor = .rename(folder)
+                            } onDelete: {
+                                folderToDelete = folder
+                            }
                         }
-                        .listRowInsets(EdgeInsets(top: 0, leading: 30, bottom: 0, trailing: 30))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(
-                            GroupedSectionRowBackground(
-                                isFirst: index == 0,
-                                isLast: index == previewFolders.count - 1,
-                                separatorLeadingInset: 58
-                            )
-                        )
                     }
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                 } header: {
-                    HStack(alignment: .firstTextBaseline) {
+                    HStack {
                         Text("Folders")
+                            .font(.system(size: 14, weight: .semibold))
+                            .kerning(1.1)
+                            .textCase(.uppercase)
+                            .foregroundStyle(.secondary)
 
                         Spacer()
 
@@ -133,6 +140,15 @@ struct LibraryView: View {
                                     .foregroundStyle(Color.accentColor)
                             }
                         }
+
+                        Button {
+                            folderEditor = .create
+                        } label: {
+                            Image(systemName: "folder.badge.plus")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(Color.primary)
+                        }
+                        .accessibilityLabel("New Folder")
                     }
                 }
             }
@@ -251,34 +267,5 @@ struct LibraryView: View {
                     lhs.count > rhs.count
                 }
             }
-    }
-}
-
-private struct GroupedSectionRowBackground: View {
-    let isFirst: Bool
-    let isLast: Bool
-    var separatorLeadingInset: CGFloat = 0
-
-    var body: some View {
-        let radius: CGFloat = 12
-
-        ZStack(alignment: .bottom) {
-            UnevenRoundedRectangle(
-                topLeadingRadius: isFirst ? radius : 0,
-                bottomLeadingRadius: isLast ? radius : 0,
-                bottomTrailingRadius: isLast ? radius : 0,
-                topTrailingRadius: isFirst ? radius : 0,
-                style: .continuous
-            )
-            .fill(Color(uiColor: .secondarySystemBackground))
-
-            if !isLast {
-                Rectangle()
-                    .fill(Color.primary.opacity(0.08))
-                    .frame(height: 0.5)
-                    .padding(.leading, separatorLeadingInset)
-            }
-        }
-        .padding(.horizontal, 16)
     }
 }

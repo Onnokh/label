@@ -1,47 +1,45 @@
 import MetalKit
 import SwiftUI
 
-/// Draws the animated aurora field defined in `AuroraShader.metal`.
-///
-/// This is separate from the shared `MeshGradientView` on purpose: the mesh is
-/// a still image drawn once, while the aurora runs a redraw loop with a time
-/// uniform. Keeping them apart means the sign-in screen and the share
-/// extension stay on the cheap static path.
-struct AuroraBackground: UIViewRepresentable {
+/// Draws the calm drift field defined in `DriftShader.metal` — the My
+/// Profile header's counterpart to the Inbox's `AuroraBackground`. Kept as
+/// its own view for the same reason the aurora is: both run a redraw loop
+/// with a time uniform, unlike the static mesh gradients.
+struct DriftBackground: UIViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
 
     var isVisible = true
 
-    func makeUIView(context: Context) -> AuroraView {
-        let view = AuroraView()
+    func makeUIView(context: Context) -> DriftView {
+        let view = DriftView()
         view.isLightMode = colorScheme == .light
         updatePlayback(of: view)
         return view
     }
 
-    func updateUIView(_ uiView: AuroraView, context: Context) {
+    func updateUIView(_ uiView: DriftView, context: Context) {
         uiView.isLightMode = colorScheme == .light
         updatePlayback(of: uiView)
     }
 
-    static func dismantleUIView(_ uiView: AuroraView, coordinator: Void) {
+    static func dismantleUIView(_ uiView: DriftView, coordinator: Void) {
         uiView.shouldAnimate = false
     }
 
-    private func updatePlayback(of view: AuroraView) {
+    private func updatePlayback(of view: DriftView) {
         view.shouldAnimate = isVisible
             && scenePhase == .active
             && !accessibilityReduceMotion
     }
 }
 
-final class AuroraView: AnimatedMetalView {
+final class DriftView: AnimatedMetalView {
     /// `MTKView.delegate` is weak, so the renderer has to be held here.
-    private var renderer: AuroraRenderer?
+    private var renderer: DriftRenderer?
 
-    /// Light mode draws the pastel variant of the field.
+    /// Light mode draws the pastel wash instead of added light.
     var isLightMode = false {
         didSet {
             guard isLightMode != oldValue else { return }
@@ -56,20 +54,20 @@ final class AuroraView: AnimatedMetalView {
 
         colorPixelFormat = .bgra8Unorm
         framebufferOnly = true
-        // Only the aurora shows. The layer composites over the list, so the
+        // Only the mist shows. The layer composites over the list, so the
         // card's backdrop IS the list background -- no seam possible.
         isOpaque = false
         clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
 
         guard let device else { return }
 
-        renderer = AuroraRenderer(device: device)
+        renderer = DriftRenderer(device: device)
         delegate = renderer
         rendererDidBecomeReady()
     }
 }
 
-final class AuroraRenderer: NSObject, MTKViewDelegate {
+final class DriftRenderer: NSObject, MTKViewDelegate {
     var isLightMode = false
 
     private let commandQueue: MTLCommandQueue
@@ -80,8 +78,8 @@ final class AuroraRenderer: NSObject, MTKViewDelegate {
         guard
             let queue = device.makeCommandQueue(),
             let library = device.makeDefaultLibrary(),
-            let vertexFn = library.makeFunction(name: "aurora_vertex"),
-            let fragmentFn = library.makeFunction(name: "aurora_fragment")
+            let vertexFn = library.makeFunction(name: "drift_vertex"),
+            let fragmentFn = library.makeFunction(name: "drift_fragment")
         else { return nil }
 
         let desc = MTLRenderPipelineDescriptor()

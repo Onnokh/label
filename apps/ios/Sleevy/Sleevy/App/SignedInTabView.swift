@@ -8,6 +8,7 @@ struct SignedInTabView: View {
     @Environment(\.scenePhase) private var scenePhase
     let session: AppSession
     @State private var store: Library
+    @State private var profileLoader = PublicProfileLoader()
     @State private var selectedTab: AppTab = .sleevy
     @State private var sleevyPath: [AppRoute] = []
     @State private var libraryPath: [AppRoute] = []
@@ -26,10 +27,13 @@ struct SignedInTabView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .accountToolbar(session: session) {
                             sleevyPath.append(.settings)
+                        } onMyProfile: {
+                            sleevyPath.append(.myProfile)
                         }
                         .navigationDestination(for: AppRoute.self) { route in
                             route.destination(store: store, session: session)
                         }
+                        .environment(\.pushRoute) { sleevyPath.append($0) }
                 }
             }
 
@@ -38,10 +42,13 @@ struct SignedInTabView: View {
                     LibraryView(store: store)
                         .accountToolbar(session: session) {
                             libraryPath.append(.settings)
+                        } onMyProfile: {
+                            libraryPath.append(.myProfile)
                         }
                         .navigationDestination(for: AppRoute.self) { route in
                             route.destination(store: store, session: session)
                         }
+                        .environment(\.pushRoute) { libraryPath.append($0) }
                 }
             }
 
@@ -51,6 +58,7 @@ struct SignedInTabView: View {
                 }
             }
         }
+        .environment(profileLoader)
         .onAppear {
             store.onAuthenticationInvalid = { message in
                 authStore.invalidateSession(message: message)
@@ -102,12 +110,19 @@ private struct AccountToolbarModifier: ViewModifier {
     @Environment(AuthStore.self) private var authStore
     let session: AppSession
     let onSettings: () -> Void
+    let onMyProfile: () -> Void
 
     func body(content: Content) -> some View {
         content
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
+                        Button {
+                            onMyProfile()
+                        } label: {
+                            Label("My Profile", systemImage: "person.crop.circle")
+                        }
+
                         Button {
                             onSettings()
                         } label: {
@@ -136,7 +151,11 @@ private struct AccountToolbarModifier: ViewModifier {
 }
 
 extension View {
-    func accountToolbar(session: AppSession, onSettings: @escaping () -> Void) -> some View {
-        modifier(AccountToolbarModifier(session: session, onSettings: onSettings))
+    func accountToolbar(
+        session: AppSession,
+        onSettings: @escaping () -> Void,
+        onMyProfile: @escaping () -> Void
+    ) -> some View {
+        modifier(AccountToolbarModifier(session: session, onSettings: onSettings, onMyProfile: onMyProfile))
     }
 }
