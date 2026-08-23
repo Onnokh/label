@@ -16,7 +16,7 @@ extension AppRoute {
         case .allFolders:
             AllFoldersView(store: store)
         case .myProfile:
-            MyProfileView()
+            MyProfileView(session: session)
         }
     }
 }

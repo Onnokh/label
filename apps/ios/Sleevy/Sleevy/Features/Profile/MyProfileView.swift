@@ -195,6 +195,8 @@ final class PublicProfileLoader {
 @MainActor
 struct MyProfileView: View {
     @Environment(PublicProfileLoader.self) private var loader
+    @Environment(AuthStore.self) private var authStore
+    let session: AppSession
 
     var body: some View {
         Group {
@@ -231,30 +233,18 @@ struct MyProfileView: View {
     private var profileList: some View {
         List {
             Section {
-                // The handle sits under the large title as a subtitle line;
-                // navigationSubtitle would collapse a pushed large title.
-                if let handle = loader.handle {
-                    Text("@\(handle)")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 18, bottom: 6, trailing: 18))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                }
-
-                if let profile = loader.profile {
-                    ProfileStatsRow(profile: profile)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 18, bottom: 8, trailing: 18))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                }
-
-                if let from = loader.activityFrom, let to = loader.activityTo {
-                    ProfileActivityGrid(counts: loader.activityCounts, from: from, to: to)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 18, bottom: 12, trailing: 18))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                }
+                ProfileHero(
+                    name: session.displayName,
+                    handle: loader.handle,
+                    imageURL: session.provider == .google ? authStore.googleUserProfile?.imageURL : nil,
+                    profile: loader.profile,
+                    activityCounts: loader.activityCounts,
+                    activityFrom: loader.activityFrom,
+                    activityTo: loader.activityTo
+                )
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 14, trailing: 16))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
 
             ForEach(monthSections, id: \.title) { section in
@@ -316,6 +306,85 @@ struct MyProfileView: View {
 }
 
 // MARK: - Header pieces
+
+/// The hero card at the top of the page: avatar, name, and handle, with the
+/// account's stats and the Reading Activity grid inside the same card.
+/// navigationSubtitle would collapse a pushed large title, so identity lives
+/// in content instead of the navigation bar.
+private struct ProfileHero: View {
+    let name: String
+    let handle: String?
+    let imageURL: URL?
+    let profile: PublicProfile?
+    let activityCounts: [String: Int]
+    let activityFrom: Date?
+    let activityTo: Date?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 14) {
+                avatar
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name)
+                        .font(.system(size: 20, weight: .bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+
+                    if let handle {
+                        Text("@\(handle)")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            if let profile {
+                Spacer().frame(height: 18)
+                ProfileStatsRow(profile: profile)
+            }
+
+            if let from = activityFrom, let to = activityTo {
+                Spacer().frame(height: 16)
+                ProfileActivityGrid(counts: activityCounts, from: from, to: to)
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            Color(uiColor: .secondarySystemBackground),
+            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+        )
+    }
+
+    private var avatar: some View {
+        ZStack {
+            Circle()
+                .fill(Color(uiColor: .tertiarySystemFill))
+
+            if let imageURL {
+                AsyncImage(url: imageURL) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    monogram
+                }
+            } else {
+                monogram
+            }
+        }
+        .frame(width: 60, height: 60)
+        .clipShape(Circle())
+        .accessibilityHidden(true)
+    }
+
+    private var monogram: some View {
+        Text(name.initials)
+            .font(.system(size: 20, weight: .semibold))
+            .foregroundStyle(.secondary)
+    }
+}
 
 private struct ProfileStatsRow: View {
     let profile: PublicProfile
