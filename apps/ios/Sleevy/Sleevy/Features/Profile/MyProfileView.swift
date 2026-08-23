@@ -4,7 +4,7 @@ import UIKit
 // MARK: - Contract
 
 /// Mirror of `GET /v1/public/profiles/:handle` (`PublicProfileDto`).
-private struct PublicProfile: Decodable {
+struct PublicProfile: Decodable {
     let handle: String
     let joinedAt: Date
     let publicSavedItemCount: Int
@@ -58,9 +58,13 @@ private struct PublicSavedItemsPage: Decodable {
 /// endpoints the web page uses, keyed by the handle the app shares through
 /// the app group at sign-in. No credentials are involved: this page shows
 /// exactly what a visitor of /u/{handle} sees.
+///
+/// One instance lives in `SignedInTabView` and reaches the page through the
+/// environment, so content survives pops of the profile page: revisits show
+/// the cached page immediately while `load()` revalidates behind it.
 @MainActor
 @Observable
-private final class PublicProfileLoader {
+final class PublicProfileLoader {
     enum Phase: Equatable {
         case loading
         case loaded
@@ -83,6 +87,18 @@ private final class PublicProfileLoader {
         guard let handle = SleevyUserPreferences.profileHandle else {
             phase = .missingHandle
             return
+        }
+
+        // Content cached for another handle (a rename, or a different account
+        // after re-sign-in) must not flash before the fresh fetch.
+        if handle != self.handle {
+            profile = nil
+            activityCounts = [:]
+            activityFrom = nil
+            activityTo = nil
+            items = []
+            page = 0
+            totalPages = 1
         }
 
         self.handle = handle
@@ -178,7 +194,7 @@ private final class PublicProfileLoader {
 /// Items grouped by month.
 @MainActor
 struct MyProfileView: View {
-    @State private var loader = PublicProfileLoader()
+    @Environment(PublicProfileLoader.self) private var loader
 
     var body: some View {
         Group {

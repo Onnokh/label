@@ -8,6 +8,7 @@ struct SignedInTabView: View {
     @Environment(\.scenePhase) private var scenePhase
     let session: AppSession
     @State private var store: Library
+    @State private var profileLoader = PublicProfileLoader()
     @State private var selectedTab: AppTab = .sleevy
     @State private var sleevyPath: [AppRoute] = []
     @State private var libraryPath: [AppRoute] = []
@@ -57,6 +58,7 @@ struct SignedInTabView: View {
                 }
             }
         }
+        .environment(profileLoader)
         .onAppear {
             store.onAuthenticationInvalid = { message in
                 authStore.invalidateSession(message: message)
