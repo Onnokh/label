@@ -14,8 +14,11 @@ struct ReadingListView: View {
     @State private var headerTopInsetBaseline: CGFloat = 0
 
     var body: some View {
+        let snapshot = store.snapshot(for: .readingQueue)
+
         GeometryReader { geometry in
             readingList(
+                snapshot: snapshot,
                 emptyStateHeight: geometry.size.height,
                 headerCardHeight: geometry.size.width * 9 / 16,
                 headerTopInset: geometry.safeAreaInsets.top
@@ -30,7 +33,9 @@ struct ReadingListView: View {
         }
         .navigationTitle("Inbox")
         .navigationBarTitleDisplayMode(.large)
-        .modifier(NavigationSubtitleIfAvailable(subtitle: navigationSubtitleText))
+        .modifier(NavigationSubtitleIfAvailable(
+            subtitle: navigationSubtitleText(unreadCount: snapshot.items.count)
+        ))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -49,14 +54,18 @@ struct ReadingListView: View {
     }
 
     private func readingList(
+        snapshot: RetrievalSnapshot,
         emptyStateHeight: CGFloat,
         headerCardHeight: CGFloat,
         headerTopInset: CGFloat
     ) -> some View {
         List {
-            if store.isLoading && store.savedItems().isEmpty && store.pendingSavedItems.isEmpty {
+            if store.isLoading,
+               snapshot.coverage == .loading,
+               snapshot.items.isEmpty,
+               store.pendingSavedItems.isEmpty {
                 ReadingListLoadingRow(height: emptyStateHeight)
-            } else if unreadItems.isEmpty && store.pendingSavedItems.isEmpty && !isCaptureCapsuleOpen {
+            } else if snapshot.items.isEmpty && store.pendingSavedItems.isEmpty && !isCaptureCapsuleOpen {
                 EmptyReadingListRow(height: emptyStateHeight)
             }
 
@@ -99,7 +108,7 @@ struct ReadingListView: View {
                 .listRowBackground(Color.clear)
             }
 
-            ForEach(unreadItems) { item in
+            ForEach(snapshot.items) { item in
                 SavedItemRow(item: item, showsUnreadIndicator: false) {
                     await markOpened(item)
                 } onToggleRead: {
@@ -133,7 +142,7 @@ struct ReadingListView: View {
                 .listRowBackground(Color.clear)
                 .listRowSeparatorTint(.primary.opacity(0.08))
                 // No line between the header card and the first row.
-                .listRowSeparator(item.id == unreadItems.first?.id ? .hidden : .automatic, edges: .top)
+                .listRowSeparator(item.id == snapshot.items.first?.id ? .hidden : .automatic, edges: .top)
             }
         }
         // The large title stays native; the card is only painted behind it. The
@@ -187,11 +196,7 @@ struct ReadingListView: View {
         }
         .animation(.snappy(duration: 0.24), value: isCaptureCapsuleOpen)
         .animation(.snappy(duration: 0.24), value: store.pendingSavedItems)
-        .animation(.snappy(duration: 0.24), value: store.savedItems())
-    }
-
-    private var unreadItems: [SavedItem] {
-        store.savedItems().filter { !$0.isRead }
+        .animation(.snappy(duration: 0.24), value: snapshot.items)
     }
 
     private func markOpened(_ item: SavedItem) async {
@@ -268,11 +273,11 @@ struct ReadingListView: View {
         captureErrorMessage = nil
     }
 
-    private var navigationSubtitleText: String? {
+    private func navigationSubtitleText(unreadCount: Int) -> String? {
         if !store.isOnline { return "Offline" }
         if !store.isAPIReachable { return "Error reaching API" }
-        if !unreadItems.isEmpty {
-            return "\(unreadItems.count) unread"
+        if unreadCount > 0 {
+            return "\(unreadCount) unread"
         }
 
         return nil

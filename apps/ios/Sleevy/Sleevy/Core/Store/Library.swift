@@ -25,10 +25,9 @@ struct ReadingListError: LocalizedError {
 
 /// The reading list's single source of truth and offline-sync coordinator.
 ///
-/// One canonical `items` array holds every saved item we know about. The Inbox,
-/// Library root, and each Folder are *derived* by `savedItems(_:)` — pure
-/// filter + sort, never stored — so a read-state toggle, move, or rename is one
-/// write to `items` that every view reflects automatically.
+/// One canonical retrieval index holds every saved item we know about, keyed by
+/// stable identity. Destination-specific snapshots are projected from that index,
+/// so a read-state toggle, move, or rename is one write that every view reflects.
 ///
 /// The network is a `ReadingListNetworkPort`: production wires the HTTP adapter
 /// (`HTTPReadingListAdapter`), tests wire an in-memory one, and — crucially —
@@ -39,9 +38,10 @@ struct ReadingListError: LocalizedError {
 @MainActor
 @Observable
 final class Library {
-    /// The one truth: every saved item, in no particular stored order. The Inbox,
-    /// Library root, and folders are *derived* by `savedItems(_:)`.
-    private(set) var items: [SavedItem] = []
+    /// The one truth for retrieved saved items. Screens observe cached snapshots;
+    /// `savedItems(_:)` provides destination selectors over the same index.
+    private var retrievalIndex = RetrievalIndex()
+    private(set) var readingQueueSnapshot = RetrievalSnapshot.notRequested
     private(set) var folders: [Folder] = []
     private(set) var pendingSavedItems: [PendingSavedItem] = []
     private(set) var pendingCaptureCount = 0
@@ -234,9 +234,16 @@ final class Library {
 
     // MARK: - Derived views
 
-    /// The items for a view, derived from the single `items` truth, in the
-    /// server's canonical "newest" order; views layer their own sort/filter on top.
+    func snapshot(for request: RetrievalRequest) -> RetrievalSnapshot {
+        switch request {
+        case .readingQueue:
+            readingQueueSnapshot
+        }
+    }
+
+    /// Destination selector over the canonical keyed retrieval index.
     func savedItems(_ selector: FolderSelector = .all) -> [SavedItem] {
+        let items = retrievalIndex.globalItems
         let filtered: [SavedItem]
         switch selector {
         case .all:
@@ -255,7 +262,7 @@ final class Library {
     /// most once, even if the result is empty.
     func loadIfNeeded() async {
         activate()
-        guard items.isEmpty, !hasAttemptedInitialLoad else { return }
+        guard retrievalIndex.isEmpty, !hasAttemptedInitialLoad else { return }
         hasAttemptedInitialLoad = true
         restoreCachedItems()
         refreshPendingCaptureState()
@@ -331,9 +338,19 @@ final class Library {
     /// the critical path; folders load best-effort.
     @discardableResult
     private func performLoad() async -> Bool {
+        // Cached content remains explicitly cached while it is revalidated. This
+        // lets first paint distinguish a usable empty cache from no data yet.
+        if retrievalIndex.globalCoverage != .cached {
+            updateIndex { $0.globalCoverage = .loading }
+        }
         do {
             let savedItems = try await network.loadSavedItems()
-            items = readStateQueue.apply(to: savedItems)
+            updateIndex {
+                $0.replaceGlobal(
+                    with: readStateQueue.apply(to: savedItems),
+                    coverage: .complete
+                )
+            }
             persistItems()
             let now = Date()
             status.lastSuccessfulSyncAt = now
@@ -343,6 +360,9 @@ final class Library {
             await loadFolders()
             return true
         } catch {
+            updateIndex {
+                $0.globalCoverage = $0.isEmpty ? .failed : .stale
+            }
             handleRequestFault(asFault(error))
             return false
         }
@@ -541,7 +561,7 @@ final class Library {
     func delete(_ item: SavedItem) async {
         do {
             try await network.deleteItem(itemId: item.id)
-            items.removeAll { $0.id == item.id }
+            updateIndex { $0.remove(id: item.id) }
             persistItems()
         } catch {
             handleRequestFault(asFault(error))
@@ -672,7 +692,7 @@ final class Library {
         let processed = await drain(pending) { update in
             do {
                 let updated = try await self.network.setReadState(itemId: update.itemId, isRead: update.isRead)
-                if self.items.contains(where: { $0.id == updated.id }) {
+                if self.retrievalIndex.contains(id: updated.id) {
                     self.upsert([updated])
                     didUpdate = true
                 }
@@ -737,23 +757,21 @@ final class Library {
     /// Upserts item data, applying any pending offline read-state overrides so a
     /// freshly-fetched item never clobbers a local toggle that hasn't synced yet.
     private func upsert(_ incoming: [SavedItem]) {
-        for item in readStateQueue.apply(to: incoming) {
-            if let index = items.firstIndex(where: { $0.id == item.id }) {
-                items[index] = item
-            } else {
-                items.append(item)
-            }
+        updateIndex {
+            $0.upsert(readStateQueue.apply(to: incoming))
         }
     }
 
     private func updateLocalReadState(for itemId: String, isRead: Bool) {
-        guard let index = items.firstIndex(where: { $0.id == itemId }), items[index].isRead != isRead else { return }
-        items[index] = items[index].withReadState(isRead)
+        guard let item = retrievalIndex.item(id: itemId), item.isRead != isRead else { return }
+        updateIndex {
+            $0.mutate(where: { $0.id == itemId }) { $0 = $0.withReadState(isRead) }
+        }
         persistItems()
     }
 
     private func currentReadState(for itemId: String) -> Bool? {
-        items.first(where: { $0.id == itemId })?.isRead
+        retrievalIndex.item(id: itemId)?.isRead
     }
 
     /// Reassigns the (renamed) folder's summary onto every item that belongs to it.
@@ -764,8 +782,8 @@ final class Library {
     }
 
     private func mutateItems(where predicate: (SavedItem) -> Bool, transform: (inout SavedItem) -> Void) {
-        for index in items.indices where predicate(items[index]) {
-            transform(&items[index])
+        updateIndex {
+            $0.mutate(where: predicate, transform: transform)
         }
     }
 
@@ -777,11 +795,28 @@ final class Library {
 
     private func restoreCachedItems() {
         guard let cachedItems = cache.load() else { return }
-        items = readStateQueue.apply(to: cachedItems)
+        updateIndex {
+            $0.replaceGlobal(
+                with: readStateQueue.apply(to: cachedItems),
+                coverage: .cached
+            )
+        }
     }
 
     private func persistItems() {
         cache.save(savedItems())
+    }
+
+    private func updateIndex(_ update: (inout RetrievalIndex) -> Void) {
+        var updatedIndex = retrievalIndex
+        update(&updatedIndex)
+        guard updatedIndex != retrievalIndex else { return }
+
+        retrievalIndex = updatedIndex
+        let snapshot = RetrievalProjector.snapshot(for: .readingQueue, in: updatedIndex)
+        if snapshot != readingQueueSnapshot {
+            readingQueueSnapshot = snapshot
+        }
     }
 
     private func refreshPendingCaptureState() {
