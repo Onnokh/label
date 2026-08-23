@@ -226,6 +226,15 @@ struct MyProfileView: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 18, bottom: 14, trailing: 18))
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
+
+                // Placeholders until following ships.
+                HStack(spacing: 12) {
+                    ProfileActionButton(title: "Follow", role: .prominent) {}
+                    ProfileActionButton(title: "Message", role: .neutral) {}
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 24, bottom: 16, trailing: 24))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
 
             ForEach(monthSections, id: \.title) { section in
@@ -352,6 +361,36 @@ private struct ProfileHeroCard<Avatar: View>: View {
             .overlay(alignment: .bottom) {
                 avatar.offset(y: profileAvatarSize / 2)
             }
+    }
+}
+
+/// One of the capsule actions under the identity: a filled prominent one in
+/// the drift field's periwinkle, or a neutral grey one.
+private struct ProfileActionButton: View {
+    enum Role {
+        case prominent
+        case neutral
+    }
+
+    let title: String
+    let role: Role
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(role == .prominent ? .white : .primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .background(
+                    role == .prominent
+                        ? Color(red: 82 / 255, green: 91 / 255, blue: 169 / 255)
+                        : Color(uiColor: .secondarySystemFill),
+                    in: Capsule()
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 
