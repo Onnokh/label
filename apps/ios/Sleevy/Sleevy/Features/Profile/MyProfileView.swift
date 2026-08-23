@@ -11,21 +11,6 @@ struct PublicProfile: Decodable {
     let isIndexable: Bool
 }
 
-/// Mirror of `GET /v1/public/profiles/:handle/activity`
-/// (`ReadingActivityResponse`): only days with at least one save appear in
-/// `days`; every other day in the window counts as zero.
-private struct PublicActivity: Decodable {
-    struct Day: Decodable {
-        let date: String
-        let count: Int
-    }
-
-    let handle: String
-    let from: String
-    let to: String
-    let days: [Day]
-}
-
 /// Mirror of one entry of `GET /v1/public/profiles/:handle/saved-items`
 /// (`PublicSavedItemDto`). A profile publishes a Link at most once, so the
 /// original URL identifies the row.
@@ -75,9 +60,6 @@ final class PublicProfileLoader {
     private(set) var phase = Phase.loading
     private(set) var handle: String?
     private(set) var profile: PublicProfile?
-    private(set) var activityCounts: [String: Int] = [:]
-    private(set) var activityFrom: Date?
-    private(set) var activityTo: Date?
     private(set) var items: [PublicSavedItem] = []
     private(set) var isLoadingMore = false
     private var page = 0
@@ -93,9 +75,6 @@ final class PublicProfileLoader {
         // after re-sign-in) must not flash before the fresh fetch.
         if handle != self.handle {
             profile = nil
-            activityCounts = [:]
-            activityFrom = nil
-            activityTo = nil
             items = []
             page = 0
             totalPages = 1
@@ -106,18 +85,11 @@ final class PublicProfileLoader {
 
         do {
             async let profileFetch: PublicProfile = Self.get("/v1/public/profiles/\(handle)")
-            async let activityFetch: PublicActivity = Self.get("/v1/public/profiles/\(handle)/activity")
             async let itemsFetch: PublicSavedItemsPage = Self.get("/v1/public/profiles/\(handle)/saved-items")
 
-            let (profile, activity, firstPage) = try await (profileFetch, activityFetch, itemsFetch)
+            let (profile, firstPage) = try await (profileFetch, itemsFetch)
 
             self.profile = profile
-            activityCounts = Dictionary(
-                activity.days.map { ($0.date, $0.count) },
-                uniquingKeysWith: { first, _ in first }
-            )
-            activityFrom = Self.utcDay(activity.from)
-            activityTo = Self.utcDay(activity.to)
             items = firstPage.savedItems
             page = firstPage.page
             totalPages = firstPage.totalPages
@@ -177,14 +149,6 @@ final class PublicProfileLoader {
 
         return try JSONDecoder.sharedISO8601.decode(Response.self, from: data)
     }
-
-    private static func utcDay(_ value: String) -> Date? {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.date(from: value)
-    }
 }
 
 // MARK: - View
@@ -194,12 +158,18 @@ final class PublicProfileLoader {
 /// Items grouped by month.
 @MainActor
 struct MyProfileView: View {
+    /// Breathing room between the large title (already part of the top safe
+    /// area on this screen) and the avatar below it.
+    private static let titleAllowance: CGFloat = 16
+
     @Environment(PublicProfileLoader.self) private var loader
     @Environment(AuthStore.self) private var authStore
     let session: AppSession
+    @State private var headerScrollDistance: CGFloat = 0
+    @State private var headerTopInsetBaseline: CGFloat = 0
 
     var body: some View {
-        Group {
+        GeometryReader { geometry in
             switch loader.phase {
             case .loading:
                 ProgressView("Loading your profile...")
@@ -217,9 +187,11 @@ struct MyProfileView: View {
                     description: Text("Only public profiles have a page. You can make yours public on the web.")
                 )
             case .loaded:
-                profileList
+                profileList(headerTopInset: geometry.safeAreaInsets.top)
             }
         }
+        // Outside the header-card background, so the card paints on top of it.
+        .background(Color(uiColor: .systemBackground))
         .navigationTitle("My Profile")
         .navigationBarTitleDisplayMode(.large)
         .task {
@@ -230,19 +202,27 @@ struct MyProfileView: View {
         }
     }
 
-    private var profileList: some View {
-        List {
+    private func profileList(headerTopInset: CGFloat) -> some View {
+        // The card ends halfway down the avatar, which straddles the card's
+        // bottom edge like a traditional profile header.
+        let headerCardHeight = headerTopInset + Self.titleAllowance + profileAvatarSize / 2
+
+        return List {
             Section {
-                ProfileHero(
-                    name: session.displayName,
-                    handle: loader.handle,
-                    imageURL: session.provider == .google ? authStore.googleUserProfile?.imageURL : nil,
-                    profile: loader.profile,
-                    activityCounts: loader.activityCounts,
-                    activityFrom: loader.activityFrom,
-                    activityTo: loader.activityTo
-                )
-                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 14, trailing: 16))
+                VStack(spacing: 4) {
+                    if let handle = loader.handle {
+                        Text("@\(handle)")
+                            .font(.system(size: 24, weight: .bold))
+                    }
+
+                    if let count = loader.profile?.publicSavedItemCount {
+                        Text("\(count) Sleeved")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .listRowInsets(EdgeInsets(top: 0, leading: 18, bottom: 14, trailing: 18))
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             }
@@ -275,7 +255,41 @@ struct MyProfileView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .background(Color(uiColor: .systemBackground))
+        .scrollBounceBehavior(.always, axes: .vertical)
+        // Same mechanics as the Inbox and folder header cards: the large
+        // title stays native, the card paints behind it from the top edge,
+        // scrolls away with the content, and stretches on pull-down. The
+        // content margin also clears the avatar's bottom half.
+        .contentMargins(
+            .top,
+            max(0, headerCardHeight - headerTopInset) + profileAvatarSize / 2 + 14,
+            for: .scrollContent
+        )
+        .background(alignment: .top) {
+            ProfileHeroCard(height: headerCardHeight + max(0, -headerScrollDistance)) {
+                ProfileAvatar(
+                    name: session.displayName,
+                    imageURL: session.provider == .google ? authStore.googleUserProfile?.imageURL : nil
+                )
+            }
+            .offset(y: -max(0, headerScrollDistance))
+            .ignoresSafeArea(edges: .top)
+        }
+        .onScrollGeometryChange(for: ProfileHeaderScrollReading.self) { geometry in
+            ProfileHeaderScrollReading(
+                offset: geometry.contentOffset.y,
+                inset: geometry.contentInsets.top
+            )
+        } action: { _, reading in
+            // See the Inbox: measure against a resting baseline so the
+            // refresh spinner's transient inset never jolts the card.
+            guard reading.inset > 0 else { return }
+
+            if reading.inset <= headerTopInsetBaseline || headerScrollDistance >= 0 {
+                headerTopInsetBaseline = reading.inset
+            }
+            headerScrollDistance = reading.offset + headerTopInsetBaseline
+        }
     }
 
     private struct MonthSection {
@@ -307,59 +321,46 @@ struct MyProfileView: View {
 
 // MARK: - Header pieces
 
-/// The hero card at the top of the page: avatar, name, and handle, with the
-/// account's stats and the Reading Activity grid inside the same card.
-/// navigationSubtitle would collapse a pushed large title, so identity lives
-/// in content instead of the navigation bar.
-private struct ProfileHero: View {
-    let name: String
-    let handle: String?
-    let imageURL: URL?
-    let profile: PublicProfile?
-    let activityCounts: [String: Int]
-    let activityFrom: Date?
-    let activityTo: Date?
+private struct ProfileHeaderScrollReading: Equatable {
+    var offset: CGFloat
+    var inset: CGFloat
+}
+
+/// The avatar's diameter; the header card ends at its vertical center.
+private let profileAvatarSize: CGFloat = 96
+
+/// The card behind the profile's large title — the Inbox and folder header
+/// cards' sibling, full-bleed from the top and side edges with rounded
+/// bottom corners. The avatar overlays the card's bottom edge, half in and
+/// half out, so it rides along when a pull-down stretches the card.
+private struct ProfileHeroCard<Avatar: View>: View {
+    let height: CGFloat
+    @ViewBuilder let avatar: Avatar
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 14) {
-                avatar
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(name)
-                        .font(.system(size: 20, weight: .bold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-
-                    if let handle {
-                        Text("@\(handle)")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer(minLength: 0)
+        Rectangle()
+            .fill(Color(uiColor: .secondarySystemBackground))
+            .frame(height: height)
+            .frame(maxWidth: .infinity)
+            .clipShape(.rect(
+                bottomLeadingRadius: 28,
+                bottomTrailingRadius: 28,
+                style: .continuous
+            ))
+            // After the clip, so the hanging half is not cut off.
+            .overlay(alignment: .bottom) {
+                avatar.offset(y: profileAvatarSize / 2)
             }
-
-            if let profile {
-                Spacer().frame(height: 18)
-                ProfileStatsRow(profile: profile)
-            }
-
-            if let from = activityFrom, let to = activityTo {
-                Spacer().frame(height: 16)
-                ProfileActivityGrid(counts: activityCounts, from: from, to: to)
-            }
-        }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            Color(uiColor: .secondarySystemBackground),
-            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
-        )
     }
+}
 
-    private var avatar: some View {
+/// The circular avatar that straddles the header card's bottom edge, ringed
+/// so it reads as sitting on top of the card, like a traditional profile.
+private struct ProfileAvatar: View {
+    let name: String
+    let imageURL: URL?
+
+    var body: some View {
         ZStack {
             Circle()
                 .fill(Color(uiColor: .tertiarySystemFill))
@@ -374,148 +375,21 @@ private struct ProfileHero: View {
                 monogram
             }
         }
-        .frame(width: 60, height: 60)
+        .frame(width: profileAvatarSize, height: profileAvatarSize)
         .clipShape(Circle())
+        .overlay(
+            Circle().strokeBorder(Color(uiColor: .systemBackground), lineWidth: 4)
+        )
         .accessibilityHidden(true)
     }
 
     private var monogram: some View {
         Text(name.initials)
-            .font(.system(size: 20, weight: .semibold))
+            .font(.system(size: 30, weight: .semibold))
             .foregroundStyle(.secondary)
     }
 }
 
-private struct ProfileStatsRow: View {
-    let profile: PublicProfile
-
-    var body: some View {
-        HStack(spacing: 20) {
-            stat(
-                value: "\(profile.publicSavedItemCount)",
-                label: "Sleeved"
-            )
-
-            Rectangle()
-                .fill(Color.primary.opacity(0.08))
-                .frame(width: 1, height: 40)
-
-            stat(
-                value: profile.joinedAt.formatted(.dateTime.month(.abbreviated).year()),
-                label: "Member Since"
-            )
-
-            Spacer()
-        }
-    }
-
-    private func stat(value: String, label: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(value)
-                .font(.system(size: 24, weight: .bold))
-                .monospacedDigit()
-
-            Text(label)
-                .font(.system(size: 11, weight: .semibold))
-                .kerning(1.0)
-                .textCase(.uppercase)
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
-/// The web profile's Reading Activity grid: 7 rows (Monday on top), one
-/// column per week across the whole 52-week window, sized to the width.
-private struct ProfileActivityGrid: View {
-    let counts: [String: Int]
-    let from: Date
-    let to: Date
-
-    private static let gap: CGFloat = 2.5
-    private static let rows = 7
-
-    var body: some View {
-        let columns = weekColumns
-
-        GeometryReader { geometry in
-            let gap = Self.gap
-            let tile = (geometry.size.width - gap * CGFloat(columns.count - 1)) / CGFloat(columns.count)
-
-            HStack(alignment: .top, spacing: gap) {
-                ForEach(0 ..< columns.count, id: \.self) { columnIndex in
-                    VStack(spacing: gap) {
-                        ForEach(0 ..< Self.rows, id: \.self) { rowIndex in
-                            RoundedRectangle(cornerRadius: tile * 0.3, style: .continuous)
-                                .fill(fill(column: columns[columnIndex], row: rowIndex))
-                                .frame(width: tile, height: tile)
-                        }
-                    }
-                }
-            }
-        }
-        .aspectRatio(aspectRatio, contentMode: .fit)
-        .accessibilityLabel("Reading activity for the last year")
-    }
-
-    private var aspectRatio: CGFloat {
-        let columns = CGFloat(weekColumns.count)
-        let rows = CGFloat(Self.rows)
-        // tile*columns + gap*(columns-1) wide by tile*rows + gap*(rows-1)
-        // tall; gaps are small enough that tile ratio dominates.
-        return (columns + Self.gap / 10 * (columns - 1)) / (rows + Self.gap / 10 * (rows - 1))
-    }
-
-    /// One cell per UTC day, Monday-aligned like the home-screen widget:
-    /// leading pads put the first day on its weekday row, trailing future
-    /// days render as empty tiles.
-    private var weekColumns: [[Int?]] {
-        var cells: [Int?] = []
-
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
-
-        let weekday = calendar.component(.weekday, from: from)
-        let mondayIndex = (weekday + 5) % 7
-        cells.append(contentsOf: Array(repeating: nil, count: mondayIndex))
-
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        formatter.dateFormat = "yyyy-MM-dd"
-
-        var day = from
-        while day <= to {
-            cells.append(counts[formatter.string(from: day)] ?? 0)
-            day = day.addingTimeInterval(24 * 60 * 60)
-        }
-
-        var weeks: [[Int?]] = []
-        var index = 0
-        while index < cells.count {
-            weeks.append(Array(cells[index ..< min(index + Self.rows, cells.count)]))
-            index += Self.rows
-        }
-
-        return weeks
-    }
-
-    /// The web page's palette: one indigo hue, four alpha steps, and a faint
-    /// neutral for empty days.
-    private func fill(column: [Int?], row: Int) -> Color {
-        let indigo = Color(red: 129 / 255, green: 140 / 255, blue: 248 / 255)
-
-        guard row < column.count, let count = column[row], count > 0 else {
-            return .primary.opacity(0.06)
-        }
-
-        switch count {
-        case 1: return indigo.opacity(0.35)
-        case 2 ... 3: return indigo.opacity(0.55)
-        case 4 ... 6: return indigo.opacity(0.75)
-        default: return indigo
-        }
-    }
-}
 
 // MARK: - Item row
 
