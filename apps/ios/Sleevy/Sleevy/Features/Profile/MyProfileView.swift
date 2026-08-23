@@ -218,7 +218,7 @@ struct MyProfileView: View {
                 profileList
             }
         }
-        .navigationTitle(loader.handle.map { "@\($0)" } ?? "My Profile")
+        .navigationTitle("My Profile")
         .navigationBarTitleDisplayMode(.large)
         .task {
             await loader.load()
@@ -231,6 +231,17 @@ struct MyProfileView: View {
     private var profileList: some View {
         List {
             Section {
+                // The handle sits under the large title as a subtitle line;
+                // navigationSubtitle would collapse a pushed large title.
+                if let handle = loader.handle {
+                    Text("@\(handle)")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 18, bottom: 6, trailing: 18))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
+
                 if let profile = loader.profile {
                     ProfileStatsRow(profile: profile)
                         .listRowInsets(EdgeInsets(top: 8, leading: 18, bottom: 8, trailing: 18))
