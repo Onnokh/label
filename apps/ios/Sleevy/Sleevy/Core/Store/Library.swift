@@ -119,7 +119,32 @@ final class Library {
         self.pendingCaptureQueue = pendingCaptureQueue
         self.statusDefaults = statusDefaults
         self.connectivity = connectivity
-        self.status.lastSuccessfulSyncAt = statusDefaults.object(forKey: Self.lastSyncDefaultsKey(for: userId)) as? Date
+        // No observable access in here — see `activate()`.
+    }
+
+    /// Whether `activate()` has run. `@ObservationIgnored` so the flag itself
+    /// never registers with a SwiftUI dependency set.
+    @ObservationIgnored private var isActivated = false
+
+    /// The effectful part of construction, separated from `init` on purpose.
+    ///
+    /// `SignedInTabView.init` constructs a `Library` inside
+    /// `State(wrappedValue:)`, which SwiftUI evaluates on *every* parent body
+    /// evaluation and then discards in favour of the retained first instance.
+    /// That construction runs inside the enclosing view's observation
+    /// tracking, so any read of this store's observable state during `init`
+    /// (and a struct-member write like `status.x = y` reads `status`)
+    /// registers the throwaway instance as a dependency of that view. The
+    /// connectivity monitor's first callback then mutates `status`,
+    /// invalidating the view, which constructs another throwaway instance —
+    /// a self-sustaining render loop that syncs against the API dozens of
+    /// times per second. Running the setup here, from a `.task` after body
+    /// evaluation, keeps `init` invisible to observation.
+    private func activate() {
+        guard !isActivated else { return }
+        isActivated = true
+
+        status.lastSuccessfulSyncAt = statusDefaults.object(forKey: Self.lastSyncDefaultsKey(for: userId)) as? Date
         refreshPendingCaptureState()
         startMonitoringConnectivity()
     }
@@ -229,6 +254,7 @@ final class Library {
     /// First appearance: paint cached content immediately, then load. Runs at
     /// most once, even if the result is empty.
     func loadIfNeeded() async {
+        activate()
         guard items.isEmpty, !hasAttemptedInitialLoad else { return }
         hasAttemptedInitialLoad = true
         restoreCachedItems()
@@ -254,6 +280,7 @@ final class Library {
     /// in flight — awaits that cycle's completion, so the SwiftUI `.refreshable`
     /// spinner resolves only once fresh data has loaded rather than no-op'ing.
     func refresh() async {
+        activate()
         await sync()
     }
 
