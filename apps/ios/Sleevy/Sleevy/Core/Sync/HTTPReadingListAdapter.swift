@@ -1,7 +1,7 @@
 import Foundation
 
 /// Production `ReadingListNetworkPort`: wraps `SleevyAPIClient` and maps every
-/// error it can throw — `URLError`, `AuthError`, `APIError`,
+/// error it can throw — `URLError`, `DecodingError`, `AuthError`, `APIError`,
 /// `PendingReadStateSyncError`, `SleevyCaptureError` — into a single `SyncFault`.
 ///
 /// This is the one place the transport's error taxonomy lives. The three
@@ -78,6 +78,8 @@ struct HTTPReadingListAdapter: ReadingListNetworkPort {
             switch authError {
             case .sessionExpired:
                 return .authInvalid(reason: authError.localizedDescription)
+            case .invalidServerResponse:
+                return .transient(reason: authError.localizedDescription)
             case .authenticationFailed(let message):
                 return .permanent(reason: message)
             default:
@@ -108,7 +110,9 @@ struct HTTPReadingListAdapter: ReadingListNetworkPort {
             }
 
         default:
-            return .permanent(reason: error.localizedDescription)
+            // Only an explicit server rejection is safe to drop. An unknown
+            // failure may clear on a later build or response, so keep the work.
+            return .transient(reason: error.localizedDescription)
         }
     }
 }

@@ -26,7 +26,27 @@ struct HTTPReadingListAdapterTests {
     @Test func authErrorsClassify() {
         #expect(HTTPReadingListAdapter.fault(from: AuthError.sessionExpired) == .authInvalid(reason: AuthError.sessionExpired.localizedDescription))
         #expect(HTTPReadingListAdapter.fault(from: AuthError.authenticationFailed("nope")) == .permanent(reason: "nope"))
-        #expect(HTTPReadingListAdapter.fault(from: AuthError.invalidServerResponse) == .permanent(reason: AuthError.invalidServerResponse.localizedDescription))
+        #expect(HTTPReadingListAdapter.fault(from: AuthError.invalidServerResponse) == .transient(reason: AuthError.invalidServerResponse.localizedDescription))
+    }
+
+    @Test func malformedSuccessfulResponseIsTransient() {
+        let error = DecodingError.dataCorrupted(
+            .init(codingPath: [], debugDescription: "malformed 2xx response")
+        )
+
+        guard case .transient = HTTPReadingListAdapter.fault(from: error) else {
+            Issue.record("expected malformed response to remain retriable")
+            return
+        }
+    }
+
+    @Test func unknownErrorsAreTransient() {
+        let error = NSError(domain: "HTTPReadingListAdapterTests", code: 1)
+
+        guard case .transient = HTTPReadingListAdapter.fault(from: error) else {
+            Issue.record("expected unknown error to remain retriable")
+            return
+        }
     }
 
     @Test func apiUnreachableMapsToUnreachable() {

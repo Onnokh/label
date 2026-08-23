@@ -19,6 +19,16 @@ struct SleevyAPIClientTests {
         #expect(response.savedItems.isEmpty)
     }
 
+    @Test func malformedSuccessfulResponseThrowsDecodingError() async {
+        let api = makeAPI(status: 200, body: Data(#"{"savedItems":"wrong shape"}"#.utf8))
+
+        let error = await errorThrown {
+            _ = try await api.request(path: "/v1/saved-items", responseType: SavedItemsResponse.self)
+        }
+
+        #expect(error is DecodingError)
+    }
+
     // MARK: - Token rotation
 
     @Test func rotatesBearerTokenFromResponseHeader() async throws {
