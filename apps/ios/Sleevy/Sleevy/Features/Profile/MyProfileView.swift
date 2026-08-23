@@ -158,10 +158,12 @@ final class PublicProfileLoader {
 /// Items grouped by month.
 @MainActor
 struct MyProfileView: View {
+    /// Breathing room between the navigation bar and the avatar's top.
+    private static let avatarAllowance: CGFloat = 24
+
     @Environment(PublicProfileLoader.self) private var loader
     @Environment(AuthStore.self) private var authStore
     let session: AppSession
-    @State private var heroContentHeight: CGFloat = 190
     @State private var headerScrollDistance: CGFloat = 0
     @State private var headerTopInsetBaseline: CGFloat = 0
 
@@ -202,11 +204,30 @@ struct MyProfileView: View {
     }
 
     private func profileList(headerTopInset: CGFloat) -> some View {
-        // The whole identity lives inside the card; its height follows the
-        // measured hero content below the top safe area.
-        let headerCardHeight = headerTopInset + heroContentHeight
+        // The card ends halfway down the avatar, which straddles the card's
+        // bottom edge; handle and total sit below it on the page.
+        let headerCardHeight = headerTopInset + Self.avatarAllowance + profileAvatarSize / 2
 
         return List {
+            Section {
+                VStack(spacing: 4) {
+                    if let handle = loader.handle {
+                        Text("@\(handle)")
+                            .font(.system(size: 24, weight: .bold))
+                    }
+
+                    if let count = loader.profile?.publicSavedItemCount {
+                        Text("\(count) Sleeved")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .listRowInsets(EdgeInsets(top: 0, leading: 18, bottom: 14, trailing: 18))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            }
+
             ForEach(monthSections, id: \.title) { section in
                 Section {
                     ForEach(section.items) { item in
@@ -238,21 +259,19 @@ struct MyProfileView: View {
         .scrollBounceBehavior(.always, axes: .vertical)
         // Same mechanics as the Inbox and folder header cards: the card
         // paints from the top edge, scrolls away with the content, and
-        // stretches on pull-down.
-        .contentMargins(.top, max(0, headerCardHeight - headerTopInset), for: .scrollContent)
+        // stretches on pull-down. The content margin also clears the
+        // avatar's bottom half.
+        .contentMargins(
+            .top,
+            max(0, headerCardHeight - headerTopInset) + profileAvatarSize / 2 + 14,
+            for: .scrollContent
+        )
         .background(alignment: .top) {
             ProfileHeroCard(height: headerCardHeight + max(0, -headerScrollDistance)) {
-                ProfileHero(
+                ProfileAvatar(
                     name: session.displayName,
-                    handle: loader.handle,
-                    sleevedCount: loader.profile?.publicSavedItemCount,
                     imageURL: session.provider == .google ? authStore.googleUserProfile?.imageURL : nil
                 )
-                .onGeometryChange(for: CGFloat.self) { proxy in
-                    proxy.size.height
-                } action: { height in
-                    heroContentHeight = height
-                }
             }
             .offset(y: -max(0, headerScrollDistance))
             .ignoresSafeArea(edges: .top)
@@ -308,61 +327,31 @@ private struct ProfileHeaderScrollReading: Equatable {
     var inset: CGFloat
 }
 
-/// The avatar's diameter inside the hero card.
+/// The avatar's diameter; the header card ends at its vertical center.
 private let profileAvatarSize: CGFloat = 96
 
-/// The card at the top of the profile — the Inbox and folder header cards'
-/// sibling, full-bleed from the top and side edges with rounded bottom
-/// corners. The hero content anchors to the card's bottom, so a pull-down
-/// stretch grows the wash above it.
-private struct ProfileHeroCard<Content: View>: View {
+/// The card at the top of the profile — the Inbox header card's sibling,
+/// full-bleed from the top and side edges with rounded bottom corners.
+/// Where the Inbox gets the aurora, the profile gets the calm drift field.
+/// The avatar overlays the card's bottom edge, half in and half out, and
+/// rides along when a pull-down stretches the card.
+private struct ProfileHeroCard<Avatar: View>: View {
     let height: CGFloat
-    @ViewBuilder let content: Content
+    @ViewBuilder let avatar: Avatar
 
     var body: some View {
-        Rectangle()
-            .fill(Color(uiColor: .secondarySystemBackground))
+        DriftBackground()
             .frame(height: height)
             .frame(maxWidth: .infinity)
-            .overlay(alignment: .bottom) {
-                content
-            }
             .clipShape(.rect(
                 bottomLeadingRadius: 28,
                 bottomTrailingRadius: 28,
                 style: .continuous
             ))
-    }
-}
-
-/// The identity centered inside the hero card: avatar, handle, and the
-/// sleeved total. There is no navigation title on this screen, so this is
-/// the whole header.
-private struct ProfileHero: View {
-    let name: String
-    let handle: String?
-    let sleevedCount: Int?
-    let imageURL: URL?
-
-    var body: some View {
-        VStack(spacing: 4) {
-            ProfileAvatar(name: name, imageURL: imageURL)
-
-            Spacer().frame(height: 10)
-
-            if let handle {
-                Text("@\(handle)")
-                    .font(.system(size: 22, weight: .bold))
+            // After the clip, so the hanging half is not cut off.
+            .overlay(alignment: .bottom) {
+                avatar.offset(y: profileAvatarSize / 2)
             }
-
-            if let sleevedCount {
-                Text("\(sleevedCount) Sleeved")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.bottom, 24)
-        .frame(maxWidth: .infinity)
     }
 }
 
