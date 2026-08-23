@@ -81,7 +81,7 @@ nonisolated struct RetrievalIndex: Equatable, Sendable {
             guard searchContentByID[id]?.text.contains(query) == true else { return nil }
             return itemsByID[id]
         }
-        .sorted { ($0.lastSavedAt, $0.id) > ($1.lastSavedAt, $1.id) }
+        .sortedNewest()
     }
 
     func items(for request: SavedItemFetchRequest) -> [SavedItem] {
@@ -312,7 +312,7 @@ private nonisolated struct SearchContent: Equatable, Sendable {
     }
 }
 
-private extension SavedItemFetchRequest {
+private nonisolated extension SavedItemFetchRequest {
     func includes(_ item: SavedItem) -> Bool {
         switch self {
         case .completeLibrary:
@@ -325,7 +325,8 @@ private extension SavedItemFetchRequest {
     }
 }
 
-private extension Sequence where Element == SavedItem {
+nonisolated extension Sequence where Element == SavedItem {
+    /// Reproduces the server's canonical "newest" ordering: `desc(lastSavedAt, id)`.
     func sortedNewest() -> [SavedItem] {
         sorted { ($0.lastSavedAt, $0.id) > ($1.lastSavedAt, $1.id) }
     }

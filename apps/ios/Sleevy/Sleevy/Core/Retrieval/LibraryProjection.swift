@@ -137,7 +137,7 @@ private nonisolated extension Array where Element == SavedItem {
     func sorted(using sort: LibrarySort) -> [SavedItem] {
         switch sort {
         case .newest:
-            sorted { ($0.lastSavedAt, $0.id) > ($1.lastSavedAt, $1.id) }
+            sortedNewest()
         case .oldest:
             sorted { ($0.lastSavedAt, $0.id) < ($1.lastSavedAt, $1.id) }
         case .title:
