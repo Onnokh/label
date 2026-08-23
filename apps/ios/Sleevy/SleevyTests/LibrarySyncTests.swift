@@ -423,6 +423,7 @@ final class InMemoryNetworkAdapter: ReadingListNetworkPort {
     /// A fault armed per verb name; consumed on the next call to that verb.
     var faults: [String: SyncFault] = [:]
     private(set) var calls: [String] = []
+    private(set) var savedItemFetches: [SavedItemFetchRequest] = []
 
     func resetCalls() {
         calls = []
@@ -438,14 +439,24 @@ final class InMemoryNetworkAdapter: ReadingListNetworkPort {
     /// interleave a concurrent refresh while the cycle is provably in flight.
     var onLoadSavedItems: (@MainActor () async -> Void)?
 
-    func loadSavedItems() async throws(SyncFault) -> [SavedItem] {
+    func loadSavedItems(_ request: SavedItemFetchRequest) async throws(SyncFault) -> [SavedItem] {
         try record("loadSavedItems")
+        savedItemFetches.append(request)
         // `throws(SyncFault)` forbids a non-typed-throwing await in the body, so the
         // gate runs in a detached step that cannot throw.
         if let gate = onLoadSavedItems {
             await Task { @MainActor in await gate() }.value
         }
-        return Array(items.values)
+        return items.values.filter { item in
+            switch request {
+            case .completeLibrary:
+                true
+            case .libraryRoot:
+                item.folder == nil
+            case .folder(let id):
+                item.folder?.id == id
+            }
+        }
     }
 
     func loadFolders() async throws(SyncFault) -> [Folder] {

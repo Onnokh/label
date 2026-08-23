@@ -51,10 +51,10 @@ struct FolderLibraryView: View {
             }
         }
         .task(id: currentFolder.id) {
-            await store.loadIfNeeded()
+            await store.loadIfNeeded(for: .folder(currentFolder.id))
         }
         .refreshable {
-            await store.refresh()
+            await store.refresh(.folder(currentFolder.id))
         }
     }
 
@@ -154,7 +154,9 @@ struct FolderLibraryView: View {
         store.folders.first(where: { $0.id == folder.id }) ?? folder
     }
 
-    private var items: [SavedItem] { store.savedItems(.folder(currentFolder.id)) }
+    private var items: [SavedItem] {
+        store.snapshot(for: .folder(currentFolder.id)).items
+    }
 
     /// "12 saves · 3 unread", dropping the unread part once everything is
     /// read, and the whole subtitle while the folder is empty.
@@ -168,24 +170,14 @@ struct FolderLibraryView: View {
     }
 
     private var visibleItems: [SavedItem] {
-        items.filter {
-            (filter.tag == nil || $0.tags.contains(filter.tag ?? ""))
-                && (filter.source == nil || $0.sourceGroup == filter.source)
-                && (filter.type == nil || $0.type == filter.type)
-        }
-        .sorted(using: sort)
+        libraryItems.filtered(by: filter, sortedBy: sort)
     }
-    private var tagFilters: [LibraryFilterOption] { countedOptions(items.flatMap(\.tags)) }
-    private var sourceFilters: [LibraryFilterOption] { countedOptions(items.compactMap(\.sourceGroup)) }
-    private var typeFilters: [LibraryFilterOption] { countedOptions(items.map(\.type)) }
+    private var tagFilters: [LibraryFilterOption] { libraryItems.options(for: .tag, order: .name) }
+    private var sourceFilters: [LibraryFilterOption] { libraryItems.options(for: .source, order: .name) }
+    private var typeFilters: [LibraryFilterOption] { libraryItems.options(for: .type, order: .name) }
 
-    private func countedOptions(_ values: [String]) -> [LibraryFilterOption] {
-        let counts = values.reduce(into: [String: Int]()) { result, value in
-            let value = value.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !value.isEmpty { result[value, default: 0] += 1 }
-        }
-        return counts.map { LibraryFilterOption(value: $0.key, count: $0.value) }
-            .sorted { $0.value.localizedCaseInsensitiveCompare($1.value) == .orderedAscending }
+    private var libraryItems: LibraryItems {
+        LibraryItems(items: items)
     }
 }
 
@@ -307,7 +299,7 @@ struct AllFoldersView: View {
                 ForEach(store.folders) { folder in
                     FolderCard(
                         folder: folder,
-                        itemCount: store.savedItems(.folder(folder.id)).count
+                        itemCount: folderCount(folder.id)
                     ) {
                         folderEditor = .rename(folder)
                     } onDelete: {
@@ -338,6 +330,10 @@ struct AllFoldersView: View {
         .refreshable {
             await store.refresh()
         }
+    }
+
+    private func folderCount(_ id: String) -> Int {
+        store.snapshot(for: .completeLibrary).items.count { $0.folder?.id == id }
     }
 }
 

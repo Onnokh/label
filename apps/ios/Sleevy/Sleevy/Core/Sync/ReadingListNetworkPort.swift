@@ -1,5 +1,11 @@
 import Foundation
 
+nonisolated enum SavedItemFetchRequest: Hashable, Sendable {
+    case completeLibrary
+    case libraryRoot
+    case folder(String)
+}
+
 /// The reading-list verbs `Library` needs, expressed in domain terms. The
 /// production adapter (`HTTPReadingListAdapter`) wraps `SleevyAPIClient` and maps
 /// its errors into `SyncFault`; the test adapter is an in-memory dictionary.
@@ -10,7 +16,7 @@ import Foundation
 /// internal to the adapter, so the coordinator never sees a bearer token.
 @MainActor
 protocol ReadingListNetworkPort {
-    func loadSavedItems() async throws(SyncFault) -> [SavedItem]
+    func loadSavedItems(_ request: SavedItemFetchRequest) async throws(SyncFault) -> [SavedItem]
     func loadFolders() async throws(SyncFault) -> [Folder]
 
     func capture(url: String, sourceName: String?, captureChannel: String?) async throws(SyncFault) -> SavedItem

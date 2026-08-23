@@ -17,8 +17,19 @@ struct HTTPReadingListAdapter: ReadingListNetworkPort {
         self.api = api
     }
 
-    func loadSavedItems() async throws(SyncFault) -> [SavedItem] {
-        do { return try await api.loadSavedItems() } catch { throw Self.fault(from: error) }
+    func loadSavedItems(_ request: SavedItemFetchRequest) async throws(SyncFault) -> [SavedItem] {
+        let queryItems: [URLQueryItem]
+        switch request {
+        case .completeLibrary:
+            queryItems = []
+        case .libraryRoot:
+            queryItems = [URLQueryItem(name: "folder", value: "none")]
+        case .folder(let id):
+            queryItems = [URLQueryItem(name: "folder", value: id)]
+        }
+
+        do { return try await api.loadSavedItems(queryItems: queryItems) }
+        catch { throw Self.fault(from: error) }
     }
 
     func loadFolders() async throws(SyncFault) -> [Folder] {

@@ -12,10 +12,10 @@ struct LibraryView: View {
 
     var body: some View {
         Group {
-            if store.isLoading && store.savedItems(.unfiled).isEmpty && store.folders.isEmpty {
+            if store.isLoading && rootItems.isEmpty && store.folders.isEmpty {
                 ProgressView("Loading your library...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if store.savedItems(.unfiled).isEmpty && store.folders.isEmpty && store.libraryErrorMessage == nil {
+            } else if rootItems.isEmpty && store.folders.isEmpty && store.libraryErrorMessage == nil {
                 ContentUnavailableView(
                     "Library",
                     systemImage: "books.vertical",
@@ -86,10 +86,10 @@ struct LibraryView: View {
         }
         .folderActions(store: store, editor: $folderEditor, folderToDelete: $folderToDelete)
         .task {
-            await store.loadIfNeeded()
+            await store.loadIfNeeded(for: .libraryRoot)
         }
         .refreshable {
-            await store.refresh()
+            await store.refresh(.libraryRoot)
         }
     }
 
@@ -111,7 +111,7 @@ struct LibraryView: View {
                         ForEach(previewFolders) { folder in
                             FolderCard(
                                 folder: folder,
-                                itemCount: store.savedItems(.folder(folder.id)).count
+                                itemCount: folderCount(folder.id)
                             ) {
                                 folderEditor = .rename(folder)
                             } onDelete: {
@@ -230,42 +230,30 @@ struct LibraryView: View {
     }
 
     private var visibleItems: [SavedItem] {
-        store.savedItems(.unfiled)
-            .filter { item in
-                (filter.tag == nil || item.tags.contains(filter.tag ?? ""))
-                    && (filter.source == nil || item.sourceGroup == filter.source)
-                    && (filter.type == nil || item.type == filter.type)
-            }
-            .sorted(using: sort)
+        libraryItems.filtered(by: filter, sortedBy: sort)
     }
 
     private var tagFilters: [LibraryFilterOption] {
-        countedOptions(store.savedItems(.unfiled).flatMap(\.tags))
+        libraryItems.options(for: .tag, order: .frequency)
     }
 
     private var sourceFilters: [LibraryFilterOption] {
-        countedOptions(store.savedItems(.unfiled).compactMap(\.sourceGroup))
+        libraryItems.options(for: .source, order: .frequency)
     }
 
     private var typeFilters: [LibraryFilterOption] {
-        countedOptions(store.savedItems(.unfiled).map(\.type))
+        libraryItems.options(for: .type, order: .frequency)
     }
 
-    private func countedOptions(_ values: [String]) -> [LibraryFilterOption] {
-        let counts = values.reduce(into: [String: Int]()) { counts, value in
-            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { return }
-            counts[trimmed, default: 0] += 1
-        }
+    private var libraryItems: LibraryItems {
+        LibraryItems(items: rootItems)
+    }
 
-        return counts
-            .map { LibraryFilterOption(value: $0.key, count: $0.value) }
-            .sorted { lhs, rhs in
-                if lhs.count == rhs.count {
-                    lhs.value.localizedCaseInsensitiveCompare(rhs.value) == .orderedAscending
-                } else {
-                    lhs.count > rhs.count
-                }
-            }
+    private var rootItems: [SavedItem] {
+        store.snapshot(for: .libraryRoot).items
+    }
+
+    private func folderCount(_ id: String) -> Int {
+        store.snapshot(for: .completeLibrary).items.count { $0.folder?.id == id }
     }
 }

@@ -2,6 +2,9 @@ import Foundation
 
 enum RetrievalRequest: Hashable {
     case readingQueue
+    case completeLibrary
+    case libraryRoot
+    case folder(String)
 }
 
 nonisolated enum RetrievalCoverage: String, Codable, Equatable, Sendable {
@@ -36,6 +39,8 @@ nonisolated struct RetrievalIndex: Equatable, Sendable {
     private var itemsByID: [String: SavedItem]
     private var searchContentByID: [String: SearchContent]
     private var globalIDs: Set<String>
+    private var scopedIDs: [SavedItemFetchRequest: Set<String>] = [:]
+    private var scopedCoverage: [SavedItemFetchRequest: RetrievalCoverage] = [:]
     var globalCoverage: RetrievalCoverage
     private(set) var searchContentBuildCount: Int
     private(set) var itemRevision = 0
@@ -79,6 +84,21 @@ nonisolated struct RetrievalIndex: Equatable, Sendable {
         .sorted { ($0.lastSavedAt, $0.id) > ($1.lastSavedAt, $1.id) }
     }
 
+    func items(for request: SavedItemFetchRequest) -> [SavedItem] {
+        let ids = scopedIDs[request]
+            ?? Set(globalItems.lazy.filter { request.includes($0) }.map(\.id))
+        return ids.compactMap { itemsByID[$0] }
+    }
+
+    func coverage(for request: SavedItemFetchRequest) -> RetrievalCoverage {
+        switch request {
+        case .completeLibrary:
+            globalCoverage
+        case .libraryRoot, .folder:
+            scopedCoverage[request] ?? .notRequested
+        }
+    }
+
     mutating func replaceGlobal(
         with items: [SavedItem],
         coverage: RetrievalCoverage
@@ -94,12 +114,33 @@ nonisolated struct RetrievalIndex: Equatable, Sendable {
         }
         globalIDs = replacementIDs
         globalCoverage = coverage
+        refreshKnownScopes()
+    }
+
+    mutating func replace(
+        with items: [SavedItem],
+        for request: SavedItemFetchRequest,
+        coverage: RetrievalCoverage
+    ) {
+        guard request != .completeLibrary else {
+            replaceGlobal(with: items, coverage: coverage)
+            return
+        }
+
+        for item in items {
+            store(item)
+            globalIDs.insert(item.id)
+            refreshKnownScopes(for: item)
+        }
+        scopedIDs[request] = Set(items.map(\.id))
+        scopedCoverage[request] = coverage
     }
 
     mutating func upsert(_ items: [SavedItem]) {
         for item in items {
             store(item)
             globalIDs.insert(item.id)
+            refreshKnownScopes(for: item)
         }
     }
 
@@ -109,6 +150,9 @@ nonisolated struct RetrievalIndex: Equatable, Sendable {
         itemsByID[id] = nil
         searchContentByID[id] = nil
         itemRevision &+= 1
+        for request in Array(scopedIDs.keys) {
+            scopedIDs[request]?.remove(id)
+        }
     }
 
     mutating func mutate(
@@ -119,6 +163,31 @@ nonisolated struct RetrievalIndex: Equatable, Sendable {
             guard var item = itemsByID[id], predicate(item) else { continue }
             transform(&item)
             store(item)
+            refreshKnownScopes(for: item)
+        }
+    }
+
+    mutating func setCoverage(_ coverage: RetrievalCoverage, for request: SavedItemFetchRequest) {
+        if request == .completeLibrary {
+            globalCoverage = coverage
+        } else {
+            scopedCoverage[request] = coverage
+        }
+    }
+
+    private mutating func refreshKnownScopes() {
+        for request in Array(scopedIDs.keys) {
+            scopedIDs[request] = Set(globalItems.lazy.filter { request.includes($0) }.map(\.id))
+        }
+    }
+
+    private mutating func refreshKnownScopes(for item: SavedItem) {
+        for request in Array(scopedIDs.keys) {
+            if request.includes(item) {
+                scopedIDs[request]?.insert(item.id)
+            } else {
+                scopedIDs[request]?.remove(item.id)
+            }
         }
     }
 
@@ -151,6 +220,21 @@ enum RetrievalProjector {
                     .filter { !$0.isRead }
                     .sorted { ($0.lastSavedAt, $0.id) > ($1.lastSavedAt, $1.id) },
                 coverage: index.globalCoverage
+            )
+        case .completeLibrary:
+            return RetrievalSnapshot(
+                items: index.globalItems.sortedNewest(),
+                coverage: index.globalCoverage
+            )
+        case .libraryRoot:
+            return RetrievalSnapshot(
+                items: index.items(for: .libraryRoot).sortedNewest(),
+                coverage: index.coverage(for: .libraryRoot)
+            )
+        case .folder(let id):
+            return RetrievalSnapshot(
+                items: index.items(for: .folder(id)).sortedNewest(),
+                coverage: index.coverage(for: .folder(id))
             )
         }
     }
@@ -225,5 +309,24 @@ private nonisolated struct SearchContent: Equatable, Sendable {
         .compactMap { $0 }
         .joined(separator: " ")
         .lowercased()
+    }
+}
+
+private extension SavedItemFetchRequest {
+    func includes(_ item: SavedItem) -> Bool {
+        switch self {
+        case .completeLibrary:
+            true
+        case .libraryRoot:
+            item.folder == nil
+        case .folder(let id):
+            item.folder?.id == id
+        }
+    }
+}
+
+private extension Sequence where Element == SavedItem {
+    func sortedNewest() -> [SavedItem] {
+        sorted { ($0.lastSavedAt, $0.id) > ($1.lastSavedAt, $1.id) }
     }
 }

@@ -5,7 +5,7 @@ import UIKit
 /// Selects which slice of the library a view wants, mirroring the web app's
 /// `useSavedItems(sort, folder)` selector (`undefined` | `"none"` | id):
 ///
-/// - `.all` — the **Inbox**: every saved item.
+/// - `.all` — the complete **Library**: every Saved Item.
 /// - `.unfiled` — the **Library** root: items not in any folder.
 /// - `.folder(id)` — a **Folder**: items filed under it.
 enum FolderSelector: Equatable {
@@ -38,12 +38,15 @@ struct ReadingListError: LocalizedError {
 @MainActor
 @Observable
 final class Library {
-    /// The one truth for retrieved saved items. Screens observe cached snapshots;
-    /// `savedItems(_:)` provides destination selectors over the same index.
+    /// The one truth for retrieved Saved Items. Screens observe cached snapshots;
+    /// `savedItems(_:)` remains the legacy selector for destinations not yet migrated.
     private var retrievalIndex = RetrievalIndex()
     private(set) var readingQueueSnapshot = RetrievalSnapshot.notRequested
     private(set) var searchSnapshot = SearchSnapshot.notRequested
     @ObservationIgnored private(set) var searchProjectionCount = 0
+    private(set) var completeLibrarySnapshot = RetrievalSnapshot.notRequested
+    private(set) var libraryRootSnapshot = RetrievalSnapshot.notRequested
+    private var folderSnapshots: [String: RetrievalSnapshot] = [:]
     private(set) var folders: [Folder] = []
     private(set) var pendingSavedItems: [PendingSavedItem] = []
     private(set) var pendingCaptureCount = 0
@@ -241,6 +244,12 @@ final class Library {
         switch request {
         case .readingQueue:
             readingQueueSnapshot
+        case .completeLibrary:
+            completeLibrarySnapshot
+        case .libraryRoot:
+            libraryRootSnapshot
+        case .folder(let id):
+            folderSnapshots[id] ?? RetrievalProjector.snapshot(for: request, in: retrievalIndex)
         }
     }
 
@@ -279,6 +288,14 @@ final class Library {
         await load()
     }
 
+    func loadIfNeeded(for request: RetrievalRequest) async {
+        await loadIfNeeded()
+        guard let fetchRequest = request.fetchRequest else { return }
+        let coverage = retrievalIndex.coverage(for: fetchRequest)
+        guard coverage != .loading, coverage != .complete else { return }
+        await loadScope(fetchRequest)
+    }
+
     /// Initial load: one fast pull for first paint (with the loading spinner),
     /// then a full sync to push queued changes and surface anything new.
     func load() async {
@@ -299,6 +316,12 @@ final class Library {
     func refresh() async {
         activate()
         await sync()
+    }
+
+    func refresh(_ request: RetrievalRequest) async {
+        await refresh()
+        guard let fetchRequest = request.fetchRequest else { return }
+        await loadScope(fetchRequest)
     }
 
     /// Retry after a failed load: just attempt the pull again.
@@ -344,7 +367,7 @@ final class Library {
         await task.value
     }
 
-    /// Fetches the full item set (the inbox) and folder list. The item fetch is
+    /// Fetches the complete Library item set and Folder list. The item fetch is
     /// the critical path; folders load best-effort.
     @discardableResult
     private func performLoad() async -> Bool {
@@ -354,7 +377,7 @@ final class Library {
             updateIndex { $0.globalCoverage = .loading }
         }
         do {
-            let savedItems = try await network.loadSavedItems()
+            let savedItems = try await network.loadSavedItems(.completeLibrary)
             updateIndex {
                 $0.replaceGlobal(
                     with: readStateQueue.apply(to: savedItems),
@@ -385,6 +408,30 @@ final class Library {
             folders = try await network.loadFolders()
             status.libraryErrorMessage = nil
         } catch {
+            handleLibraryFault(asFault(error))
+        }
+    }
+
+    private func loadScope(_ request: SavedItemFetchRequest) async {
+        let hadUsableCoverage = retrievalIndex.coverage(for: request).hasUsableData
+        updateIndex { $0.setCoverage(.loading, for: request) }
+        do {
+            let savedItems = try await network.loadSavedItems(request)
+            updateIndex {
+                $0.replace(
+                    with: readStateQueue.apply(to: savedItems),
+                    for: request,
+                    coverage: .complete
+                )
+            }
+            await persistItems()
+            status.libraryErrorMessage = nil
+        } catch {
+            updateIndex {
+                let hasUsableData = hadUsableCoverage || !$0.items(for: request).isEmpty
+                let coverage: RetrievalCoverage = hasUsableData ? .stale : .failed
+                $0.setCoverage(coverage, for: request)
+            }
             handleLibraryFault(asFault(error))
         }
     }
@@ -435,7 +482,7 @@ final class Library {
             try await network.deleteFolder(id: folder.id)
             folders.removeAll { $0.id == folder.id }
             // Detaching the summary returns these items to the Library root — the
-            // `.unfiled` view picks them up automatically, no re-fetch needed.
+            // scoped snapshot picks them up automatically, no re-fetch needed.
             mutateItems(where: { $0.folder?.id == folder.id }) { $0 = $0.withFolder(nil) }
             await persistItems()
         } catch {
@@ -832,10 +879,14 @@ final class Library {
 
         let itemsChanged = updatedIndex.itemRevision != retrievalIndex.itemRevision
         retrievalIndex = updatedIndex
-        let snapshot = RetrievalProjector.snapshot(for: .readingQueue, in: updatedIndex)
-        if snapshot != readingQueueSnapshot {
-            readingQueueSnapshot = snapshot
+        setSnapshot(RetrievalProjector.snapshot(for: .readingQueue, in: updatedIndex), at: .readingQueue)
+        setSnapshot(RetrievalProjector.snapshot(for: .completeLibrary, in: updatedIndex), at: .completeLibrary)
+        setSnapshot(RetrievalProjector.snapshot(for: .libraryRoot, in: updatedIndex), at: .libraryRoot)
+
+        for id in Set(folderSnapshots.keys).union(folders.map(\.id)) {
+            setSnapshot(RetrievalProjector.snapshot(for: .folder(id), in: updatedIndex), at: .folder(id))
         }
+
         if itemsChanged {
             updateSearchSnapshot()
         } else if searchSnapshot.coverage != updatedIndex.globalCoverage {
@@ -844,6 +895,19 @@ final class Library {
                 coverage: updatedIndex.globalCoverage,
                 hasSavedItems: searchSnapshot.hasSavedItems
             )
+        }
+    }
+
+    private func setSnapshot(_ snapshot: RetrievalSnapshot, at request: RetrievalRequest) {
+        switch request {
+        case .readingQueue:
+            if snapshot != readingQueueSnapshot { readingQueueSnapshot = snapshot }
+        case .completeLibrary:
+            if snapshot != completeLibrarySnapshot { completeLibrarySnapshot = snapshot }
+        case .libraryRoot:
+            if snapshot != libraryRootSnapshot { libraryRootSnapshot = snapshot }
+        case .folder(let id):
+            if snapshot != folderSnapshots[id] { folderSnapshots[id] = snapshot }
         }
     }
 
@@ -932,4 +996,28 @@ private extension Sequence where Element == SavedItem {
 enum CaptureSubmissionOutcome: Equatable {
     case saved(SavedItem)
     case queued
+}
+
+private extension RetrievalRequest {
+    var fetchRequest: SavedItemFetchRequest? {
+        switch self {
+        case .readingQueue, .completeLibrary:
+            nil
+        case .libraryRoot:
+            .libraryRoot
+        case .folder(let id):
+            .folder(id)
+        }
+    }
+}
+
+private extension RetrievalCoverage {
+    var hasUsableData: Bool {
+        switch self {
+        case .cached, .complete, .stale:
+            true
+        case .notRequested, .loading, .failed:
+            false
+        }
+    }
 }

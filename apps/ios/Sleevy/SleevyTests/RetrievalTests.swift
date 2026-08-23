@@ -23,6 +23,111 @@ struct RetrievalTests {
         #expect(snapshot.coverage == .complete)
     }
 
+    @Test func scopedResponseMergesIntoCanonicalSavedItem() {
+        var stale = SavedItem.fixture(id: "shared", isRead: false)
+        stale.title = "Stale title"
+        var fresh = stale
+        fresh.title = "Fresh title"
+        var index = RetrievalIndex(globalItems: [stale], globalCoverage: .complete)
+
+        index.replace(
+            with: [fresh],
+            for: .libraryRoot,
+            coverage: .complete
+        )
+
+        #expect(RetrievalProjector.snapshot(for: .libraryRoot, in: index).items.first?.title == "Fresh title")
+        #expect(RetrievalProjector.snapshot(for: .completeLibrary, in: index).items.first?.title == "Fresh title")
+    }
+
+    @Test func libraryRootLoadsAndKeepsKnownEmptyCoverage() async {
+        let environment = RetrievalTestEnvironment()
+        environment.network.items["filed"] = .fixture(id: "filed", isRead: false, folderId: "work")
+        let library = environment.makeLibrary()
+
+        await library.load()
+        await library.loadIfNeeded(for: .libraryRoot)
+
+        let snapshot = library.snapshot(for: .libraryRoot)
+        #expect(snapshot.items.isEmpty)
+        #expect(snapshot.coverage == .complete)
+        #expect(environment.network.savedItemFetches.contains(.libraryRoot))
+    }
+
+    @Test func failedRefreshKeepsKnownEmptyLibraryRootAsStale() async {
+        let environment = RetrievalTestEnvironment()
+        environment.network.items["filed"] = .fixture(id: "filed", isRead: false, folderId: "work")
+        let library = environment.makeLibrary()
+        await library.load()
+        await library.loadIfNeeded(for: .libraryRoot)
+        var shouldArmScopeFailure = true
+        environment.network.onLoadSavedItems = {
+            guard shouldArmScopeFailure else { return }
+            shouldArmScopeFailure = false
+            environment.network.faults["loadSavedItems"] = .unreachable(reason: "offline")
+        }
+
+        await library.refresh(.libraryRoot)
+
+        #expect(library.snapshot(for: .libraryRoot).items.isEmpty)
+        #expect(library.snapshot(for: .libraryRoot).coverage == .stale)
+    }
+
+    @Test func folderChangesUpdateEveryKnownDestination() async throws {
+        let environment = RetrievalTestEnvironment()
+        let work = Folder(id: "work", name: "Work", emoji: nil, color: nil)
+        let later = Folder(id: "later", name: "Later", emoji: nil, color: nil)
+        environment.network.folders = [work.id: work, later.id: later]
+        environment.network.items["root"] = .fixture(id: "root", isRead: false)
+        environment.network.items["filed"] = .fixture(id: "filed", isRead: true, folderId: work.id)
+        let library = environment.makeLibrary()
+
+        await library.load()
+        await library.loadIfNeeded(for: .libraryRoot)
+        await library.loadIfNeeded(for: .folder(work.id))
+        await library.loadIfNeeded(for: .folder(later.id))
+
+        try await library.move(environment.network.items["root"]!, to: work)
+
+        #expect(library.snapshot(for: .libraryRoot).items.isEmpty)
+        #expect(library.snapshot(for: .folder(work.id)).items.map(\.id).sorted() == ["filed", "root"])
+        #expect(library.snapshot(for: .completeLibrary).items.count { $0.folder?.id == work.id } == 2)
+
+        try await library.renameFolder(work, to: "Career", emoji: "💼", color: "blue")
+
+        #expect(library.snapshot(for: .folder(work.id)).items.allSatisfy { $0.folder?.name == "Career" })
+
+        let renamed = try #require(library.folders.first(where: { $0.id == work.id }))
+        try await library.deleteFolder(renamed)
+
+        #expect(library.snapshot(for: .folder(work.id)).items.isEmpty)
+        #expect(library.snapshot(for: .libraryRoot).items.map(\.id).sorted() == ["filed", "root"])
+    }
+
+    @Test func libraryItemsKeepDestinationFiltersSortsAndFacetCounts() {
+        var older = SavedItem.fixture(id: "older", isRead: true)
+        older.lastSavedAt = .init(timeIntervalSince1970: 100)
+        older.tags = ["Swift", "Design"]
+        older.sourceName = "Mac"
+        var newer = SavedItem.fixture(id: "newer", isRead: false)
+        newer.lastSavedAt = .init(timeIntervalSince1970: 200)
+        newer.tags = ["Swift"]
+        newer.sourceName = "iPhone"
+        let libraryItems = LibraryItems(items: [older, newer])
+
+        let filtered = libraryItems.filtered(
+            by: LibraryFilter(tag: "Swift", source: "iPhone", type: "article"),
+            sortedBy: .oldest
+        )
+
+        #expect(filtered.map(\.id) == ["newer"])
+        #expect(libraryItems.options(for: .tag, order: .frequency) == [
+            LibraryFilterOption(value: "Swift", count: 2),
+            LibraryFilterOption(value: "Design", count: 1),
+        ])
+        #expect(libraryItems.filtered(by: LibraryFilter(), sortedBy: .unread).map(\.id) == ["newer", "older"])
+    }
+
     @Test func readingQueueSnapshotTracksLoadAndOptimisticReadState() async {
         let environment = RetrievalTestEnvironment()
         environment.network.items["unread"] = .fixture(id: "unread", isRead: false)

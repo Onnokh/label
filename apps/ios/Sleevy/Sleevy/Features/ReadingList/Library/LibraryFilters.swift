@@ -17,6 +17,63 @@ struct LibraryFilterOption: Identifiable, Hashable {
     var id: String { value }
 }
 
+enum LibraryFacet {
+    case tag
+    case source
+    case type
+}
+
+enum LibraryFacetOrder {
+    case frequency
+    case name
+}
+
+struct LibraryItems {
+    let items: [SavedItem]
+
+    func filtered(by filter: LibraryFilter, sortedBy sort: LibrarySort) -> [SavedItem] {
+        items
+            .filter { item in
+                (filter.tag == nil || item.tags.contains(filter.tag ?? ""))
+                    && (filter.source == nil || item.sourceGroup == filter.source)
+                    && (filter.type == nil || item.type == filter.type)
+            }
+            .sorted(using: sort)
+    }
+
+    func options(for facet: LibraryFacet, order: LibraryFacetOrder) -> [LibraryFilterOption] {
+        let values = switch facet {
+        case .tag:
+            items.flatMap(\.tags)
+        case .source:
+            items.compactMap(\.sourceGroup)
+        case .type:
+            items.map(\.type)
+        }
+        let counts = values.reduce(into: [String: Int]()) { counts, value in
+            let value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !value.isEmpty else { return }
+            counts[value, default: 0] += 1
+        }
+        let options = counts.map { LibraryFilterOption(value: $0.key, count: $0.value) }
+
+        switch order {
+        case .frequency:
+            return options.sorted { lhs, rhs in
+                if lhs.count == rhs.count {
+                    lhs.value.localizedCaseInsensitiveCompare(rhs.value) == .orderedAscending
+                } else {
+                    lhs.count > rhs.count
+                }
+            }
+        case .name:
+            return options.sorted {
+                $0.value.localizedCaseInsensitiveCompare($1.value) == .orderedAscending
+            }
+        }
+    }
+}
+
 enum LibrarySort: String, CaseIterable, Identifiable {
     case newest
     case oldest

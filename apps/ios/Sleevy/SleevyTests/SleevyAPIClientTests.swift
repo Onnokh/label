@@ -19,6 +19,22 @@ struct SleevyAPIClientTests {
         #expect(response.savedItems.isEmpty)
     }
 
+    @Test func savedItemFetchRequestsMapToFolderSelectors() async throws {
+        let api = makeAPI(status: 200, body: Data(#"{"savedItems":[]}"#.utf8))
+        let adapter = HTTPReadingListAdapter(api: api)
+
+        for (request, selector) in [
+            (SavedItemFetchRequest.completeLibrary, nil),
+            (.libraryRoot, "none"),
+            (.folder("work"), "work"),
+        ] {
+            _ = try await adapter.loadSavedItems(request)
+
+            let query = URLComponents(url: try #require(StubURLProtocol.lastRequest?.url), resolvingAgainstBaseURL: false)
+            #expect(query?.queryItems?.first(where: { $0.name == "folder" })?.value == selector)
+        }
+    }
+
     @Test func malformedSuccessfulResponseThrowsDecodingError() async {
         let api = makeAPI(status: 200, body: Data(#"{"savedItems":"wrong shape"}"#.utf8))
 
@@ -182,6 +198,7 @@ struct SleevyAPIClientTests {
         headers: [String: String] = [:],
         tokenStore: SessionTokenStore? = nil
     ) -> SleevyAPIClient {
+        StubURLProtocol.lastRequest = nil
         StubURLProtocol.handler = { request in
             let response = HTTPURLResponse(
                 url: request.url!,
@@ -231,11 +248,13 @@ struct SleevyAPIClientTests {
 /// test sets and reads it at a time.
 nonisolated final class StubURLProtocol: URLProtocol {
     nonisolated(unsafe) static var handler: ((URLRequest) -> (HTTPURLResponse, Data))?
+    nonisolated(unsafe) static var lastRequest: URLRequest?
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
+        Self.lastRequest = request
         guard let handler = Self.handler else {
             client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
             return
