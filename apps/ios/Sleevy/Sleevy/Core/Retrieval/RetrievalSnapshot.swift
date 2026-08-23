@@ -1,7 +1,7 @@
 import Foundation
 
 nonisolated enum RetrievalRequest: Hashable, Sendable {
-    case readingQueue
+    case inbox
     case completeLibrary
     case libraryRoot
     case folder(String)
@@ -214,7 +214,7 @@ nonisolated enum RetrievalProjector {
         in index: RetrievalIndex
     ) -> RetrievalSnapshot {
         switch request {
-        case .readingQueue:
+        case .inbox:
             return RetrievalSnapshot(
                 items: index.globalItems
                     .filter { !$0.isRead }

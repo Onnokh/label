@@ -29,7 +29,7 @@ final class ReadingListStore {
     /// The one truth for retrieved Saved Items. Screens observe cached snapshots
     /// and prepared projections derived from this index.
     private var retrievalIndex = RetrievalIndex()
-    private(set) var readingQueueSnapshot = RetrievalSnapshot.notRequested
+    private(set) var inboxSnapshot = RetrievalSnapshot.notRequested
     private(set) var searchSnapshot = SearchSnapshot.notRequested
     @ObservationIgnored private(set) var searchProjectionCount = 0
     @ObservationIgnored private var libraryProjectionCache: [LibraryProjectionKey: LibraryProjection] = [:]
@@ -232,8 +232,8 @@ final class ReadingListStore {
 
     func snapshot(for request: RetrievalRequest) -> RetrievalSnapshot {
         switch request {
-        case .readingQueue:
-            readingQueueSnapshot
+        case .inbox:
+            inboxSnapshot
         case .completeLibrary:
             completeLibrarySnapshot
         case .libraryRoot:
@@ -889,7 +889,7 @@ final class ReadingListStore {
         let itemsChanged = updatedIndex.itemRevision != retrievalIndex.itemRevision
         libraryProjectionCache.removeAll(keepingCapacity: true)
         retrievalIndex = updatedIndex
-        setSnapshot(RetrievalProjector.snapshot(for: .readingQueue, in: updatedIndex), at: .readingQueue)
+        setSnapshot(RetrievalProjector.snapshot(for: .inbox, in: updatedIndex), at: .inbox)
         setSnapshot(RetrievalProjector.snapshot(for: .completeLibrary, in: updatedIndex), at: .completeLibrary)
         setSnapshot(RetrievalProjector.snapshot(for: .libraryRoot, in: updatedIndex), at: .libraryRoot)
 
@@ -910,8 +910,8 @@ final class ReadingListStore {
 
     private func setSnapshot(_ snapshot: RetrievalSnapshot, at request: RetrievalRequest) {
         switch request {
-        case .readingQueue:
-            if snapshot != readingQueueSnapshot { readingQueueSnapshot = snapshot }
+        case .inbox:
+            if snapshot != inboxSnapshot { inboxSnapshot = snapshot }
         case .completeLibrary:
             if snapshot != completeLibrarySnapshot { completeLibrarySnapshot = snapshot }
         case .libraryRoot:
@@ -1004,7 +1004,7 @@ enum CaptureSubmissionOutcome: Equatable {
 private extension RetrievalRequest {
     var fetchRequest: SavedItemFetchRequest? {
         switch self {
-        case .readingQueue, .completeLibrary:
+        case .inbox, .completeLibrary:
             nil
         case .libraryRoot:
             .libraryRoot
