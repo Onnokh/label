@@ -323,6 +323,26 @@ _Avoid_: Reading Queue, knowledge base
 A browsing surface for finding previously saved content by filters, sorting, and search.
 _Avoid_: Inbox, triage surface
 
+**Retrieval Index**:
+The canonical in-memory collection of Saved Items in the Native iOS App, keyed by identifier, with scope membership and Retrieval Coverage. Every Retrieval Surface derives its data from it.
+_Avoid_: Per-screen item array, duplicated Saved Item copies
+
+**Retrieval Snapshot**:
+An immutable projection of one retrieval request over the Retrieval Index: ordered Saved Items plus their Retrieval Coverage.
+_Avoid_: Live query, view-owned filtering
+
+**Retrieval Coverage**:
+The explicit state of one retrieval scope: not requested, cached, loading, complete, failed, or stale. It keeps a known-empty scope distinct from a scope that has not loaded.
+_Avoid_: Loading boolean, empty-array ambiguity
+
+**Library Projection**:
+The prepared data one Library destination screen renders: filtered and sorted Saved Items, facet options with counts, and unfiltered destination counts. It is memoized and rebuilt only when the Retrieval Index or the request changes.
+_Avoid_: View-owned filtering, sorting, or facet counting
+
+**Reading List Store**:
+The app-wide observable coordinator in the Native iOS App that owns the Retrieval Index, Retrieval Snapshots, Library Projections, offline queues, and synchronization.
+_Avoid_: Library (as a store or type name), per-screen store
+
 **V1 Library**:
 A lightweight Library browsing surface that reuses Saved Item list UI across the unfiled root and Folder Views with Type and Tag filters.
 _Avoid_: Knowledge base, advanced search
@@ -645,6 +665,8 @@ _Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
 - The iOS Library root list contains only Saved Items without a Folder; filed items appear in their Folder Views rather than being duplicated below the Folder row.
 - V1 retrieval uses **V1 Library** filters rather than text search.
 - The **Native iOS App** supports **Cached Viewing** and **Pending Capture** for native iOS capture flows in v1.
+- The **Reading List Store** serves every Native iOS **Retrieval Surface** through **Retrieval Snapshots** and **Library Projections** derived from one **Retrieval Index**.
+- **Cached Viewing** restores the **Retrieval Index** from a versioned per-Account cache before network refresh.
 - V1 does not include reminders or push notifications.
 - Each **Saved Item** has a **Read State**.
 - **Unread Dot** is the v1 visual indicator for unread **Read State**.

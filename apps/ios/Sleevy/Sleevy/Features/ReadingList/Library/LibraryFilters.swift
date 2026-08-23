@@ -1,65 +1,5 @@
 import SwiftUI
 
-struct LibraryFilter: Equatable {
-    var tag: String?
-    var source: String?
-    var type: String?
-
-    var isActive: Bool {
-        tag != nil || source != nil || type != nil
-    }
-}
-
-struct LibraryFilterOption: Identifiable, Hashable {
-    let value: String
-    let count: Int
-
-    var id: String { value }
-}
-
-enum LibrarySort: String, CaseIterable, Identifiable {
-    case newest
-    case oldest
-    case title
-    case unread
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .newest:
-            "Newest First"
-        case .oldest:
-            "Oldest First"
-        case .title:
-            "Title A-Z"
-        case .unread:
-            "Unread First"
-        }
-    }
-}
-
-extension Array where Element == SavedItem {
-    func sorted(using sort: LibrarySort) -> [SavedItem] {
-        switch sort {
-        case .newest:
-            sorted { lhs, rhs in lhs.lastSavedAt > rhs.lastSavedAt }
-        case .oldest:
-            sorted { lhs, rhs in lhs.lastSavedAt < rhs.lastSavedAt }
-        case .title:
-            sorted { lhs, rhs in lhs.librarySortTitle.localizedCaseInsensitiveCompare(rhs.librarySortTitle) == .orderedAscending }
-        case .unread:
-            sorted { lhs, rhs in
-                if lhs.isRead == rhs.isRead {
-                    lhs.lastSavedAt > rhs.lastSavedAt
-                } else {
-                    !lhs.isRead && rhs.isRead
-                }
-            }
-        }
-    }
-}
-
 struct LibraryFilterSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var filter: LibraryFilter
@@ -187,40 +127,5 @@ private struct FilterChip: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Remove \(label) filter \(value)")
-    }
-}
-
-extension SavedItem {
-    var sourceGroup: String? {
-        if let sourceName = sourceName?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
-            return sourceName
-        }
-
-        guard let captureChannel else { return nil }
-
-        switch captureChannel {
-        case CaptureChannel.app.rawValue, CaptureChannel.shareExtension.rawValue:
-            return "iOS"
-        case "chrome-extension", "web-companion":
-            return "Browser"
-        case "raycast":
-            return "Raycast"
-        case "api":
-            return "API"
-        default:
-            return captureChannel
-        }
-    }
-
-    var librarySortTitle: String {
-        title?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
-            ?? siteName?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
-            ?? host
-    }
-}
-
-extension String {
-    var nonEmptyValue: String? {
-        isEmpty ? nil : self
     }
 }

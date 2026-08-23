@@ -2,18 +2,6 @@ import Foundation
 import Observation
 import UIKit
 
-/// Selects which slice of the library a view wants, mirroring the web app's
-/// `useSavedItems(sort, folder)` selector (`undefined` | `"none"` | id):
-///
-/// - `.all` — the **Inbox**: every saved item.
-/// - `.unfiled` — the **Library** root: items not in any folder.
-/// - `.folder(id)` — a **Folder**: items filed under it.
-enum FolderSelector: Equatable {
-    case all
-    case unfiled
-    case folder(String)
-}
-
 /// A folder/move command that failed against the server, surfaced to the caller
 /// with the human-facing reason. Folder operations have no offline queue, so
 /// (unlike captures and read-state) their failures are thrown rather than
@@ -25,23 +13,30 @@ struct ReadingListError: LocalizedError {
 
 /// The reading list's single source of truth and offline-sync coordinator.
 ///
-/// One canonical `items` array holds every saved item we know about. The Inbox,
-/// Library root, and each Folder are *derived* by `savedItems(_:)` — pure
-/// filter + sort, never stored — so a read-state toggle, move, or rename is one
-/// write to `items` that every view reflects automatically.
+/// One canonical retrieval index holds every saved item we know about, keyed by
+/// stable identity. Destination-specific snapshots are projected from that index,
+/// so a read-state toggle, move, or rename is one write that every view reflects.
 ///
 /// The network is a `ReadingListNetworkPort`: production wires the HTTP adapter
 /// (`HTTPReadingListAdapter`), tests wire an in-memory one, and — crucially —
 /// every network failure arrives already classified as a `SyncFault`, so
 /// "should I re-queue this?" is answered in exactly one place (`classify(_:)`).
-/// Persistence stays the concrete per-user file stores (`SavedItemCache`,
+/// Persistence stays the concrete per-user file stores (`RetrievalIndexCache`,
 /// `ReadStateQueue`, `PendingCaptureQueue`) shared with the share extension.
 @MainActor
 @Observable
-final class Library {
-    /// The one truth: every saved item, in no particular stored order. The Inbox,
-    /// Library root, and folders are *derived* by `savedItems(_:)`.
-    private(set) var items: [SavedItem] = []
+final class ReadingListStore {
+    /// The one truth for retrieved Saved Items. Screens observe cached snapshots
+    /// and prepared projections derived from this index.
+    private var retrievalIndex = RetrievalIndex()
+    private(set) var readingQueueSnapshot = RetrievalSnapshot.notRequested
+    private(set) var searchSnapshot = SearchSnapshot.notRequested
+    @ObservationIgnored private(set) var searchProjectionCount = 0
+    @ObservationIgnored private var libraryProjectionCache: [LibraryProjectionKey: LibraryProjection] = [:]
+    @ObservationIgnored private(set) var libraryProjectionCount = 0
+    private(set) var completeLibrarySnapshot = RetrievalSnapshot.notRequested
+    private(set) var libraryRootSnapshot = RetrievalSnapshot.notRequested
+    private var folderSnapshots: [String: RetrievalSnapshot] = [:]
     private(set) var folders: [Folder] = []
     private(set) var pendingSavedItems: [PendingSavedItem] = []
     private(set) var pendingCaptureCount = 0
@@ -72,12 +67,13 @@ final class Library {
     private let userId: String
     private let network: any ReadingListNetworkPort
     private let connectivity: any ConnectivityMonitoring
-    private let cache: SavedItemCache
+    private let cache: RetrievalIndexCache
     private let readStateQueue: ReadStateQueue
     private let pendingCaptureQueue: PendingCaptureQueue
     private let statusDefaults: UserDefaults
 
     private var hasAttemptedInitialLoad = false
+    private var searchQuery = ""
     /// Serializes sync cycles (and the standalone retry pull) so two never run at
     /// once — the single re-entrancy guard for all server coordination.
     private var isSyncing = false
@@ -106,7 +102,7 @@ final class Library {
     init(
         userId: String,
         network: any ReadingListNetworkPort,
-        cache: SavedItemCache,
+        cache: RetrievalIndexCache,
         readStateQueue: ReadStateQueue,
         pendingCaptureQueue: PendingCaptureQueue,
         statusDefaults: UserDefaults,
@@ -128,7 +124,7 @@ final class Library {
 
     /// The effectful part of construction, separated from `init` on purpose.
     ///
-    /// `SignedInTabView.init` constructs a `Library` inside
+    /// `SignedInTabView.init` constructs a `ReadingListStore` inside
     /// `State(wrappedValue:)`, which SwiftUI evaluates on *every* parent body
     /// evaluation and then discards in favour of the retained first instance.
     /// That construction runs inside the enclosing view's observation
@@ -159,7 +155,7 @@ final class Library {
         api: SleevyAPIClient? = nil,
         pendingCaptureQueue: PendingCaptureQueue? = nil,
         readStateQueue: ReadStateQueue? = nil,
-        savedItemCache: SavedItemCache? = nil,
+        retrievalIndexCache: RetrievalIndexCache? = nil,
         statusDefaults: UserDefaults = .standard
     ) {
         let decoder = JSONDecoder()
@@ -182,7 +178,7 @@ final class Library {
                 forSecurityApplicationGroupIdentifier: AppConfig.appGroupIdentifier
             )
         )
-        let cache = savedItemCache ?? SavedItemCache(
+        let cache = retrievalIndexCache ?? RetrievalIndexCache(
             userId: session.userId,
             directory: Self.applicationSupportDirectory(),
             encoder: encoder,
@@ -234,19 +230,52 @@ final class Library {
 
     // MARK: - Derived views
 
-    /// The items for a view, derived from the single `items` truth, in the
-    /// server's canonical "newest" order; views layer their own sort/filter on top.
-    func savedItems(_ selector: FolderSelector = .all) -> [SavedItem] {
-        let filtered: [SavedItem]
-        switch selector {
-        case .all:
-            filtered = items
-        case .unfiled:
-            filtered = items.filter { $0.folder == nil }
+    func snapshot(for request: RetrievalRequest) -> RetrievalSnapshot {
+        switch request {
+        case .readingQueue:
+            readingQueueSnapshot
+        case .completeLibrary:
+            completeLibrarySnapshot
+        case .libraryRoot:
+            libraryRootSnapshot
         case .folder(let id):
-            filtered = items.filter { $0.folder?.id == id }
+            folderSnapshots[id] ?? RetrievalProjector.snapshot(for: request, in: retrievalIndex)
         }
-        return filtered.sortedNewest()
+    }
+
+    func libraryProjection(
+        for request: RetrievalRequest,
+        filter: LibraryFilter,
+        sort: LibrarySort,
+        facetOrder: LibraryFacetOrder
+    ) -> LibraryProjection {
+        let key = LibraryProjectionKey(
+            request: request,
+            filter: filter,
+            sort: sort,
+            facetOrder: facetOrder
+        )
+        if let cached = libraryProjectionCache[key] {
+            return cached
+        }
+
+        libraryProjectionCount += 1
+        let projection = RetrievalProjector.libraryProjection(
+            for: request,
+            filter: filter,
+            sort: sort,
+            facetOrder: facetOrder,
+            in: retrievalIndex
+        )
+        libraryProjectionCache[key] = projection
+        return projection
+    }
+
+    func setSearchQuery(_ query: String) {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard query != searchQuery else { return }
+        searchQuery = query
+        updateSearchSnapshot()
     }
 
     // MARK: - Loading
@@ -255,11 +284,19 @@ final class Library {
     /// most once, even if the result is empty.
     func loadIfNeeded() async {
         activate()
-        guard items.isEmpty, !hasAttemptedInitialLoad else { return }
+        guard retrievalIndex.isEmpty, !hasAttemptedInitialLoad else { return }
         hasAttemptedInitialLoad = true
-        restoreCachedItems()
+        await restoreCachedItems()
         refreshPendingCaptureState()
         await load()
+    }
+
+    func loadIfNeeded(for request: RetrievalRequest) async {
+        await loadIfNeeded()
+        guard let fetchRequest = request.fetchRequest else { return }
+        let coverage = retrievalIndex.coverage(for: fetchRequest)
+        guard coverage != .loading, coverage != .complete else { return }
+        await loadScope(fetchRequest)
     }
 
     /// Initial load: one fast pull for first paint (with the loading spinner),
@@ -282,6 +319,12 @@ final class Library {
     func refresh() async {
         activate()
         await sync()
+    }
+
+    func refresh(_ request: RetrievalRequest) async {
+        await refresh()
+        guard let fetchRequest = request.fetchRequest else { return }
+        await loadScope(fetchRequest)
     }
 
     /// Retry after a failed load: just attempt the pull again.
@@ -327,22 +370,37 @@ final class Library {
         await task.value
     }
 
-    /// Fetches the full item set (the inbox) and folder list. The item fetch is
+    /// Fetches the complete Library item set and Folder list. The item fetch is
     /// the critical path; folders load best-effort.
     @discardableResult
     private func performLoad() async -> Bool {
+        // Cached content remains explicitly cached while it is revalidated. This
+        // lets first paint distinguish a usable empty cache from no data yet.
+        if retrievalIndex.globalCoverage != .cached {
+            updateIndex { $0.globalCoverage = .loading }
+        }
         do {
-            let savedItems = try await network.loadSavedItems()
-            items = readStateQueue.apply(to: savedItems)
-            persistItems()
+            let savedItems = try await network.loadSavedItems(.completeLibrary)
+            updateIndex {
+                $0.replaceGlobal(
+                    with: readStateQueue.apply(to: savedItems),
+                    coverage: .complete
+                )
+            }
             let now = Date()
             status.lastSuccessfulSyncAt = now
             statusDefaults.set(now, forKey: Self.lastSyncDefaultsKey(for: userId))
             status.isAPIReachable = true
             status.errorMessage = nil
+            await persistItems(at: now)
             await loadFolders()
             return true
         } catch {
+            updateIndex {
+                $0.globalCoverage = $0.globalCoverage == .cached || !$0.isEmpty
+                    ? .stale
+                    : .failed
+            }
             handleRequestFault(asFault(error))
             return false
         }
@@ -353,6 +411,30 @@ final class Library {
             folders = try await network.loadFolders()
             status.libraryErrorMessage = nil
         } catch {
+            handleLibraryFault(asFault(error))
+        }
+    }
+
+    private func loadScope(_ request: SavedItemFetchRequest) async {
+        let hadUsableCoverage = retrievalIndex.coverage(for: request).hasUsableData
+        updateIndex { $0.setCoverage(.loading, for: request) }
+        do {
+            let savedItems = try await network.loadSavedItems(request)
+            updateIndex {
+                $0.replace(
+                    with: readStateQueue.apply(to: savedItems),
+                    for: request,
+                    coverage: .complete
+                )
+            }
+            await persistItems()
+            status.libraryErrorMessage = nil
+        } catch {
+            updateIndex {
+                let hasUsableData = hadUsableCoverage || !$0.items(for: request).isEmpty
+                let coverage: RetrievalCoverage = hasUsableData ? .stale : .failed
+                $0.setCoverage(coverage, for: request)
+            }
             handleLibraryFault(asFault(error))
         }
     }
@@ -391,6 +473,7 @@ final class Library {
             folders.append(renamed)
             sortFolders()
             applyFolderSummary(renamed)
+            await persistItems()
             status.libraryErrorMessage = nil
         } catch {
             throw faultThrowing(error)
@@ -402,9 +485,9 @@ final class Library {
             try await network.deleteFolder(id: folder.id)
             folders.removeAll { $0.id == folder.id }
             // Detaching the summary returns these items to the Library root — the
-            // `.unfiled` view picks them up automatically, no re-fetch needed.
+            // scoped snapshot picks them up automatically, no re-fetch needed.
             mutateItems(where: { $0.folder?.id == folder.id }) { $0 = $0.withFolder(nil) }
-            persistItems()
+            await persistItems()
         } catch {
             throw faultThrowing(error)
         }
@@ -414,7 +497,7 @@ final class Library {
         do {
             let updated = try await network.moveItem(id: item.id, toFolder: folder?.id)
             upsert([updated])
-            persistItems()
+            await persistItems()
             status.libraryErrorMessage = nil
         } catch {
             throw faultThrowing(error)
@@ -434,7 +517,7 @@ final class Library {
         do {
             let savedItem = try await network.capture(url: url, sourceName: Self.sourceName, captureChannel: CaptureChannel.app.rawValue)
             upsert([savedItem])
-            persistItems()
+            await persistItems()
             status.isAPIReachable = true
             status.errorMessage = nil
             return .saved(savedItem)
@@ -455,13 +538,16 @@ final class Library {
     /// Optimistically marks an item read for the open animation, before the
     /// `markOpened` round-trip runs.
     func prepareForAnimatedReadStateChange(_ item: SavedItem) {
-        updateLocalReadState(for: item.id, isRead: true)
+        guard updateLocalReadState(for: item.id, isRead: true) else { return }
+        Task { await persistItems() }
     }
 
     func markOpened(_ item: SavedItem) async {
         guard let url = URL(string: item.originalURL) else { return }
 
-        updateLocalReadState(for: item.id, isRead: true)
+        if updateLocalReadState(for: item.id, isRead: true) {
+            await persistItems()
+        }
 
         await UIApplication.shared.open(url)
 
@@ -487,7 +573,7 @@ final class Library {
 
                 if self.currentReadState(for: updated.id) == true {
                     self.upsert([updated])
-                    self.persistItems()
+                    await self.persistItems()
                 }
 
                 self.status.errorMessage = nil
@@ -505,7 +591,9 @@ final class Library {
     }
 
     func setRead(_ item: SavedItem, isRead: Bool) async {
-        updateLocalReadState(for: item.id, isRead: isRead)
+        if updateLocalReadState(for: item.id, isRead: isRead) {
+            await persistItems()
+        }
 
         guard status.isOnline else {
             readStateQueue.enqueue(itemId: item.id, isRead: isRead)
@@ -522,7 +610,7 @@ final class Library {
 
             if currentReadState(for: updated.id) == isRead {
                 upsert([updated])
-                persistItems()
+                await persistItems()
             }
 
             status.errorMessage = nil
@@ -541,8 +629,8 @@ final class Library {
     func delete(_ item: SavedItem) async {
         do {
             try await network.deleteItem(itemId: item.id)
-            items.removeAll { $0.id == item.id }
-            persistItems()
+            updateIndex { $0.remove(id: item.id) }
+            await persistItems()
         } catch {
             handleRequestFault(asFault(error))
         }
@@ -672,7 +760,7 @@ final class Library {
         let processed = await drain(pending) { update in
             do {
                 let updated = try await self.network.setReadState(itemId: update.itemId, isRead: update.isRead)
-                if self.items.contains(where: { $0.id == updated.id }) {
+                if self.retrievalIndex.contains(id: updated.id) {
                     self.upsert([updated])
                     didUpdate = true
                 }
@@ -683,7 +771,7 @@ final class Library {
         }
 
         readStateQueue.removeProcessed(processed)
-        if didUpdate { persistItems() }
+        if didUpdate { await persistItems() }
         status.errorMessage = nil
     }
 
@@ -737,35 +825,33 @@ final class Library {
     /// Upserts item data, applying any pending offline read-state overrides so a
     /// freshly-fetched item never clobbers a local toggle that hasn't synced yet.
     private func upsert(_ incoming: [SavedItem]) {
-        for item in readStateQueue.apply(to: incoming) {
-            if let index = items.firstIndex(where: { $0.id == item.id }) {
-                items[index] = item
-            } else {
-                items.append(item)
-            }
+        updateIndex {
+            $0.upsert(readStateQueue.apply(to: incoming))
         }
     }
 
-    private func updateLocalReadState(for itemId: String, isRead: Bool) {
-        guard let index = items.firstIndex(where: { $0.id == itemId }), items[index].isRead != isRead else { return }
-        items[index] = items[index].withReadState(isRead)
-        persistItems()
+    @discardableResult
+    private func updateLocalReadState(for itemId: String, isRead: Bool) -> Bool {
+        guard let item = retrievalIndex.item(id: itemId), item.isRead != isRead else { return false }
+        updateIndex {
+            $0.mutate(where: { $0.id == itemId }) { $0 = $0.withReadState(isRead) }
+        }
+        return true
     }
 
     private func currentReadState(for itemId: String) -> Bool? {
-        items.first(where: { $0.id == itemId })?.isRead
+        retrievalIndex.item(id: itemId)?.isRead
     }
 
     /// Reassigns the (renamed) folder's summary onto every item that belongs to it.
     private func applyFolderSummary(_ folder: Folder) {
         let summary = FolderSummary(id: folder.id, name: folder.name, emoji: folder.emoji, color: folder.color)
         mutateItems(where: { $0.folder?.id == folder.id }) { $0 = $0.withFolder(summary) }
-        persistItems()
     }
 
     private func mutateItems(where predicate: (SavedItem) -> Bool, transform: (inout SavedItem) -> Void) {
-        for index in items.indices where predicate(items[index]) {
-            transform(&items[index])
+        updateIndex {
+            $0.mutate(where: predicate, transform: transform)
         }
     }
 
@@ -775,13 +861,72 @@ final class Library {
 
     // MARK: - Persistence & pending captures
 
-    private func restoreCachedItems() {
-        guard let cachedItems = cache.load() else { return }
-        items = readStateQueue.apply(to: cachedItems)
+    private func restoreCachedItems() async {
+        guard let cached = await cache.load() else { return }
+        // Mutate the live index rather than swapping in the decoded instance:
+        // `updateIndex` detects item changes by comparing `itemRevision`, and
+        // revisions are only comparable within one instance's lifetime. A fresh
+        // decoded index starts at revision 0 — the same as the empty live index —
+        // so swapping instances would look item-unchanged and leave the search
+        // snapshot empty.
+        updateIndex {
+            $0.replaceGlobal(
+                with: readStateQueue.apply(to: cached.index.globalItems),
+                coverage: .cached
+            )
+        }
     }
 
-    private func persistItems() {
-        cache.save(savedItems())
+    private func persistItems(at date: Date = Date()) async {
+        await cache.save(retrievalIndex, savedAt: date, scopeUpdatedAt: date)
+    }
+
+    private func updateIndex(_ update: (inout RetrievalIndex) -> Void) {
+        var updatedIndex = retrievalIndex
+        update(&updatedIndex)
+        guard updatedIndex != retrievalIndex else { return }
+
+        let itemsChanged = updatedIndex.itemRevision != retrievalIndex.itemRevision
+        libraryProjectionCache.removeAll(keepingCapacity: true)
+        retrievalIndex = updatedIndex
+        setSnapshot(RetrievalProjector.snapshot(for: .readingQueue, in: updatedIndex), at: .readingQueue)
+        setSnapshot(RetrievalProjector.snapshot(for: .completeLibrary, in: updatedIndex), at: .completeLibrary)
+        setSnapshot(RetrievalProjector.snapshot(for: .libraryRoot, in: updatedIndex), at: .libraryRoot)
+
+        for id in Set(folderSnapshots.keys).union(folders.map(\.id)) {
+            setSnapshot(RetrievalProjector.snapshot(for: .folder(id), in: updatedIndex), at: .folder(id))
+        }
+
+        if itemsChanged {
+            updateSearchSnapshot()
+        } else if searchSnapshot.coverage != updatedIndex.globalCoverage {
+            searchSnapshot = SearchSnapshot(
+                items: searchSnapshot.items,
+                coverage: updatedIndex.globalCoverage,
+                hasSavedItems: searchSnapshot.hasSavedItems
+            )
+        }
+    }
+
+    private func setSnapshot(_ snapshot: RetrievalSnapshot, at request: RetrievalRequest) {
+        switch request {
+        case .readingQueue:
+            if snapshot != readingQueueSnapshot { readingQueueSnapshot = snapshot }
+        case .completeLibrary:
+            if snapshot != completeLibrarySnapshot { completeLibrarySnapshot = snapshot }
+        case .libraryRoot:
+            if snapshot != libraryRootSnapshot { libraryRootSnapshot = snapshot }
+        case .folder(let id):
+            if snapshot != folderSnapshots[id] { folderSnapshots[id] = snapshot }
+        }
+    }
+
+    private func updateSearchSnapshot() {
+        searchProjectionCount += 1
+        let snapshot = RetrievalProjector.searchSnapshot(for: searchQuery, in: retrievalIndex)
+        if snapshot != searchSnapshot {
+            searchSnapshot = snapshot
+        }
     }
 
     private func refreshPendingCaptureState() {
@@ -851,14 +996,31 @@ final class Library {
     }
 }
 
-private extension Sequence where Element == SavedItem {
-    /// Reproduces the server's canonical "newest" ordering: `desc(lastSavedAt, id)`.
-    func sortedNewest() -> [SavedItem] {
-        sorted { ($0.lastSavedAt, $0.id) > ($1.lastSavedAt, $1.id) }
-    }
-}
-
 enum CaptureSubmissionOutcome: Equatable {
     case saved(SavedItem)
     case queued
+}
+
+private extension RetrievalRequest {
+    var fetchRequest: SavedItemFetchRequest? {
+        switch self {
+        case .readingQueue, .completeLibrary:
+            nil
+        case .libraryRoot:
+            .libraryRoot
+        case .folder(let id):
+            .folder(id)
+        }
+    }
+}
+
+private extension RetrievalCoverage {
+    var hasUsableData: Bool {
+        switch self {
+        case .cached, .complete, .stale:
+            true
+        case .notRequested, .loading, .failed:
+            false
+        }
+    }
 }

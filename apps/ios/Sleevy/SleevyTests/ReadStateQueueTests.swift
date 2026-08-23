@@ -141,7 +141,7 @@ struct ReadStateQueueTests {
     }
 
     // Retry classification no longer lives on the queue — it is unified in
-    // `HTTPReadingListAdapter.fault(from:)` + `Library.classify`,
+    // `HTTPReadingListAdapter.fault(from:)` + `ReadingListStore.classify`,
     // covered by `HTTPReadingListAdapterTests` and `LibrarySyncTests`.
 
     // MARK: - Helpers

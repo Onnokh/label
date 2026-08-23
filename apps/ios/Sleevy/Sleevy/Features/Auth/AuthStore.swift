@@ -11,7 +11,7 @@ final class AuthStore {
     private(set) var isSigningIn = false
     var errorMessage: String?
 
-    /// The single source of truth for the bearer token, shared with `Library`'s
+    /// The single source of truth for the bearer token, shared with `ReadingListStore`'s
     /// `SleevyAPIClient` so a token rotated on either the auth path or the reading-list
     /// path is seen by both and persisted to the keychain.
     let tokenStore = SessionTokenStore.live(

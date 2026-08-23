@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import Sleevy
 
-/// Exercises the `Library` coordination layer end-to-end against stubbed
+/// Exercises the `ReadingListStore` coordination layer end-to-end against stubbed
 /// collaborators: a `URLProtocol`-backed `SleevyAPIClient`, temp-dir queues and
 /// cache, and a fake connectivity monitor. This covers the logic the
 /// extracted-collaborator unit tests can't — the optimistic updates, queue
@@ -25,10 +25,11 @@ struct LibraryTests {
 
         await store.load()
 
-        #expect(store.savedItems().map(\.id) == ["a"])
+        #expect(store.snapshot(for: .completeLibrary).items.map(\.id) == ["a"])
         #expect(store.isAPIReachable)
         #expect(store.lastSuccessfulSyncAt != nil)
-        #expect(env.cache.load()?.map(\.id) == ["a"]) // persisted through the injected cache
+        let cached = await env.cache.load()
+        #expect(cached?.index.globalItems.map(\.id) == ["a"]) // persisted through the injected cache
     }
 
     @Test func captureWhileOfflineQueuesItemWithoutHittingNetwork() async throws {
@@ -41,7 +42,7 @@ struct LibraryTests {
 
         #expect(outcome == .queued)
         #expect(store.pendingCaptureCount == 1)
-        #expect(store.savedItems().isEmpty)
+        #expect(store.snapshot(for: .completeLibrary).items.isEmpty)
     }
 
     @Test func loadAppliesAndDrainsQueuedReadState() async {
@@ -61,7 +62,7 @@ struct LibraryTests {
 
         await store.load()
 
-        #expect(store.savedItems().first?.isRead == true) // override applied, then synced and confirmed
+        #expect(store.snapshot(for: .completeLibrary).items.first?.isRead == true) // override applied, then synced and confirmed
         #expect(env.readStateQueue.all().isEmpty)          // queue drained after the server confirmed it
         #expect(server.isRead)                             // the optimistic change was pushed to the server
     }
@@ -82,12 +83,13 @@ struct LibraryTests {
         let env = Environment()
         let store = env.makeStore()
         await store.load()
-        let item = try #require(store.savedItems().first)
+        let item = try #require(store.snapshot(for: .completeLibrary).items.first)
 
         await store.delete(item)
 
-        #expect(store.savedItems().isEmpty)
-        #expect(env.cache.load()?.isEmpty == true)
+        #expect(store.snapshot(for: .completeLibrary).items.isEmpty)
+        let cached = await env.cache.load()
+        #expect(cached?.index.globalItems.isEmpty == true)
     }
 
     // MARK: - Derived-view invariants
@@ -105,11 +107,11 @@ struct LibraryTests {
         await store.load()
         env.connectivity.emit(false) // keep the toggle local — no server reconciliation
 
-        let item = try #require(store.savedItems().first)
+        let item = try #require(store.snapshot(for: .completeLibrary).items.first)
         await store.setRead(item, isRead: true)
 
-        #expect(store.savedItems(.all).first(where: { $0.id == "a" })?.isRead == true)
-        #expect(store.savedItems(.unfiled).first(where: { $0.id == "a" })?.isRead == true)
+        #expect(store.snapshot(for: .completeLibrary).items.first(where: { $0.id == "a" })?.isRead == true)
+        #expect(store.snapshot(for: .libraryRoot).items.first(where: { $0.id == "a" })?.isRead == true)
     }
 
     /// Same invariant for an item that lives in the Inbox and a folder.
@@ -125,11 +127,11 @@ struct LibraryTests {
         await store.load()
         env.connectivity.emit(false)
 
-        let item = try #require(store.savedItems().first)
+        let item = try #require(store.snapshot(for: .completeLibrary).items.first)
         await store.setRead(item, isRead: true)
 
-        #expect(store.savedItems(.all).first(where: { $0.id == "b" })?.isRead == true)
-        #expect(store.savedItems(.folder("f")).first(where: { $0.id == "b" })?.isRead == true)
+        #expect(store.snapshot(for: .completeLibrary).items.first(where: { $0.id == "b" })?.isRead == true)
+        #expect(store.snapshot(for: .folder("f")).items.first(where: { $0.id == "b" })?.isRead == true)
     }
 
     /// Filing an unfiled item drops it from the Library root and adds it to the
@@ -149,13 +151,13 @@ struct LibraryTests {
         let store = env.makeStore()
         await store.load()
         let folder = try #require(store.folders.first)
-        let item = try #require(store.savedItems().first)
+        let item = try #require(store.snapshot(for: .completeLibrary).items.first)
 
         try await store.move(item, to: folder)
 
-        #expect(store.savedItems(.unfiled).contains { $0.id == "a" } == false)
-        #expect(store.savedItems(.folder("f")).contains { $0.id == "a" } == true)
-        #expect(store.savedItems(.all).first(where: { $0.id == "a" })?.folder?.id == "f")
+        #expect(store.snapshot(for: .libraryRoot).items.contains { $0.id == "a" } == false)
+        #expect(store.snapshot(for: .folder("f")).items.contains { $0.id == "a" } == true)
+        #expect(store.snapshot(for: .completeLibrary).items.first(where: { $0.id == "a" })?.folder?.id == "f")
     }
 
     /// Renaming a folder rewrites the embedded folder summary on every item that
@@ -177,8 +179,8 @@ struct LibraryTests {
 
         try await store.renameFolder(folder, to: "Career", emoji: "💼", color: "blue")
 
-        #expect(store.savedItems(.all).first(where: { $0.id == "b" })?.folder?.name == "Career")
-        #expect(store.savedItems(.folder("f")).first(where: { $0.id == "b" })?.folder?.emoji == "💼")
+        #expect(store.snapshot(for: .completeLibrary).items.first(where: { $0.id == "b" })?.folder?.name == "Career")
+        #expect(store.snapshot(for: .folder("f")).items.first(where: { $0.id == "b" })?.folder?.emoji == "💼")
     }
 
     // MARK: - Environment
@@ -187,7 +189,7 @@ struct LibraryTests {
     /// can both inject them into the store and assert against them afterwards.
     private final class Environment {
         let connectivity = StubConnectivityMonitor()
-        let cache: SavedItemCache
+        let cache: RetrievalIndexCache
         let readStateQueue: ReadStateQueue
         let pendingCaptureQueue: PendingCaptureQueue
         private let sleevyAPI: SleevyAPIClient
@@ -198,7 +200,7 @@ struct LibraryTests {
             let container = FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString, isDirectory: true)
 
-            cache = SavedItemCache(userId: userId, directory: container, encoder: .sharedISO8601, decoder: .sharedISO8601)
+            cache = RetrievalIndexCache(userId: userId, directory: container, encoder: .sharedISO8601, decoder: .sharedISO8601)
             readStateQueue = ReadStateQueue(userId: userId, containerURL: container)
             pendingCaptureQueue = PendingCaptureQueue(
                 userId: userId,
@@ -221,14 +223,14 @@ struct LibraryTests {
             sleevyAPI = SleevyAPIClient(api: api, captureClient: captureClient, decoder: .sharedISO8601, token: "test-token")
         }
 
-        @MainActor func makeStore() -> Library {
-            Library(
+        @MainActor func makeStore() -> ReadingListStore {
+            ReadingListStore(
                 session: AppSession(token: "test-token", userId: userId, email: "a@b.c", name: "Tester", provider: nil),
                 connectivityMonitor: connectivity,
                 api: sleevyAPI,
                 pendingCaptureQueue: pendingCaptureQueue,
                 readStateQueue: readStateQueue,
-                savedItemCache: cache,
+                retrievalIndexCache: cache,
                 statusDefaults: statusDefaults
             )
         }

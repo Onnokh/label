@@ -138,9 +138,12 @@ struct SleevyAPIClient {
 
     // MARK: - Reading list verbs
 
-    /// The full saved-item set (the inbox), in the server's canonical order.
-    func loadSavedItems() async throws -> [SavedItem] {
-        try await request(path: "/v1/saved-items", responseType: SavedItemsResponse.self).savedItems
+    func loadSavedItems(queryItems: [URLQueryItem]) async throws -> [SavedItem] {
+        try await request(
+            path: "/v1/saved-items",
+            queryItems: queryItems,
+            responseType: SavedItemsResponse.self
+        ).savedItems
     }
 
     func loadFolders() async throws -> [Folder] {

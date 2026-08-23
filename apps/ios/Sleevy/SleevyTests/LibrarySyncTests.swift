@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import Sleevy
 
-/// Boundary tests for `Library`'s sync coordination, driven through an in-memory
+/// Boundary tests for `ReadingListStore`'s sync coordination, driven through an in-memory
 /// `ReadingListNetworkPort` (no `URLProtocol`, no `URLSession`, no JSON) over the
 /// real temp-directory file stores. These exercise retry classification and the
 /// drain/reconcile behavior at the seam where the real bugs (e.g. a misclassified
@@ -15,19 +15,20 @@ struct LibrarySyncTests {
     @Test func loadPullsPersistsAndMarksReachable() async {
         let env = Environment()
         env.network.items["a"] = .fixture(id: "a", isRead: false)
-        let library = env.makeLibrary()
+        let library = env.makeStore()
 
         await library.load()
 
-        #expect(library.savedItems().map(\.id) == ["a"])
+        #expect(library.snapshot(for: .completeLibrary).items.map(\.id) == ["a"])
         #expect(library.status.isAPIReachable)
         #expect(library.status.lastSuccessfulSyncAt != nil)
-        #expect(env.cache.load()?.map(\.id) == ["a"]) // persisted through the cache
+        let cached = await env.cache.load()
+        #expect(cached?.index.globalItems.map(\.id) == ["a"]) // persisted through the cache
     }
 
     @Test func captureOnlineReturnsSavedItem() async throws {
         let env = Environment()
-        let library = env.makeLibrary()
+        let library = env.makeStore()
 
         let outcome = try await library.capture("https://example.com/x")
 
@@ -35,13 +36,13 @@ struct LibrarySyncTests {
             Issue.record("expected .saved, got \(outcome)")
             return
         }
-        #expect(library.savedItems().isEmpty == false)
+        #expect(library.snapshot(for: .completeLibrary).items.isEmpty == false)
         #expect(env.network.calls.contains("capture"))
     }
 
     @Test func captureWhileOfflineQueuesWithoutHittingNetwork() async throws {
         let env = Environment()
-        let library = env.makeLibrary()
+        let library = env.makeStore()
         await library.loadIfNeeded()
         env.network.resetCalls()
         env.connectivity.emit(false)
@@ -50,7 +51,7 @@ struct LibrarySyncTests {
 
         #expect(outcome == .queued)
         #expect(library.pendingCaptureCount == 1)
-        #expect(library.savedItems().isEmpty)
+        #expect(library.snapshot(for: .completeLibrary).items.isEmpty)
         #expect(env.network.calls.contains("capture") == false)
     }
 
@@ -59,15 +60,15 @@ struct LibrarySyncTests {
     @Test func offlineToggleAppliesImmediatelyAndIsQueued() async {
         let env = Environment()
         env.network.items["a"] = .fixture(id: "a", isRead: false)
-        let library = env.makeLibrary()
+        let library = env.makeStore()
         await library.loadIfNeeded()
         env.network.resetCalls()
         env.connectivity.emit(false) // keep the toggle local — no reconciliation
 
-        let item = library.savedItems().first!
+        let item = library.snapshot(for: .completeLibrary).items.first!
         await library.setRead(item, isRead: true)
 
-        #expect(library.savedItems().first?.isRead == true)    // applied immediately
+        #expect(library.snapshot(for: .completeLibrary).items.first?.isRead == true)    // applied immediately
         #expect(env.readState.all().count == 1)                 // queued, not sent
         #expect(env.network.calls.contains("setReadState") == false)
     }
@@ -76,11 +77,11 @@ struct LibrarySyncTests {
         let env = Environment()
         env.network.items["a"] = .fixture(id: "a", isRead: false)
         env.readState.enqueue(itemId: "a", isRead: true)
-        let library = env.makeLibrary()
+        let library = env.makeStore()
 
         await library.load() // pull applies the override, then sync drains it
 
-        #expect(library.savedItems().first?.isRead == true)
+        #expect(library.snapshot(for: .completeLibrary).items.first?.isRead == true)
         #expect(env.readState.all().isEmpty)                    // drained after the server confirmed
         #expect(env.network.items["a"]?.isRead == true)         // pushed to the "server"
         #expect(env.network.calls.contains("setReadState"))
@@ -95,7 +96,7 @@ struct LibrarySyncTests {
         env.network.items["a"] = .fixture(id: "a", isRead: false)
         env.network.items["b"] = .fixture(id: "b", isRead: false)
         env.readState.enqueue(itemId: "a", isRead: true)
-        let library = env.makeLibrary()
+        let library = env.makeStore()
 
         // While "a" is draining, simulate a concurrent main-actor toggle on "b".
         env.network.onSetReadState = { [readState = env.readState] in
@@ -114,7 +115,7 @@ struct LibrarySyncTests {
     @Test func concurrentEnqueueDuringCaptureDrainSurvives() async throws {
         let env = Environment()
         try env.captures.enqueue(url: "https://example.com/a", sourceName: nil, captureChannel: nil)
-        let library = env.makeLibrary()
+        let library = env.makeStore()
         var concurrentEnqueueError: Error?
 
         // While the "a" capture is draining, simulate a concurrent enqueue of "b".
@@ -142,7 +143,7 @@ struct LibrarySyncTests {
     /// not just when there's local queued work.
     @Test func returningOnlineWithEmptyQueuesPullsInbox() async {
         let env = Environment()
-        let library = env.makeLibrary()
+        let library = env.makeStore()
         await library.loadIfNeeded()
         env.network.resetCalls()
         env.network.items["server-side"] = .fixture(id: "server-side", isRead: false)
@@ -156,7 +157,7 @@ struct LibrarySyncTests {
         await env.settle()
 
         #expect(env.network.calls.contains("loadSavedItems")) // reconciled despite empty queues
-        #expect(library.savedItems().map(\.id) == ["server-side"])
+        #expect(library.snapshot(for: .completeLibrary).items.map(\.id) == ["server-side"])
     }
 
     /// Bug 4 guard: repeated same-value path updates while already online must not
@@ -164,7 +165,7 @@ struct LibrarySyncTests {
     @Test func repeatedOnlinePathUpdatesDoNotChurnSync() async {
         let env = Environment()
         env.network.items["a"] = .fixture(id: "a", isRead: false)
-        let library = env.makeLibrary()
+        let library = env.makeStore()
         await library.loadIfNeeded()
         env.network.resetCalls()
 
@@ -189,7 +190,7 @@ struct LibrarySyncTests {
     @Test func rapidConnectivityFlapsOnlyTriggerOneSync() async {
         let env = Environment()
         env.network.items["a"] = .fixture(id: "a", isRead: false)
-        let library = env.makeLibrary()
+        let library = env.makeStore()
         await library.loadIfNeeded()
         env.network.resetCalls()
 
@@ -210,7 +211,7 @@ struct LibrarySyncTests {
         try Data("not a directory".utf8).write(to: blockedContainer)
 
         let env = Environment(captureContainer: blockedContainer)
-        let library = env.makeLibrary()
+        let library = env.makeStore()
         await library.loadIfNeeded()
         env.connectivity.emit(false)
 
@@ -230,7 +231,7 @@ struct LibrarySyncTests {
     @Test func refreshDuringInFlightSyncResolvesWithFreshData() async {
         let env = Environment()
         env.network.items["a"] = .fixture(id: "a", isRead: false)
-        let library = env.makeLibrary()
+        let library = env.makeStore()
 
         // Hold the first sync's pull open until a second refresh has provably
         // registered as awaiting the in-flight cycle, so the interleaving is
@@ -250,7 +251,7 @@ struct LibrarySyncTests {
         await env.settle()
 
         // Both refreshes resolved (neither hung) and fresh data is present.
-        #expect(library.savedItems().map(\.id) == ["a"])
+        #expect(library.snapshot(for: .completeLibrary).items.map(\.id) == ["a"])
         // Exactly one pull: the concurrent refresh awaited the in-flight cycle
         // rather than launching a second overlapping pass.
         #expect(env.network.calls.filter { $0 == "loadSavedItems" }.count == 1)
@@ -265,7 +266,7 @@ struct LibrarySyncTests {
         let env = Environment()
         env.network.items["a"] = .fixture(id: "a", isRead: false)
         env.readState.enqueue(itemId: "a", isRead: true)
-        let library = env.makeLibrary()
+        let library = env.makeStore()
         env.network.faults["setReadState"] = .permanent(reason: "422 unprocessable")
 
         await library.refresh()
@@ -278,7 +279,7 @@ struct LibrarySyncTests {
         let env = Environment()
         env.network.items["a"] = .fixture(id: "a", isRead: false)
         env.readState.enqueue(itemId: "a", isRead: true)
-        let library = env.makeLibrary()
+        let library = env.makeStore()
         env.network.faults["setReadState"] = .transient(reason: "offline")
 
         await library.refresh()
@@ -291,7 +292,7 @@ struct LibrarySyncTests {
         let env = Environment()
         env.network.items["a"] = .fixture(id: "a", isRead: false)
         env.readState.enqueue(itemId: "a", isRead: true)
-        let library = env.makeLibrary()
+        let library = env.makeStore()
         var signedOut = false
         library.onAuthenticationInvalid = { _ in signedOut = true }
         env.network.faults["setReadState"] = .authInvalid(reason: "session expired")
@@ -308,7 +309,7 @@ struct LibrarySyncTests {
     /// sign-in) *and* still throw so the UI surfaces the failure.
     @Test func folderMutationAuthInvalidInvalidatesAndThrows() async {
         let env = Environment()
-        let library = env.makeLibrary()
+        let library = env.makeStore()
         var signedOut = false
         library.onAuthenticationInvalid = { _ in signedOut = true }
         env.network.faults["createFolder"] = .authInvalid(reason: "session expired")
@@ -323,13 +324,13 @@ struct LibrarySyncTests {
     @Test func moveAuthInvalidInvalidatesAndThrows() async {
         let env = Environment()
         env.network.items["a"] = .fixture(id: "a", isRead: false)
-        let library = env.makeLibrary()
+        let library = env.makeStore()
         await library.load()
         var signedOut = false
         library.onAuthenticationInvalid = { _ in signedOut = true }
         env.network.faults["moveItem"] = .authInvalid(reason: "session expired")
 
-        let item = library.savedItems().first!
+        let item = library.snapshot(for: .completeLibrary).items.first!
         await #expect(throws: ReadingListError.self) {
             try await library.move(item, to: nil)
         }
@@ -339,7 +340,7 @@ struct LibrarySyncTests {
     /// A non-auth fault still throws but does NOT sign the user out.
     @Test func folderMutationPermanentFaultThrowsWithoutSignOut() async {
         let env = Environment()
-        let library = env.makeLibrary()
+        let library = env.makeStore()
         var signedOut = false
         library.onAuthenticationInvalid = { _ in signedOut = true }
         env.network.faults["createFolder"] = .permanent(reason: "Folder name taken")
@@ -355,15 +356,15 @@ struct LibrarySyncTests {
     @Test func readStateTogglePropagatesAcrossInboxAndFolder() async {
         let env = Environment()
         env.network.items["b"] = .fixture(id: "b", isRead: false, folderId: "f")
-        let library = env.makeLibrary()
+        let library = env.makeStore()
         await library.load()
         env.connectivity.emit(false)
 
-        let item = library.savedItems().first!
+        let item = library.snapshot(for: .completeLibrary).items.first!
         await library.setRead(item, isRead: true)
 
-        #expect(library.savedItems(.all).first(where: { $0.id == "b" })?.isRead == true)
-        #expect(library.savedItems(.folder("f")).first(where: { $0.id == "b" })?.isRead == true)
+        #expect(library.snapshot(for: .completeLibrary).items.first(where: { $0.id == "b" })?.isRead == true)
+        #expect(library.snapshot(for: .folder("f")).items.first(where: { $0.id == "b" })?.isRead == true)
     }
 
     // MARK: - Environment
@@ -371,7 +372,7 @@ struct LibrarySyncTests {
     private final class Environment {
         let network = InMemoryNetworkAdapter()
         let connectivity = StubConnectivityMonitor()
-        let cache: SavedItemCache
+        let cache: RetrievalIndexCache
         let readState: ReadStateQueue
         let captures: PendingCaptureQueue
         let statusDefaults: UserDefaults
@@ -380,7 +381,7 @@ struct LibrarySyncTests {
         @MainActor init(captureContainer: URL? = nil) {
             let container = FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString, isDirectory: true)
-            cache = SavedItemCache(userId: userId, directory: container, encoder: .sharedISO8601, decoder: .sharedISO8601)
+            cache = RetrievalIndexCache(userId: userId, directory: container, encoder: .sharedISO8601, decoder: .sharedISO8601)
             readState = ReadStateQueue(userId: userId, containerURL: container)
             captures = PendingCaptureQueue(
                 userId: userId,
@@ -392,8 +393,8 @@ struct LibrarySyncTests {
             statusDefaults = UserDefaults(suiteName: "library-sync-test-\(UUID().uuidString)")!
         }
 
-        @MainActor func makeLibrary() -> Library {
-            Library(
+        @MainActor func makeStore() -> ReadingListStore {
+            ReadingListStore(
                 userId: userId,
                 network: network,
                 cache: cache,
@@ -422,6 +423,7 @@ final class InMemoryNetworkAdapter: ReadingListNetworkPort {
     /// A fault armed per verb name; consumed on the next call to that verb.
     var faults: [String: SyncFault] = [:]
     private(set) var calls: [String] = []
+    private(set) var savedItemFetches: [SavedItemFetchRequest] = []
 
     func resetCalls() {
         calls = []
@@ -437,14 +439,24 @@ final class InMemoryNetworkAdapter: ReadingListNetworkPort {
     /// interleave a concurrent refresh while the cycle is provably in flight.
     var onLoadSavedItems: (@MainActor () async -> Void)?
 
-    func loadSavedItems() async throws(SyncFault) -> [SavedItem] {
+    func loadSavedItems(_ request: SavedItemFetchRequest) async throws(SyncFault) -> [SavedItem] {
         try record("loadSavedItems")
+        savedItemFetches.append(request)
         // `throws(SyncFault)` forbids a non-typed-throwing await in the body, so the
         // gate runs in a detached step that cannot throw.
         if let gate = onLoadSavedItems {
             await Task { @MainActor in await gate() }.value
         }
-        return Array(items.values)
+        return items.values.filter { item in
+            switch request {
+            case .completeLibrary:
+                true
+            case .libraryRoot:
+                item.folder == nil
+            case .folder(let id):
+                item.folder?.id == id
+            }
+        }
     }
 
     func loadFolders() async throws(SyncFault) -> [Folder] {

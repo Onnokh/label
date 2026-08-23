@@ -3,7 +3,7 @@ import Foundation
 /// The single, transport-agnostic outcome every reading-list network operation
 /// fails with. Adapters map their world — HTTP status codes, `URLError`s, decode
 /// failures, domain errors — *into* one of these cases; they do **not** decide
-/// what to do about it. `Library` classifies a `SyncFault` into a sync
+/// what to do about it. `ReadingListStore` classifies a `SyncFault` into a sync
 /// disposition in exactly one place (`classify(_:)`), which is what
 /// makes "should I re-queue this?" have a single answer.
 ///
