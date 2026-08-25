@@ -190,7 +190,124 @@ struct SleevyAPIClientTests {
         }
     }
 
+    // MARK: - Folder publishing
+
+    @Test func setFolderPublishedPatchesThePublishFlagAlone() async throws {
+        let api = makeAPI(
+            status: 200,
+            body: Data(#"{"id":"f1","name":"Reading","emoji":null,"color":null,"isPublished":true}"#.utf8)
+        )
+
+        let folder = try await api.setFolderPublished(id: "f1", isPublished: true)
+
+        let request = try #require(StubURLProtocol.lastRequest)
+        #expect(request.httpMethod == "PATCH")
+        #expect(request.url?.path == "/v1/folders/f1")
+        // A full folder payload here would overwrite emoji/color with nil.
+        let payload = try #require(lastRequestJSON())
+        #expect(payload as? [String: Bool] == ["isPublished": true])
+        #expect(folder.isPublished)
+    }
+
+    @Test func folderWithoutPublishFlagDecodesAsUnpublished() async throws {
+        let api = makeAPI(
+            status: 200,
+            body: Data(#"{"folders":[{"id":"f1","name":"Reading","emoji":null,"color":null}]}"#.utf8)
+        )
+
+        let folders = try await api.loadFolders()
+
+        #expect(folders.first?.isPublished == false)
+    }
+
+    // MARK: - Profile verbs
+
+    @Test func loadProfileDecodesTheProfileRecord() async throws {
+        let api = makeAPI(
+            status: 200,
+            body: Data(#"{"handle":"onno","visibility":"private","createdAt":"2026-08-01T10:00:00.000Z","updatedAt":"2026-08-01T10:00:00.000Z"}"#.utf8)
+        )
+
+        let profile = try await api.loadProfile()
+
+        #expect(profile == Profile(handle: "onno", visibility: .private))
+    }
+
+    @Test func loadProfileMapsNotFoundToNoProfile() async throws {
+        let api = makeAPI(
+            status: 404,
+            body: Data(#"{"_tag":"ProfileNotFoundError","message":"Claim a Handle before reading or changing your Public Profile."}"#.utf8)
+        )
+
+        let profile = try await api.loadProfile()
+
+        #expect(profile == nil)
+    }
+
+    @Test func claimHandleConflictSurfacesTheServerMessage() async {
+        let api = makeAPI(
+            status: 409,
+            body: Data(#"{"_tag":"HandleConflictError","message":"This Handle is already claimed."}"#.utf8)
+        )
+
+        let error = await errorThrown { _ = try await api.claimHandle("onno") }
+
+        guard case AuthError.authenticationFailed(let message)? = error else {
+            Issue.record("expected authenticationFailed, got \(String(describing: error))")
+            return
+        }
+        #expect(message == "This Handle is already claimed.")
+    }
+
+    @Test func setProfileVisibilityPutsTheVisibilityString() async throws {
+        let api = makeAPI(
+            status: 200,
+            body: Data(#"{"handle":"onno","visibility":"public"}"#.utf8)
+        )
+
+        let profile = try await api.setProfileVisibility(.public)
+
+        let request = try #require(StubURLProtocol.lastRequest)
+        #expect(request.httpMethod == "PUT")
+        #expect(request.url?.path == "/v1/profile/visibility")
+        let payload = try #require(lastRequestJSON())
+        #expect(payload as? [String: String] == ["visibility": "public"])
+        #expect(profile.visibility == .public)
+    }
+
+    @Test func checkHandleAvailabilityQueriesTheHandle() async throws {
+        let api = makeAPI(status: 200, body: Data(#"{"handle":"onno","available":true}"#.utf8))
+
+        let availability = try await api.checkHandleAvailability("onno")
+
+        let query = URLComponents(url: try #require(StubURLProtocol.lastRequest?.url), resolvingAgainstBaseURL: false)
+        #expect(query?.queryItems?.first(where: { $0.name == "handle" })?.value == "onno")
+        #expect(availability.available)
+    }
+
     // MARK: - Helpers
+
+    /// The stubbed transport surfaces an outgoing body as `httpBodyStream`,
+    /// not `httpBody`, so payload assertions drain the stream.
+    private func lastRequestJSON() -> Any? {
+        guard let request = StubURLProtocol.lastRequest else { return nil }
+
+        var data = request.httpBody ?? Data()
+        if data.isEmpty, let stream = request.httpBodyStream {
+            stream.open()
+            defer { stream.close() }
+            let bufferSize = 1024
+            let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+            defer { buffer.deallocate() }
+            while stream.hasBytesAvailable {
+                let read = stream.read(buffer, maxLength: bufferSize)
+                guard read > 0 else { break }
+                data.append(buffer, count: read)
+            }
+        }
+
+        return try? JSONSerialization.jsonObject(with: data)
+    }
 
     private func makeAPI(
         status: Int,

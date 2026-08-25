@@ -9,6 +9,7 @@ struct LibraryView: View {
     @State private var folderEditor: FolderEditor?
     @State private var folderToDelete: Folder?
     @State private var itemToMove: SavedItem?
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let projection = store.libraryProjection(
@@ -35,17 +36,13 @@ struct LibraryView: View {
         .navigationTitle("Library")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
-            // Once folders exist their section header carries the add button,
-            // so the toolbar only needs it for creating the first one.
-            if store.folders.isEmpty {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        folderEditor = .create
-                    } label: {
-                        Image(systemName: "folder.badge.plus")
-                    }
-                    .accessibilityLabel("New Folder")
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    folderEditor = .create
+                } label: {
+                    Image(systemName: "plus")
                 }
+                .accessibilityLabel("New Folder")
             }
 
             ToolbarItem(placement: .topBarTrailing) {
@@ -95,64 +92,47 @@ struct LibraryView: View {
         .task {
             await store.loadIfNeeded(for: .libraryRoot)
         }
+        // Favicons warm as soon as items arrive, off the scroll path.
+        .task(id: projection.items) {
+            await FaviconPrefetcher.warm(items: projection.items, colorScheme: colorScheme)
+        }
         .refreshable {
             await store.refresh(.libraryRoot)
         }
     }
 
-    private let folderPreviewLimit = 3
-
-    private var previewFolders: [Folder] {
-        Array(store.folders.prefix(folderPreviewLimit))
-    }
-
     private func libraryList(projection: LibraryProjection) -> some View {
         List {
-            if !store.folders.isEmpty {
-                Section {
-                    LazyVGrid(columns: FolderGrid.columns, spacing: FolderGrid.spacing) {
-                        ForEach(previewFolders) { folder in
-                            FolderCard(
-                                folder: folder,
-                                itemCount: projection.folderCounts[folder.id, default: 0]
-                            ) {
-                                folderEditor = .rename(folder)
-                            } onDelete: {
-                                folderToDelete = folder
+            Section {
+                // A stack of slim corona rows, one per folder — full width,
+                // so each folder's field gets room to fan out. Each card is
+                // its own list row: cards sharing a row makes a long-press
+                // lift the whole stack and resolve the first card's menu.
+                ForEach(store.folders) { folder in
+                    FolderCard(
+                        folder: folder,
+                        itemCount: projection.folderCounts[folder.id, default: 0]
+                    ) {
+                        folderEditor = .rename(folder)
+                    } onDelete: {
+                        folderToDelete = folder
+                    } onSetPublished: { isPublished in
+                        Task {
+                            do {
+                                try await store.setFolderPublished(folder, isPublished: isPublished)
+                            } catch {
+                                store.libraryErrorMessage = error.localizedDescription
                             }
                         }
                     }
-                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                    .listRowInsets(EdgeInsets(
+                        top: folder.id == store.folders.first?.id ? 0 : 12,
+                        leading: 16,
+                        bottom: 0,
+                        trailing: 16
+                    ))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
-                } header: {
-                    HStack {
-                        Text("Folders")
-                            .font(.system(size: 14, weight: .semibold))
-                            .kerning(1.1)
-                            .textCase(.uppercase)
-                            .foregroundStyle(.secondary)
-
-                        Spacer()
-
-                        if store.folders.count > folderPreviewLimit {
-                            NavigationLink(value: AppRoute.allFolders) {
-                                Text("Show all (\(store.folders.count))")
-                                    .font(.footnote.weight(.semibold))
-                                    .textCase(nil)
-                                    .foregroundStyle(Color.accentColor)
-                            }
-                        }
-
-                        Button {
-                            folderEditor = .create
-                        } label: {
-                            Image(systemName: "folder.badge.plus")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(Color.primary)
-                        }
-                        .accessibilityLabel("New Folder")
-                    }
                 }
             }
 
@@ -229,6 +209,9 @@ struct LibraryView: View {
         .listSectionSpacing(16)
         .defaultScrollAnchor(.top)
         .scrollContentBackground(.hidden)
+        // One shared distance between the large title and the first content,
+        // matched with Settings so the screens share a rhythm.
+        .contentMargins(.top, ScreenLayout.contentTopSpacing, for: .scrollContent)
         .background(Color(uiColor: .systemBackground))
     }
 

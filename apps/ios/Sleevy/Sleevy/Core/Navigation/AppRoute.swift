@@ -13,8 +13,10 @@ import SwiftUI
 enum AppRoute: Hashable {
     case settings
     case folder(id: Folder.ID)
-    case allFolders
     case myProfile
+    /// Debug-only picking ground for the folder card gradients; nothing
+    /// links to it in release builds.
+    case folderCardPlayground
 }
 
 extension EnvironmentValues {

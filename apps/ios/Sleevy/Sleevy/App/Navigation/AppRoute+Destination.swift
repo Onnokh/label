@@ -17,10 +17,10 @@ extension AppRoute {
             } else {
                 ContentUnavailableView("Folder Unavailable", systemImage: "folder.badge.questionmark")
             }
-        case .allFolders:
-            AllFoldersView(store: store)
         case .myProfile:
             MyProfileView(session: session)
+        case .folderCardPlayground:
+            FolderCardPlaygroundView()
         }
     }
 }

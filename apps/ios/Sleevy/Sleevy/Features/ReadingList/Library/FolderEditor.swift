@@ -14,7 +14,7 @@ enum FolderEditor: Identifiable {
     var title: String {
         switch self {
         case .create: "New Folder"
-        case .rename: "Rename Folder"
+        case .rename: "Edit Folder"
         }
     }
 
@@ -45,6 +45,8 @@ struct FolderEditorSheet: View {
     let editor: FolderEditor
     let onSave: @MainActor (FolderDraft) async throws -> Void
     @State private var name: String
+    /// No longer editable — carried through so a rename never clears an
+    /// emoji a folder already has from before the picker was removed.
     @State private var selectedEmoji: String?
     @State private var selectedColor: FolderAccentColor?
     @State private var errorMessage: String?
@@ -66,10 +68,6 @@ struct FolderEditorSheet: View {
             onSave: save
         ) {
             VStack(spacing: 22) {
-                FolderIcon(emoji: selectedEmoji, color: selectedColor)
-                    .frame(width: 128, height: 104)
-                    .padding(.top, 14)
-
                 TextField("Folder name", text: $name)
                     .textInputAutocapitalization(.words)
                     .font(.body)
@@ -80,8 +78,8 @@ struct FolderEditorSheet: View {
                         Color(uiColor: .secondarySystemBackground),
                         in: RoundedRectangle(cornerRadius: 12, style: .continuous)
                     )
+                    .padding(.top, 14)
 
-                emojiPicker
                 colorPicker
 
                 if let errorMessage {
@@ -92,7 +90,7 @@ struct FolderEditorSheet: View {
                 }
             }
         }
-        .presentationDetents([.height(560), .large])
+        .presentationDetents([.height(330), .large])
         .presentationDragIndicator(.visible)
         .presentationContentInteraction(.scrolls)
     }
@@ -114,32 +112,6 @@ struct FolderEditorSheet: View {
                 dismiss()
             } catch {
                 errorMessage = error.localizedDescription
-            }
-        }
-    }
-
-    private var emojiPicker: some View {
-        FolderPickerSection(title: "Emoji") {
-            Text("Emoji")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            LazyVGrid(columns: Self.optionGridColumns, spacing: 10) {
-                optionButton(isSelected: selectedEmoji == nil) {
-                    Image(systemName: "nosign")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                } action: {
-                    selectedEmoji = nil
-                }
-
-                ForEach(Self.emojis, id: \.self) { emoji in
-                    optionButton(isSelected: selectedEmoji == emoji) {
-                        Text(emoji).font(.title3)
-                    } action: {
-                        selectedEmoji = emoji
-                    }
-                }
             }
         }
     }
@@ -209,7 +181,6 @@ struct FolderEditorSheet: View {
         .buttonStyle(.plain)
     }
 
-    private static let emojis = ["📚", "💼", "🎨", "💡", "✈️", "🏠", "❤️", "⭐️", "🎵", "🎬", "💻", "📦"]
 }
 
 private struct FolderEditorDrawer<Content: View>: View {
@@ -279,6 +250,20 @@ enum FolderAccentColor: String, CaseIterable, Identifiable {
     var title: String { rawValue.capitalized }
 
     var tint: Color {
+        switch self {
+        case .blue: .blue
+        case .purple: .purple
+        case .pink: .pink
+        case .red: .red
+        case .orange: .orange
+        case .yellow: .yellow
+        case .green: .green
+        case .teal: .teal
+        }
+    }
+
+    /// The gradient palette a folder card wears for this accent colour.
+    var cardPalette: FolderCardPalette {
         switch self {
         case .blue: .blue
         case .purple: .purple

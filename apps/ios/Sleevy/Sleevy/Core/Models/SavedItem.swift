@@ -12,6 +12,30 @@ nonisolated struct Folder: Codable, Equatable, Identifiable, Hashable {
     let name: String
     let emoji: String?
     let color: String?
+    /// Whether this is a Published Folder: shown on the Public Profile while
+    /// Profile Visibility is public.
+    var isPublished: Bool = false
+}
+
+nonisolated extension Folder {
+    private enum DecodingKeys: String, CodingKey {
+        case id
+        case name
+        case emoji
+        case color
+        case isPublished
+    }
+
+    // Tolerates a missing `isPublished` key (payloads cached before the field
+    // existed decode as unpublished); encoding stays synthesized.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: DecodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        emoji = try container.decodeIfPresent(String.self, forKey: .emoji)
+        color = try container.decodeIfPresent(String.self, forKey: .color)
+        isPublished = try container.decodeIfPresent(Bool.self, forKey: .isPublished) ?? false
+    }
 }
 
 nonisolated struct SavedItem: Codable, Identifiable, Equatable, Sendable {

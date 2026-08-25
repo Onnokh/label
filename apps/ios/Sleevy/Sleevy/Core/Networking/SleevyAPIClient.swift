@@ -25,6 +25,35 @@ struct SleevyAPIClient {
         self.tokenStore = tokenStore
     }
 
+    /// The production client: live API base URL, shared URL session, and the
+    /// app's wire coders. `ReadingListStore` builds its own via injection for
+    /// testability; other owners (like `ProfileStore`) share this one recipe.
+    static func live(tokenStore: SessionTokenStore) -> SleevyAPIClient {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .sleevyISO8601
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+
+        return SleevyAPIClient(
+            api: HTTPClient(
+                baseURL: AppConfig.apiBaseURL,
+                origin: AppConfig.apiOrigin,
+                session: AppConfig.apiSession,
+                encoder: encoder,
+                decoder: decoder
+            ),
+            captureClient: SleevyCaptureClient(
+                apiBaseURL: AppConfig.apiBaseURL,
+                apiOrigin: AppConfig.apiOrigin,
+                urlSession: AppConfig.apiSession,
+                encoder: encoder,
+                decoder: decoder
+            ),
+            decoder: decoder,
+            tokenStore: tokenStore
+        )
+    }
+
     /// Convenience for call sites (and tests) that hold a static token and don't
     /// need rotation persisted anywhere.
     init(api: HTTPClient, captureClient: SleevyCaptureClient, decoder: JSONDecoder, token: String) {
@@ -190,6 +219,71 @@ struct SleevyAPIClient {
         try await requestNoContent(path: "/v1/saved-items/\(id)", method: .delete)
     }
 
+    /// Marks a Folder as published (shown on the Public Profile) or not. Sends
+    /// `isPublished` alone — the endpoint patches only the fields present, and a
+    /// full `FolderNameRequest` here would overwrite emoji/color with nil.
+    func setFolderPublished(id: String, isPublished: Bool) async throws -> Folder {
+        try await request(
+            path: "/v1/folders/\(id)",
+            method: .patch,
+            body: FolderPublishRequest(isPublished: isPublished),
+            responseType: Folder.self
+        )
+    }
+
+    // MARK: - Profile verbs
+
+    /// Reads the account's Public Profile record. `nil` means no Handle is
+    /// claimed yet — the API answers that state with a 404, which is a normal
+    /// pre-claim condition rather than a failure.
+    func loadProfile() async throws -> Profile? {
+        do {
+            let response = try await api.send("/v1/profile", token: tokenStore.current)
+            applyRotation(from: response.http)
+            return try decoder.decode(Profile.self, from: response.data)
+        } catch let APIClientError.unacceptableStatus(code, data) {
+            if code == 404 { return nil }
+            throw mapStatusError(code: code, data: data)
+        } catch APIClientError.invalidResponse {
+            throw AuthError.invalidServerResponse
+        }
+    }
+
+    func checkHandleAvailability(_ handle: String) async throws -> HandleAvailability {
+        try await request(
+            path: "/v1/profile/handle-availability",
+            queryItems: [URLQueryItem(name: "handle", value: handle)],
+            responseType: HandleAvailability.self
+        )
+    }
+
+    func claimHandle(_ handle: String) async throws -> Profile {
+        try await request(
+            path: "/v1/profile/handle",
+            method: .post,
+            body: HandleRequest(handle: handle),
+            responseType: Profile.self
+        )
+    }
+
+    func renameHandle(_ handle: String) async throws -> Profile {
+        try await request(
+            path: "/v1/profile/handle",
+            method: .patch,
+            body: HandleRequest(handle: handle),
+            responseType: Profile.self
+        )
+    }
+
+    func setProfileVisibility(_ visibility: ProfileVisibility) async throws -> Profile {
+        try await request(
+            path: "/v1/profile/visibility",
+            method: .put,
+            body: VisibilityRequest(visibility: visibility),
+            responseType: Profile.self
+        )
+    }
+
     private func mapStatusError(code: Int, data: Data) -> Error {
         if code == 401 || code == 403 {
             return AuthError.sessionExpired
@@ -222,7 +316,9 @@ struct SleevyAPIClient {
             return APIError.unreachable
         }
 
-        return AuthError.authenticationFailed(body)
+        // A structured API rejection carries a human-facing `message`; showing
+        // the raw JSON envelope instead would leak `_tag` noise into the UI.
+        return AuthError.authenticationFailed(serverMessage(data) ?? body)
     }
 
     private func utf8Body(_ data: Data) -> String? {
@@ -287,6 +383,18 @@ private struct FolderAssignmentRequest: Encodable {
             try container.encodeNil(forKey: .folderId)
         }
     }
+}
+
+private struct FolderPublishRequest: Encodable {
+    let isPublished: Bool
+}
+
+private struct HandleRequest: Encodable {
+    let handle: String
+}
+
+private struct VisibilityRequest: Encodable {
+    let visibility: ProfileVisibility
 }
 
 private struct CaptureResponse: Decodable {

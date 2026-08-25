@@ -480,6 +480,18 @@ final class ReadingListStore {
         }
     }
 
+    func setFolderPublished(_ folder: Folder, isPublished: Bool) async throws {
+        do {
+            let updated = try await network.setFolderPublished(id: folder.id, isPublished: isPublished)
+            folders.removeAll { $0.id == folder.id }
+            folders.append(updated)
+            sortFolders()
+            status.libraryErrorMessage = nil
+        } catch {
+            throw faultThrowing(error)
+        }
+    }
+
     func deleteFolder(_ folder: Folder) async throws {
         do {
             try await network.deleteFolder(id: folder.id)
