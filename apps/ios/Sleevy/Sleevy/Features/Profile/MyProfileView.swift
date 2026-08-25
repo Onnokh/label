@@ -66,6 +66,14 @@ final class PublicProfileLoader {
     private var totalPages = 1
 
     func load() async {
+        if DemoMode.isEnabled {
+            handle = DemoMode.profile.handle
+            profile = DemoMode.publicProfile
+            items = DemoMode.publicSavedItems
+            phase = .loaded
+            return
+        }
+
         guard let handle = SleevyUserPreferences.profileHandle else {
             phase = .missingHandle
             return

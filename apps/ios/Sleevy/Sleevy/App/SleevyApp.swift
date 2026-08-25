@@ -27,6 +27,7 @@ struct SleevyApp: App {
 #endif
                 }
                 .task {
+                    DemoMode.publishSharedFlag()
                     await authStore.restoreSession()
                 }
         }

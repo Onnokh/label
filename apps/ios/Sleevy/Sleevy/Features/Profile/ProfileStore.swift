@@ -24,13 +24,25 @@ final class ProfileStore {
     private(set) var profile: Profile?
 
     private let api: SleevyAPIClient
+    /// Marketing-capture mode: the record comes from `DemoMode` and the
+    /// publicize verbs stay in memory, so a screenshot run can show a public
+    /// profile without touching a real account.
+    private let isDemo: Bool
 
-    init(api: SleevyAPIClient) {
+    init(api: SleevyAPIClient, isDemo: Bool = false) {
         self.api = api
+        self.isDemo = isDemo
     }
 
     static func live(tokenStore: SessionTokenStore) -> ProfileStore {
         ProfileStore(api: .live(tokenStore: tokenStore))
+    }
+
+    static func demo() -> ProfileStore {
+        ProfileStore(
+            api: .live(tokenStore: SessionTokenStore(initial: DemoMode.session.token)),
+            isDemo: true
+        )
     }
 
     var isPublic: Bool {
@@ -38,6 +50,12 @@ final class ProfileStore {
     }
 
     func load() async {
+        if isDemo {
+            profile = DemoMode.profile
+            phase = .loaded
+            return
+        }
+
         if profile == nil { phase = .loading }
 
         do {
@@ -62,6 +80,11 @@ final class ProfileStore {
     }
 
     func setVisibility(_ visibility: ProfileVisibility) async throws {
+        if isDemo {
+            apply(Profile(handle: profile?.handle ?? DemoMode.profile.handle, visibility: visibility))
+            return
+        }
+
         apply(try await api.setProfileVisibility(visibility))
     }
 

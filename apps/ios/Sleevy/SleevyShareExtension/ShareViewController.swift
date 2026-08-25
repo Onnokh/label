@@ -106,6 +106,21 @@ final class ShareViewController: UIViewController {
     private func submitSharedItem() async {
         do {
             let sharedURL = try await loadSharedURL()
+
+            // Marketing-capture mode: show the real sheet against the real
+            // shared URL, but never call the API or need a session.
+            if DemoCaptureFlag.isOn {
+                try? await Task.sleep(nanoseconds: 800_000_000)
+                activityIndicator.stopAnimating()
+                statusLabel.text = "Saved to Sleevy"
+                // Held far longer than the real sheet, which completes as soon
+                // as the capture returns: a screenshot run needs the success
+                // state on screen while it takes the picture.
+                try? await Task.sleep(nanoseconds: 30_000_000_000)
+                extensionContext?.completeRequest(returningItems: nil)
+                return
+            }
+
             let token = try loadSharedAuthToken()
             do {
                 let response = try await captureClient.capture(
