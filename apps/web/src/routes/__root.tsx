@@ -11,9 +11,11 @@ export const Route = createRootRoute({
       { title: "Sleevy - Scriptable Bookmark Manager App" },
       { property: "og:site_name", content: "Sleevy" },
       { name: "twitter:card", content: "summary" },
+      { name: "theme-color", content: "#1e2d65" },
     ],
     links: [
-      { rel: "icon", href: "/favicon.ico" },
+      { rel: "icon", href: "/favicon.ico", sizes: "16x16 32x32 48x48" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
     ],
   }),
   component: RootComponent,
