@@ -10,6 +10,21 @@ struct LibraryView: View {
     @State private var folderToDelete: Folder?
     @State private var itemToMove: SavedItem?
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    /// Folder cards are a 5:1 banner. One per row fills a phone nicely, but
+    /// across an iPad's width a single card grows into a 200pt slab, so a
+    /// regular-width layout puts two side by side instead.
+    private var folderColumnCount: Int {
+        horizontalSizeClass == .regular ? 2 : 1
+    }
+
+    /// The folders grouped into rows of `folderColumnCount`.
+    private var folderRows: [[Folder]] {
+        stride(from: 0, to: store.folders.count, by: folderColumnCount).map { start in
+            Array(store.folders[start ..< min(start + folderColumnCount, store.folders.count)])
+        }
+    }
 
     var body: some View {
         let projection = store.libraryProjection(
@@ -101,6 +116,26 @@ struct LibraryView: View {
         }
     }
 
+    private func folderCard(_ folder: Folder, projection: LibraryProjection) -> some View {
+        FolderCard(
+            folder: folder,
+            itemCount: projection.folderCounts[folder.id, default: 0]
+        ) {
+            folderEditor = .rename(folder)
+        } onDelete: {
+            folderToDelete = folder
+        } onSetPublished: { isPublished in
+            Task {
+                do {
+                    try await store.setFolderPublished(folder, isPublished: isPublished)
+                } catch {
+                    store.libraryErrorMessage = error.localizedDescription
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
     private func libraryList(projection: LibraryProjection) -> some View {
         List {
             Section {
@@ -108,25 +143,22 @@ struct LibraryView: View {
                 // so each folder's field gets room to fan out. Each card is
                 // its own list row: cards sharing a row makes a long-press
                 // lift the whole stack and resolve the first card's menu.
-                ForEach(store.folders) { folder in
-                    FolderCard(
-                        folder: folder,
-                        itemCount: projection.folderCounts[folder.id, default: 0]
-                    ) {
-                        folderEditor = .rename(folder)
-                    } onDelete: {
-                        folderToDelete = folder
-                    } onSetPublished: { isPublished in
-                        Task {
-                            do {
-                                try await store.setFolderPublished(folder, isPublished: isPublished)
-                            } catch {
-                                store.libraryErrorMessage = error.localizedDescription
+                ForEach(folderRows, id: \.self) { row in
+                    HStack(spacing: 12) {
+                        ForEach(row) { folder in
+                            folderCard(folder, projection: projection)
+                        }
+
+                        // A lone card on the last row keeps its column width
+                        // instead of stretching across both.
+                        if row.count < folderColumnCount {
+                            ForEach(0 ..< (folderColumnCount - row.count), id: \.self) { _ in
+                                Color.clear.frame(maxWidth: .infinity)
                             }
                         }
                     }
                     .listRowInsets(EdgeInsets(
-                        top: folder.id == store.folders.first?.id ? 0 : 12,
+                        top: row == folderRows.first ? 0 : 12,
                         leading: 16,
                         bottom: 0,
                         trailing: 16

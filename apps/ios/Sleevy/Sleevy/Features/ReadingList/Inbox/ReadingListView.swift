@@ -11,6 +11,7 @@ struct ReadingListView: View {
     @State private var isReadingListScrolled = false
     @State private var capturePlacement: CapturePlacement = .inlineRow
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
         let snapshot = store.snapshot(for: .inbox)
@@ -22,7 +23,12 @@ struct ReadingListView: View {
                 // Just deep enough to hold the large title and subtitle with
                 // breathing room — the first row should sit a normal distance
                 // below the title, not below a 16:9 hero.
-                headerCardHeight: geometry.size.width * 0.40,
+                headerCardHeight: ScreenLayout.headerCardHeight(
+                    width: geometry.size.width,
+                    topInset: geometry.safeAreaInsets.top,
+                    isRegularWidth: horizontalSizeClass == .regular
+                ),
+                subtitle: navigationSubtitleText(unreadCount: snapshot.items.count),
                 headerTopInset: geometry.safeAreaInsets.top
             )
         }
@@ -35,9 +41,6 @@ struct ReadingListView: View {
         }
         .navigationTitle("Inbox")
         .navigationBarTitleDisplayMode(.large)
-        .modifier(NavigationSubtitleIfAvailable(
-            subtitle: navigationSubtitleText(unreadCount: snapshot.items.count)
-        ))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -59,9 +62,12 @@ struct ReadingListView: View {
         snapshot: RetrievalSnapshot,
         emptyStateHeight: CGFloat,
         headerCardHeight: CGFloat,
+        subtitle: String?,
         headerTopInset: CGFloat
     ) -> some View {
         List {
+            ListSubtitleRow(subtitle: subtitle)
+
             if store.isLoading,
                snapshot.coverage == .loading,
                snapshot.items.isEmpty,
@@ -294,6 +300,9 @@ private enum CapturePlacement {
 /// The brand card behind the Inbox large title. It spans the physical
 /// top, leading, and trailing edges, scrolls away with the content, and
 /// stretches on pull-down so the top edge never opens a seam.
+/// The card behind the Inbox's large title. The counts render inside the
+/// card, the way a folder's do — the system `navigationSubtitle` builds a
+/// shorter bar, which placed the Inbox title higher than a folder's.
 private struct InboxHeaderCard: View {
     let height: CGFloat
     let isVisible: Bool

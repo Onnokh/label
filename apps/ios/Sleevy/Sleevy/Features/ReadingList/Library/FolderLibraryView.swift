@@ -9,6 +9,7 @@ struct FolderLibraryView: View {
     @State private var isShowingFilters = false
     @State private var itemToMove: SavedItem?
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
         let projection = store.libraryProjection(
@@ -19,11 +20,13 @@ struct FolderLibraryView: View {
         )
 
         GeometryReader { geometry in
-            // Shorter than the Inbox's 16:9 — a folder header only carries
-            // the title and subtitle.
             folderList(
                 projection: projection,
-                headerCardHeight: geometry.size.width * 0.46,
+                headerCardHeight: ScreenLayout.headerCardHeight(
+                    width: geometry.size.width,
+                    topInset: geometry.safeAreaInsets.top,
+                    isRegularWidth: horizontalSizeClass == .regular
+                ),
                 headerTopInset: geometry.safeAreaInsets.top
             )
         }
@@ -76,6 +79,11 @@ struct FolderLibraryView: View {
         headerTopInset: CGFloat
     ) -> some View {
         List {
+            ListSubtitleRow(subtitle: navigationSubtitleText(
+                total: projection.destinationCount,
+                unread: projection.unreadDestinationCount
+            ))
+
             if filter.isActive {
                 ActiveLibraryFilters(filter: $filter)
                     .listRowInsets(EdgeInsets(top: 8, leading: 18, bottom: 8, trailing: 18))
@@ -142,10 +150,6 @@ struct FolderLibraryView: View {
             FolderHeaderCard(
                 folder: currentFolder,
                 height: context.height,
-                subtitle: navigationSubtitleText(
-                    total: projection.destinationCount,
-                    unread: projection.unreadDestinationCount
-                ),
                 isVisible: context.isVisible
             )
         }
@@ -408,7 +412,6 @@ struct MoveToFolderSheet: View {
 private struct FolderHeaderCard: View {
     let folder: Folder
     let height: CGFloat
-    let subtitle: String?
     var isVisible = true
 
     @Environment(\.colorScheme) private var colorScheme
@@ -426,17 +429,6 @@ private struct FolderHeaderCard: View {
         )
         .frame(height: height)
         .frame(maxWidth: .infinity)
-        .overlay(alignment: .bottomLeading) {
-            if let subtitle {
-                Text(subtitle)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(
-                        colorScheme == .light ? AnyShapeStyle(.secondary) : AnyShapeStyle(.white.opacity(0.75))
-                    )
-                    .padding(.leading, 20)
-                    .padding(.bottom, 14)
-            }
-        }
         .clipShape(.rect(
             bottomLeadingRadius: 28,
             bottomTrailingRadius: 28,
