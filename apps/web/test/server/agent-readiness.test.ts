@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test"
 
 import {
+  discoveryRedirect,
   markdownVariantPath,
   negotiateRepresentation,
-  oauthDiscoveryRedirect,
   withAgentReadyRouting,
 } from "../../server/agent-readiness"
+import { staticSitemapUrls } from "../../src/lib/sitemap"
 
 describe("agent-ready web routing", () => {
   test("negotiates q-values, specificity, wildcards, and explicit exclusions", () => {
@@ -182,11 +183,11 @@ describe("agent-ready web routing", () => {
   })
 
   test("redirects web-origin OAuth discovery to canonical API metadata", () => {
-    const authorization = oauthDiscoveryRedirect(
+    const authorization = discoveryRedirect(
       "/.well-known/oauth-authorization-server",
       "https://api.sleevy.app/",
     )
-    const resource = oauthDiscoveryRedirect(
+    const resource = discoveryRedirect(
       "/.well-known/oauth-protected-resource",
       "https://api.sleevy.app/",
     )
@@ -199,5 +200,53 @@ describe("agent-ready web routing", () => {
     expect(resource?.headers.get("location")).toBe(
       "https://api.sleevy.app/.well-known/oauth-protected-resource",
     )
+  })
+
+  test("redirects legacy web-origin MCP discovery to the canonical Server Card", () => {
+    for (const path of [
+      "/.well-known/mcp-server-card",
+      "/.well-known/mcp/server-card.json",
+    ]) {
+      const response = discoveryRedirect(path, "https://api.sleevy.app/")
+
+      expect(response?.status).toBe(308)
+      expect(response?.headers.get("location")).toBe(
+        "https://api.sleevy.app/mcp/server-card",
+      )
+      expect(response?.headers.get("access-control-allow-origin")).toBe("*")
+    }
+  })
+
+  test("publishes an AI Catalog entry for the Sleevy MCP Server Card", async () => {
+    const catalog = await Bun.file(
+      `${import.meta.dir}/../../public/.well-known/ai-catalog.json`,
+    ).json()
+
+    expect(catalog).toEqual({
+      specVersion: "1.0",
+      entries: [
+        {
+          identifier: "urn:air:sleevy.app:mcp:sleevy",
+          type: "application/mcp-server-card+json",
+          url: "https://api.sleevy.app/mcp/server-card",
+        },
+      ],
+    })
+  })
+
+  test("publishes specific agent guidance and indexes every developer overview", async () => {
+    const [agentIndex, instructions] = await Promise.all([
+      Bun.file(`${import.meta.dir}/../../public/llms.txt`).text(),
+      Bun.file(`${import.meta.dir}/../../public/agent-instructions.md`).text(),
+    ])
+
+    expect(agentIndex).toContain("## When to use Sleevy")
+    expect(agentIndex).toContain("https://sleevy.app/agent-instructions.md")
+    expect(instructions).toContain("## When to use Sleevy")
+    expect(instructions).toContain("## When not to use Sleevy")
+
+    const indexed = new Set(staticSitemapUrls.map(({ loc }) => loc))
+    expect(indexed).toContain("https://sleevy.app/docs/overview")
+    expect(indexed).toContain("https://sleevy.app/docs/mcp")
   })
 })

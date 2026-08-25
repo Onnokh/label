@@ -857,14 +857,26 @@ describe("HttpApp", () => {
     }),
   )
 
-  it.effect("publishes an MCP server card (SEP-2127)", () =>
+  it.effect("publishes a cacheable MCP Server Card at the canonical and compatibility paths", () =>
     Effect.gen(function* () {
-      for (const path of ["/.well-known/mcp-server-card", "/.well-known/mcp/server-card.json"]) {
+      for (const path of [
+        "/mcp/server-card",
+        "/.well-known/mcp-server-card",
+        "/.well-known/mcp/server-card.json",
+      ]) {
         const response = yield* request(path).pipe(Effect.provide(routeLayer()))
 
         expect(response.status).toBe(200)
-        expect(response.headers.get("content-type")).toContain("application/json")
+        expect(response.headers.get("content-type")).toBe(
+          "application/mcp-server-card+json; charset=utf-8",
+        )
         expect(response.headers.get("access-control-allow-origin")).toBe("*")
+        expect(response.headers.get("access-control-allow-headers")).toBe(
+          "Content-Type, If-None-Match",
+        )
+        expect(response.headers.get("access-control-expose-headers")).toBe("ETag")
+        expect(response.headers.get("cache-control")).toBe("public, max-age=3600")
+        expect(response.headers.get("etag")).toMatch(/^W\/\"[a-f0-9]+\"$/)
 
         const card = JSON.parse(yield* text(response))
         expect(card.$schema).toBe(
@@ -883,6 +895,34 @@ describe("HttpApp", () => {
         // Auth is discovered via oauth-protected-resource, not the card.
         expect(card.authentication).toBeUndefined()
       }
+
+      const initial = yield* request("/mcp/server-card").pipe(Effect.provide(routeLayer()))
+      const cached = yield* request("/mcp/server-card", {
+        headers: { "If-None-Match": initial.headers.get("etag") ?? "" },
+      }).pipe(Effect.provide(routeLayer()))
+
+      expect(cached.status).toBe(304)
+      expect(yield* text(cached)).toBe("")
+      expect(cached.headers.get("etag")).toBe(initial.headers.get("etag"))
+
+      const head = yield* request("/mcp/server-card", { method: "HEAD" }).pipe(
+        Effect.provide(routeLayer()),
+      )
+      const preflight = yield* request("/mcp/server-card", { method: "OPTIONS" }).pipe(
+        Effect.provide(routeLayer()),
+      )
+      const unsupported = yield* request("/mcp/server-card", { method: "POST" }).pipe(
+        Effect.provide(routeLayer()),
+      )
+
+      expect(head.status).toBe(200)
+      expect(yield* text(head)).toBe("")
+      expect(preflight.status).toBe(204)
+      expect(unsupported.status).toBe(405)
+      expect(unsupported.headers.get("allow")).toBe("GET, HEAD, OPTIONS")
+      expect(yield* json(unsupported)).toMatchObject({
+        code: "method_not_allowed",
+      })
     }),
   )
 
@@ -926,7 +966,7 @@ describe("HttpApp", () => {
       expect(JSON.parse(yield* text(response))).toMatchObject({
         jsonrpc: "2.0",
         id: 1,
-        result: { serverInfo: { name: "Sleevy", version: "1.0.0" } },
+        result: { serverInfo: { name: "app.sleevy/mcp", version: "1.0.0" } },
       })
     }),
   )

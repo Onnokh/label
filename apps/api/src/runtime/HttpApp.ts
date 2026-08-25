@@ -134,6 +134,75 @@ export const withJsonErrorFallback = (
   })
 }
 
+const mcpServerCardPaths = new Set([
+  "/mcp/server-card",
+  "/.well-known/mcp-server-card",
+  "/.well-known/mcp/server-card.json",
+])
+
+const entityTagFor = (value: string) => {
+  let hash = 2_166_136_261
+  for (let index = 0; index < value.length; index += 1) {
+    hash = Math.imul(hash ^ value.charCodeAt(index), 16_777_619)
+  }
+  return `W/\"${(hash >>> 0).toString(16)}\"`
+}
+
+const mcpServerCardResponse = (request: Request, input: {
+  readonly apiBaseUrl: string
+  readonly webUrl: string
+}) => {
+  const body = JSON.stringify({
+    $schema: "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json",
+    name: "app.sleevy/mcp",
+    version: "1.0.0",
+    title: "Sleevy",
+    description:
+      "Save links to your Sleevy library and manage your saved items and folders.",
+    websiteUrl: input.webUrl,
+    remotes: [
+      {
+        type: "streamable-http",
+        url: `${input.apiBaseUrl}/mcp`,
+        supportedProtocolVersions: SUPPORTED_PROTOCOL_VERSIONS,
+      },
+    ],
+  })
+  const etag = entityTagFor(body)
+  const headers = new Headers({
+    "content-type": "application/mcp-server-card+json; charset=utf-8",
+    "cache-control": "public, max-age=3600",
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET",
+    "access-control-allow-headers": "Content-Type, If-None-Match",
+    "access-control-expose-headers": "ETag",
+    etag,
+  })
+
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers })
+  }
+
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    headers.set("allow", "GET, HEAD, OPTIONS")
+    headers.set("content-type", "application/json; charset=utf-8")
+    return new Response(JSON.stringify({
+      _tag: "MethodNotAllowed",
+      code: "method_not_allowed",
+      message: "The MCP Server Card only supports GET and HEAD requests.",
+      resolution: "Request the card with GET or connect to the MCP endpoint at /mcp.",
+    }), { status: 405, headers })
+  }
+
+  const validators = (request.headers.get("if-none-match") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+
+  return validators.includes(etag) || validators.includes("*")
+    ? new Response(null, { status: 304, headers })
+    : new Response(request.method === "HEAD" ? null : body, { headers })
+}
+
 export const makeApiWebHandler = Effect.gen(function* () {
   const config = yield* AppConfig
   const context = yield* Effect.context<
@@ -187,37 +256,13 @@ export const makeApiWebHandler = Effect.gen(function* () {
       })
     }
 
-    // MCP Server Card (SEP-2127). The ratified discovery path is
-    // /.well-known/mcp-server-card; the /mcp/server-card.json path is kept as a
-    // legacy alias. OAuth is intentionally not described here — it is discovered
-    // through the /.well-known/oauth-protected-resource flow above.
-    if (
-      pathname === "/.well-known/mcp-server-card" ||
-      pathname === "/.well-known/mcp/server-card.json"
-    ) {
-      return new Response(JSON.stringify({
-        $schema: "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json",
-        name: "app.sleevy/mcp",
-        version: "1.0.0",
-        title: "Sleevy",
-        description:
-          "Save links to your Sleevy library and manage your saved items and folders.",
-        websiteUrl: config.auth.webUrl,
-        remotes: [
-          {
-            type: "streamable-http",
-            url: `${config.auth.baseUrl}/mcp`,
-            supportedProtocolVersions: SUPPORTED_PROTOCOL_VERSIONS,
-          },
-        ],
-      }), {
-        headers: {
-          "content-type": "application/json",
-          "cache-control": "public, max-age=3600",
-          "access-control-allow-origin": "*",
-          "access-control-allow-methods": "GET",
-          "access-control-allow-headers": "Content-Type",
-        },
+    // Server Card discovery is defined by the MCP Extensions Track. The card
+    // lives next to the Streamable HTTP endpoint; older well-known paths remain
+    // aliases for clients and scanners that implemented an earlier draft.
+    if (mcpServerCardPaths.has(pathname)) {
+      return mcpServerCardResponse(request, {
+        apiBaseUrl: config.auth.baseUrl,
+        webUrl: config.auth.webUrl,
       })
     }
 

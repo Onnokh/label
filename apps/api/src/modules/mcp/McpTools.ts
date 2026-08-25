@@ -284,7 +284,7 @@ export class McpTools extends Context.Service<McpTools>()(
       return {
         handlerFor: (userId: UserId, scopes: ReadonlySet<Scope>) =>
           async (request: Request): Promise<Response> => {
-            const server = new McpServer({ name: "Sleevy", version: "1.0.0" })
+            const server = new McpServer({ name: "app.sleevy/mcp", version: "1.0.0" })
             registerTools(server, userId, scopes)
 
             const transport = new WebStandardStreamableHTTPServerTransport({

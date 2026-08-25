@@ -1,0 +1,10 @@
+{
+  "specVersion": "1.0",
+  "entries": [
+    {
+      "identifier": "urn:air:sleevy.app:mcp:sleevy",
+      "type": "application/mcp-server-card+json",
+      "url": "https://api.sleevy.app/mcp/server-card"
+    }
+  ]
+}
