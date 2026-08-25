@@ -7,6 +7,9 @@
   --text: #171717;
   --muted: #67645d;
   --faint: #969188;
+  --surface: #f6f5f2;
+  --surface-active: #eeece7;
+  --content: #ffffff;
   --hover: #f0eee9;
   --selected: #f2f2f2;
   --accent: #404040;
@@ -25,6 +28,9 @@
   --text: #ffffff;
   --muted: #9c9c9d;
   --faint: #737373;
+  --surface: #19191b;
+  --surface-active: #272729;
+  --content: #0f0f11;
   --hover: #17181a;
   --selected: #202124;
   --accent: #e6e6e6;

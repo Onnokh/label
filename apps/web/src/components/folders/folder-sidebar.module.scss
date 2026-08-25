@@ -14,10 +14,8 @@
   flex: 1;
   margin: 0;
   color: var(--faint);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .add {
@@ -30,7 +28,7 @@
   padding: 0.25rem;
 
   &:hover {
-    background: var(--panel-muted);
+    background: var(--surface-active);
     color: var(--text);
   }
 }
@@ -56,16 +54,15 @@
   width: 100%;
   padding: 0.375rem 0.5rem;
   border-radius: 0.375rem;
-  color: var(--muted);
+  color: var(--text);
   text-decoration: none;
 
   &:hover,
   &.active {
-    color: var(--text);
+    background: var(--surface-active);
   }
 
   &.active {
-    background: var(--panel-muted);
     font-weight: 600;
   }
 }
@@ -73,7 +70,7 @@
 .icon {
   flex-shrink: 0;
   width: 1.25rem;
-  color: var(--faint);
+  color: inherit;
 }
 
 .name {

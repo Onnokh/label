@@ -3,9 +3,10 @@ import { Folder as FolderIcon, Globe, MoreVertical, Plus } from "lucide-react"
 import { type DragEvent, useState } from "react"
 
 import { ContextMenu, type ContextMenuItem } from "../ui/context-menu/context-menu"
-import { FolderDeleteDialog, FolderNameDialog } from "./folder-dialog"
+import { FolderDeleteDialog, FolderEditDialog, FolderNameDialog } from "./folder-dialog"
 import {
   SAVED_ITEM_DRAG_TYPE,
+  folderErrorMessage,
   type Folder,
   useCreateFolder,
   useDeleteFolder,
@@ -21,16 +22,6 @@ import styles from "./folder-sidebar.module.scss"
 const publishedFolderLabel =
   "On your profile. A visitor to your Public Profile sees everything in this folder."
 
-function errorMessage(cause: unknown): string {
-  if (!(cause instanceof Error)) return "Something went wrong."
-  try {
-    const data = JSON.parse(cause.message) as { message?: string }
-    return data.message ?? cause.message
-  } catch {
-    return cause.message
-  }
-}
-
 export function FolderSidebar() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -43,7 +34,7 @@ export function FolderSidebar() {
   const setPublishedMutation = useSetFolderPublished()
   const isProfilePublic = useIsProfilePublic()
   const [creating, setCreating] = useState(false)
-  const [renaming, setRenaming] = useState<Folder | null>(null)
+  const [editing, setEditing] = useState<Folder | null>(null)
   const [deleting, setDeleting] = useState<Folder | null>(null)
   const [dragFolderId, setDragFolderId] = useState<string | null>(null)
 
@@ -74,7 +65,7 @@ export function FolderSidebar() {
         <ul className={styles.list}>
           {folders.map((folder) => {
             const menu: readonly ContextMenuItem[] = [
-              { key: "rename", label: "Rename", onClick: () => setRenaming(folder) },
+              { key: "edit", label: "Edit", onClick: () => setEditing(folder) },
               {
                 key: "publish",
                 // The label states what the action does next, so the stored
@@ -131,7 +122,7 @@ export function FolderSidebar() {
           title="New Folder"
           submitLabel="Create Folder"
           isPending={createMutation.isPending}
-          error={createMutation.error ? errorMessage(createMutation.error) : null}
+          error={createMutation.error ? folderErrorMessage(createMutation.error) : null}
           onClose={() => {
             createMutation.reset()
             setCreating(false)
@@ -139,25 +130,22 @@ export function FolderSidebar() {
           onSubmit={(name) => createMutation.mutate(name, { onSuccess: () => setCreating(false) })}
         />
       ) : null}
-      {renaming ? (
-        <FolderNameDialog
-          open
-          title="Rename Folder"
-          initialName={renaming.name}
-          submitLabel="Save"
+      {editing ? (
+        <FolderEditDialog
+          folder={editing}
           isPending={renameMutation.isPending}
-          error={renameMutation.error ? errorMessage(renameMutation.error) : null}
+          error={renameMutation.error ? folderErrorMessage(renameMutation.error) : null}
           onClose={() => {
             renameMutation.reset()
-            setRenaming(null)
+            setEditing(null)
           }}
-          onSubmit={(name) => renameMutation.mutate({ id: renaming.id, name }, { onSuccess: () => setRenaming(null) })}
+          onSubmit={(name, color) => renameMutation.mutate({ id: editing.id, name, color }, { onSuccess: () => setEditing(null) })}
         />
       ) : null}
       <FolderDeleteDialog
         folderName={deleting?.name ?? null}
         isPending={deleteMutation.isPending}
-        error={deleteMutation.error ? errorMessage(deleteMutation.error) : null}
+        error={deleteMutation.error ? folderErrorMessage(deleteMutation.error) : null}
         onClose={() => {
           deleteMutation.reset()
           setDeleting(null)

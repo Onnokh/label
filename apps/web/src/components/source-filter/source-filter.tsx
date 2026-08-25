@@ -1,12 +1,27 @@
 import { createContext, use, useMemo, useState, type DragEvent, type ReactNode } from "react"
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { Inbox, Library, Hash, MoreVertical } from "lucide-react"
+import { ChevronRight, Inbox, Keyboard, Library, Hash, MoreVertical, Settings, SquarePlus } from "lucide-react"
 
+import { useKeyboardNav } from "../../contexts/keyboard-nav-context"
 import { useMoveItemsToSource, useSavedItems, type Topic } from "../../sleevy/saved-items"
 import { SAVED_ITEM_DRAG_TYPE, useMoveSavedItemToFolder } from "../../sleevy/folders"
 import { ContextMenu, type ContextMenuItem } from "../ui/context-menu/context-menu"
-import { getSourceGroup } from "./source-filter-utils"
+import { byCountDescending, getSourceGroup, sourceCountsOf, tagCountsOf } from "./source-filter-utils"
 import styles from "./source-filter.module.scss"
+
+const SECTION_STORAGE_PREFIX = "sleevy:sidebar-section:"
+const isServer = typeof window === "undefined"
+
+// Sections start open, so a reader who has never closed one sees the sidebar
+// exactly as before. Only an explicit close is worth remembering.
+function storedSectionOpen(heading: string | undefined): boolean {
+  if (isServer || heading === undefined) return true
+  return localStorage.getItem(SECTION_STORAGE_PREFIX + heading) !== "closed"
+}
+
+function rememberSectionOpen(heading: string, open: boolean) {
+  localStorage.setItem(SECTION_STORAGE_PREFIX + heading, open ? "open" : "closed")
+}
 
 function useNavigateToLibrary() {
   const navigate = useNavigate()
@@ -63,78 +78,152 @@ function formatCount(n: number): string {
 type SidebarItem = {
   readonly key: string
   readonly label: ReactNode
-  readonly count: number
+  // Filter rows carry a count; action rows have nothing to count.
+  readonly count?: number
   readonly icon?: ReactNode
   readonly to?: string
   readonly exact?: boolean
+  readonly onClick?: () => void
   readonly onDrop?: (event: DragEvent<HTMLLIElement>) => void
   readonly menu?: readonly ContextMenuItem[]
 }
 
-function SidebarSection({ heading, items, activeValue, onSelect }: {
-  heading: string
+function SidebarSection({ heading, items, activeValue, onSelect, collapsible = false }: {
+  // A section without a heading is a bare group of rows.
+  heading?: string
   items: SidebarItem[]
   activeValue?: string | null
   onSelect?: (value: string | null) => void
+  // A collapsible section is a disclosure the reader can close. Open is the
+  // state it starts in, so the sidebar reads the same as before on first paint.
+  collapsible?: boolean
 }) {
+  const [open, setOpen] = useState(() => storedSectionOpen(heading))
+
   if (items.length === 0) return null
+
+  const renderList = (rows: SidebarItem[]) => (
+    <ul className={styles.list}>
+      {rows.map((item) => {
+        const isActive = activeValue !== undefined
+          ? activeValue === item.key
+          : undefined
+        const className = `${styles.item} ${isActive ? styles.active : ""}`
+
+        const content = (
+          <>
+            {item.icon && <span className={styles.icon}>{item.icon}</span>}
+            <span className={styles.name}>{item.label}</span>
+            {item.count === undefined ? null : (
+              <span className={styles.count}>{formatCount(item.count)}</span>
+            )}
+          </>
+        )
+
+        return (
+          <li
+            key={item.key}
+            onDragOver={item.onDrop ? (event) => event.preventDefault() : undefined}
+            onDrop={item.onDrop}
+          >
+            {item.to ? (
+              <Link
+                to={item.to}
+                className={styles.item}
+                activeOptions={item.exact ? { exact: true } : undefined}
+                activeProps={{ className: `${styles.item} ${styles.active}` }}
+              >
+                {content}
+              </Link>
+            ) : (
+              <button
+                type="button"
+                className={className}
+                onClick={item.onClick ?? (() => onSelect?.(activeValue === item.key ? null : item.key))}
+              >
+                {content}
+              </button>
+            )}
+            {item.menu && item.menu.length > 0 ? (
+              <div className={styles.menu}>
+                <ContextMenu
+                  items={item.menu}
+                  triggerClassName={styles.trigger}
+                  triggerLabel={<MoreVertical size={14} />}
+                />
+              </div>
+            ) : null}
+          </li>
+        )
+      })}
+    </ul>
+  )
+
+  if (collapsible && heading !== undefined) {
+    // A closed section still shows whatever is filtering the Library, so the
+    // reader never loses sight of why they are seeing a narrowed list.
+    const activeRows = items.filter((item) => item.key === activeValue)
+
+    return (
+      <div className={styles.section}>
+        {/* `open` is held in state rather than set as a bare attribute: the
+            sidebar re-renders on every saved-items refetch, and React would
+            otherwise push the section back open under the reader. */}
+        <details
+          className={styles.disclosure}
+          open={open}
+          onToggle={(event) => {
+            const next = event.currentTarget.open
+            rememberSectionOpen(heading, next)
+            setOpen(next)
+          }}
+        >
+          <summary className={styles.summary}>
+            <h3 className={styles.heading}>{heading}</h3>
+            <ChevronRight className={styles.chevron} size={12} aria-hidden="true" />
+          </summary>
+          {renderList(items)}
+        </details>
+        {!open && activeRows.length > 0 ? renderList(activeRows) : null}
+      </div>
+    )
+  }
 
   return (
     <div className={styles.section}>
-      <h3 className={styles.heading}>{heading}</h3>
-      <ul className={styles.list}>
-        {items.map((item) => {
-          const isActive = activeValue !== undefined
-            ? activeValue === item.key
-            : undefined
-          const className = `${styles.item} ${isActive ? styles.active : ""}`
-
-          const content = (
-            <>
-              {item.icon && <span className={styles.icon}>{item.icon}</span>}
-              <span className={styles.name}>{item.label}</span>
-              <span className={styles.count}>{formatCount(item.count)}</span>
-            </>
-          )
-
-          return (
-            <li
-              key={item.key}
-              onDragOver={item.onDrop ? (event) => event.preventDefault() : undefined}
-              onDrop={item.onDrop}
-            >
-              {item.to ? (
-                <Link
-                  to={item.to}
-                  className={styles.item}
-                  activeOptions={item.exact ? { exact: true } : undefined}
-                  activeProps={{ className: `${styles.item} ${styles.active}` }}
-                >
-                  {content}
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  className={className}
-                  onClick={() => onSelect?.(activeValue === item.key ? null : item.key)}
-                >
-                  {content}
-                </button>
-              )}
-              {item.menu && item.menu.length > 0 ? (
-                <div className={styles.menu}>
-                  <ContextMenu
-                    items={item.menu}
-                    triggerClassName={styles.trigger}
-                    triggerLabel={<MoreVertical size={14} />}
-                  />
-                </div>
-              ) : null}
-            </li>
-          )
-        })}
-      </ul>
+      {heading === undefined ? null : <h3 className={styles.heading}>{heading}</h3>}
+      {renderList(items)}
     </div>
+  )
+}
+
+export function SidebarActions() {
+  const navigate = useNavigate()
+  const { openCaptureDialog, setHelpOpen } = useKeyboardNav()
+
+  return (
+    <SidebarSection
+      items={[
+        {
+          key: "capture",
+          label: "Capture item",
+          icon: <SquarePlus size={14} />,
+          onClick: () => openCaptureDialog(),
+        },
+        {
+          key: "settings",
+          label: "Settings",
+          icon: <Settings size={14} />,
+          to: "/settings",
+        },
+        {
+          key: "shortcuts",
+          label: "Keyboard shortcuts",
+          icon: <Keyboard size={14} />,
+          onClick: () => setHelpOpen(true),
+        },
+      ]}
+    />
   )
 }
 
@@ -174,15 +263,7 @@ export function TagFilterList() {
   const goToLibrary = useNavigateToLibrary()
 
   const items = data?.savedItems ?? []
-  const tagCounts = new Map<string, number>()
-  for (const item of items) {
-    for (const tag of item.tags) {
-      tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1)
-    }
-  }
-
-  const entries: SidebarItem[] = [...tagCounts.entries()]
-    .toSorted((a, b) => b[1] - a[1])
+  const entries: SidebarItem[] = byCountDescending(tagCountsOf(items))
     .map(([tag, count]) => ({ key: tag, label: tag, count, icon: <Hash size={14} /> }))
 
   const handleSelect = (value: string | null) => {
@@ -193,6 +274,7 @@ export function TagFilterList() {
   return (
     <SidebarSection
       heading="Tags"
+      collapsible
       items={entries}
       activeValue={activeTag}
       onSelect={handleSelect}
@@ -207,12 +289,11 @@ export function SourceFilterList() {
   const moveMutation = useMoveItemsToSource()
 
   const items = data?.savedItems ?? []
-  const groupCounts = new Map<string, number>()
+  const groupCounts = sourceCountsOf(items)
   const groupItemIds = new Map<string, string[]>()
   for (const item of items) {
     const group = getSourceGroup(item)
     if (group) {
-      groupCounts.set(group, (groupCounts.get(group) ?? 0) + 1)
       const ids = groupItemIds.get(group) ?? []
       ids.push(item.id)
       groupItemIds.set(group, ids)
@@ -220,8 +301,7 @@ export function SourceFilterList() {
   }
 
   const groupNames = [...groupCounts.keys()]
-  const entries: SidebarItem[] = [...groupCounts.entries()]
-    .toSorted((a, b) => b[1] - a[1])
+  const entries: SidebarItem[] = byCountDescending(groupCounts)
     .map(([name, count]) => {
       const targets = groupNames.filter((other) => other !== name)
       const menu: ContextMenuItem[] = targets.length > 0
@@ -246,6 +326,7 @@ export function SourceFilterList() {
   return (
     <SidebarSection
       heading="Sources"
+      collapsible
       items={entries}
       activeValue={activeSource}
       onSelect={handleSelect}

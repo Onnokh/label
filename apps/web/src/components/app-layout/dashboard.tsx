@@ -9,8 +9,7 @@ import { CaptureDialog } from "../capture-dialog/capture-dialog"
 import { CommandPalette } from "../command-palette/command-palette"
 import { FolderSidebar } from "../folders/folder-sidebar"
 import { KeyboardHelp } from "../keyboard-help/keyboard-help"
-import { LibraryNav, SourceFilterList, TagFilterList } from "../source-filter/source-filter"
-import { SidebarCaptureButton } from "./sidebar-capture-button"
+import { LibraryNav, SidebarActions, SourceFilterList, TagFilterList } from "../source-filter/source-filter"
 
 type User = Parameters<typeof AccountMenu>[0]["user"]
 
@@ -23,10 +22,10 @@ export function Dashboard({ user }: { readonly user: User }) {
         <aside className="sidebar">
           <div className="sidebar-top">
             <div className="sidebar-brand">
-              <Logo size={28} />
+              <Logo size={25} />
               <SidebarThemeToggle />
             </div>
-            <SidebarCaptureButton />
+            <SidebarActions />
             <LibraryNav />
             <FolderSidebar />
             <TagFilterList />
