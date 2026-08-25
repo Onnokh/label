@@ -1,3 +1,10 @@
+---
+title: "Sleevy"
+description: "A native-first, scriptable read-later app. Save a link once and return to the same synced queue from iPhone, Chrome, Raycast, the web, a script, or an AI agent."
+canonical: "https://sleevy.app/"
+last-updated: "2026-08-25"
+---
+
 # Sleevy
 
 Sleevy is a native-first, scriptable read-later app. Save a link once, then return to the same synced reading queue from iPhone, Chrome, Raycast, the web, your own scripts, or an AI agent.

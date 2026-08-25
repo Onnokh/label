@@ -1,0 +1,63 @@
+{
+  "$schema": "https://agent-skills.org/schema/v1/index.json",
+  "name": "Sleevy",
+  "description": "A native-first read-later service. Save any URL to a personal reading queue and manage the saved items and folders in it, from an agent, a script, or any of the Sleevy clients.",
+  "homepage": "https://sleevy.app",
+  "documentation": "https://sleevy.app/docs",
+  "contact": "support@sleevy.app",
+  "authentication": {
+    "type": "oauth2",
+    "documentation": "https://sleevy.app/auth.md",
+    "protectedResourceMetadata": "https://api.sleevy.app/.well-known/oauth-protected-resource",
+    "selfService": true
+  },
+  "endpoints": {
+    "mcp": "https://api.sleevy.app/mcp",
+    "rest": "https://api.sleevy.app",
+    "openapi": "https://sleevy.app/openapi.json"
+  },
+  "skills": [
+    {
+      "name": "save_link",
+      "description": "Save an HTTP or HTTPS link to the person's Sleevy read-later queue. Returns the Saved Item, which is created if the URL is new and updated if it was already saved.",
+      "scopes": ["saved-items:capture"],
+      "endpoint": "https://api.sleevy.app/v1/captures"
+    },
+    {
+      "name": "save_links_batch",
+      "description": "Save up to 50 links in one request. Each entry reports its own outcome, so one bad URL does not stop the rest from being saved.",
+      "scopes": ["saved-items:capture"],
+      "endpoint": "https://api.sleevy.app/v1/captures/batch"
+    },
+    {
+      "name": "list_saved_items",
+      "description": "List the person's Saved Items, newest first, filtered by folder and paged with an opaque cursor.",
+      "scopes": ["saved-items:read"],
+      "endpoint": "https://api.sleevy.app/v1/saved-items"
+    },
+    {
+      "name": "set_saved_item_read_state",
+      "description": "Mark a Saved Item read or unread, or record that the person opened it.",
+      "scopes": ["saved-items:write"],
+      "endpoint": "https://api.sleevy.app/v1/saved-items/{id}/read-state"
+    },
+    {
+      "name": "set_saved_item_folder",
+      "description": "Move a Saved Item into a Folder, or take it out of the one it is in.",
+      "scopes": ["saved-items:write"],
+      "endpoint": "https://api.sleevy.app/v1/saved-items/{id}/folder"
+    },
+    {
+      "name": "delete_saved_item",
+      "description": "Permanently delete a Saved Item. Cannot be undone, so an agent should confirm with the person first.",
+      "scopes": ["saved-items:delete"],
+      "endpoint": "https://api.sleevy.app/v1/saved-items/{id}"
+    },
+    {
+      "name": "manage_folders",
+      "description": "List, create, rename, recolour, publish, and delete the person's Folders. Deleting a Folder keeps the Saved Items inside it.",
+      "scopes": ["folders:read", "folders:write", "folders:delete"],
+      "endpoint": "https://api.sleevy.app/v1/folders"
+    }
+  ]
+}

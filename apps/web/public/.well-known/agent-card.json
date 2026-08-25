@@ -1,0 +1,92 @@
+{
+  "protocolVersion": "0.3.0",
+  "name": "Sleevy",
+  "description": "A native-first read-later service. Save any URL to a personal reading queue, then find, organize, and mark off what is in it. Sleevy stores and organizes links; it does not crawl pages or archive their content.",
+  "url": "https://api.sleevy.app/mcp",
+  "preferredTransport": "JSONRPC",
+  "version": "1.0.0",
+  "documentationUrl": "https://sleevy.app/docs",
+  "iconUrl": "https://sleevy.app/app-icon-160.webp",
+  "provider": {
+    "organization": "Sleevy",
+    "url": "https://sleevy.app"
+  },
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+  "securitySchemes": {
+    "oauth2": {
+      "type": "oauth2",
+      "description": "OAuth 2.1 authorization code with PKCE. Clients may register themselves through unauthenticated Dynamic Client Registration; a person then approves the requested scopes. See https://sleevy.app/auth.md.",
+      "flows": {
+        "authorizationCode": {
+          "authorizationUrl": "https://api.sleevy.app/api/auth/oauth2/authorize",
+          "tokenUrl": "https://api.sleevy.app/api/auth/oauth2/token",
+          "scopes": {
+            "saved-items:capture": "Save a URL to the account's read-later queue.",
+            "saved-items:read": "List and read the account's Saved Items.",
+            "saved-items:write": "Update Saved Items, including read state and Folder assignment.",
+            "saved-items:delete": "Delete Saved Items from the account.",
+            "folders:read": "List the account's Folders.",
+            "folders:write": "Create and update Folders.",
+            "folders:delete": "Delete Folders while keeping their Saved Items."
+          }
+        }
+      }
+    },
+    "apiKey": {
+      "type": "http",
+      "scheme": "bearer",
+      "description": "A personal API Key the person creates at https://sleevy.app/settings, for scripts and unattended clients."
+    }
+  },
+  "security": [{ "oauth2": [] }, { "apiKey": [] }],
+  "defaultInputModes": ["text/plain", "application/json"],
+  "defaultOutputModes": ["text/plain", "application/json"],
+  "skills": [
+    {
+      "id": "save-link",
+      "name": "Save a link for later",
+      "description": "Save an HTTP or HTTPS URL to the person's reading queue. Saving a URL that is already saved updates it rather than creating a duplicate. Titles, images, and tags are fetched in the background, so they may be empty immediately after saving.",
+      "tags": ["read-later", "bookmark", "capture"],
+      "examples": [
+        "Save https://example.com/an-article to my reading list",
+        "Add these five links to my Sleevy queue"
+      ],
+      "inputModes": ["text/plain", "application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "find-saved-items",
+      "name": "Find what is saved",
+      "description": "List or search the person's Saved Items, newest first, optionally restricted to one Folder. Results page with an opaque cursor.",
+      "tags": ["read-later", "search", "list"],
+      "examples": [
+        "What is in my Sleevy reading list?",
+        "Show me the unread articles in my Research folder"
+      ],
+      "inputModes": ["text/plain", "application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "manage-read-state",
+      "name": "Track what has been read",
+      "description": "Mark a Saved Item read or unread, or record that the person opened it.",
+      "tags": ["read-later", "read-state"],
+      "examples": ["Mark that article as read", "Put this back in my unread queue"],
+      "inputModes": ["text/plain", "application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "organize-folders",
+      "name": "Organize the queue into folders",
+      "description": "Create, rename, recolour, publish, and remove Folders, and move Saved Items between them. Removing a Folder keeps the Saved Items inside it.",
+      "tags": ["read-later", "folders", "organize"],
+      "examples": ["Make a folder called Research and move these links into it"],
+      "inputModes": ["text/plain", "application/json"],
+      "outputModes": ["application/json"]
+    }
+  ]
+}
