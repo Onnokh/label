@@ -34,7 +34,10 @@ export function SleevyPage() {
   return (
     <>
       <div className="page-header">
-        <h1 className="page-title">Inbox</h1>
+        <div className="page-heading">
+          <h1 className="page-title">Inbox</h1>
+          {savedItemsQuery.data ? <p className="page-subtitle">{items.length} unread</p> : null}
+        </div>
       </div>
 
       {savedItemsQuery.isLoading ? <SavedListSkeleton /> : null}

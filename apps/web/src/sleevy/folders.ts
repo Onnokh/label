@@ -11,6 +11,19 @@ type FoldersResponseJson = FoldersResponse.Encoded
 const foldersQueryKey = ["folders"] as const
 export const SAVED_ITEM_DRAG_TYPE = "application/x-sleevy-saved-item"
 
+// apiFetch throws the response body as the message of an Error, and the API
+// writes every failure as a tagged JSON object. This reads that body so a
+// folder dialog can show the text the API sent.
+export function folderErrorMessage(cause: unknown): string {
+  if (!(cause instanceof Error)) return "Something went wrong."
+  try {
+    const data = JSON.parse(cause.message) as { message?: string }
+    return data.message ?? cause.message
+  } catch {
+    return cause.message
+  }
+}
+
 export function useFolders() {
   return useQuery({
     queryKey: foldersQueryKey,
@@ -36,11 +49,18 @@ export function useRenameFolder() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, name }: { readonly id: string; readonly name: string }) =>
-      apiFetch<Folder>(`/v1/folders/${encodeURIComponent(id)}`, {
+    mutationFn: ({ id, name, color }: {
+      readonly id: string
+      readonly name: string
+      readonly color?: string | null
+    }) => {
+      const body: { name: string; color?: string | null } = { name }
+      if (color !== undefined) body.color = color
+      return apiFetch<Folder>(`/v1/folders/${encodeURIComponent(id)}`, {
         method: "PATCH",
-        body: JSON.stringify({ name }),
-      }),
+        body: JSON.stringify(body),
+      })
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: foldersQueryKey })
       void queryClient.invalidateQueries({ queryKey: savedItemsQueryKey })
