@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router"
 import { Folder as FolderIcon, Globe, MoreVertical, Plus } from "lucide-react"
 import { type DragEvent, useState } from "react"
 
+import { useSidebarSheet } from "../app-layout/sidebar-sheet"
 import { ContextMenu, type ContextMenuItem } from "../ui/context-menu/context-menu"
 import { FolderDeleteDialog, FolderEditDialog, FolderNameDialog } from "./folder-dialog"
 import {
@@ -33,6 +34,7 @@ export function FolderSidebar() {
   const moveMutation = useMoveSavedItemToFolder()
   const setPublishedMutation = useSetFolderPublished()
   const isProfilePublic = useIsProfilePublic()
+  const { close } = useSidebarSheet()
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<Folder | null>(null)
   const [deleting, setDeleting] = useState<Folder | null>(null)
@@ -92,6 +94,7 @@ export function FolderSidebar() {
                   params={{ folderId: folder.id }}
                   className={styles.item}
                   activeProps={{ className: `${styles.item} ${styles.active}` }}
+                  onClick={close}
                 >
                   <FolderIcon size={14} className={styles.icon} />
                   <span className={styles.name}>{folder.name}</span>

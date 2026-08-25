@@ -105,6 +105,36 @@
   gap: 0.5rem;
 }
 
+/* The one control that belongs to the shell rather than the page, on a
+   viewport that gives the whole window to the page. Bottom trailing corner:
+   the reach of a thumb, and the corner a list is least likely to end in. */
+.menu-button {
+  position: fixed;
+  right: 1rem;
+  /* Clear of the home indicator on a phone; `env()` is 0 everywhere else. */
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  /* Under the sheet it opens, and under every dialog. */
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 8px 24px var(--shadow);
+  cursor: pointer;
+}
+
+.menu-button:active { scale: 0.94; }
+
+.menu-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .content {
   flex: 1;
   /* One source of truth for the content inset. Anything that has to bleed
@@ -400,28 +430,41 @@
   font-size: 0.875rem;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 768px) {
   .content {
     --content-padding: 1.25rem;
+    /* The sidebar is a sheet here, so the content column is the whole shell
+       and the end of a page has to clear the floating menu button. Without
+       this the last row of a list sits under it, out of reach. */
+    padding-bottom: calc(1.25rem + 4rem + env(safe-area-inset-bottom, 0px));
   }
 
   .settings-section {
     padding: 1.125rem;
   }
 
+  /* Stacked, so the heading and the page toolbar read top to bottom rather
+     than across. */
   .page-header {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  /* Both variants stack and put the title at the top here, so a flush header
-     reserving the card's height would only open a gap under its own title. */
-  .page-header:not(.page-header-card) {
-    min-height: 0;
-  }
+  /* Stacking moves the reserved height from the header to the heading. The
+     header cannot hold the title on the line any more: a column bottom-aligns
+     whatever comes last, so on a page with a toolbar the toolbar took the line
+     and pushed the title off it, while Inbox and Settings, which have none,
+     kept it. Reserving on the heading puts the title on the same line on all
+     four, and lets a toolbar flow below that line rather than fight it.
 
-  .page-header-card {
-    align-items: flex-start;
+     The number is the one the card is cut to: a card stands 11rem tall with a
+     content inset above and below the heading, so its heading fills exactly
+     this much, and a flush header reserves the same. */
+  .page-heading {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: calc(11rem - var(--content-padding) * 2);
   }
 
   .settings-form,

@@ -1,0 +1,79 @@
+/* Under the folder dialogs at 50/51: those open from rows inside this sheet
+   and have to stand above it. */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: var(--overlay);
+  animation: fade-in 180ms ease-out;
+}
+
+/* Anchored to the trailing edge, the edge its button stands on: the sheet
+   comes out from under the control that called it, rather than across the
+   window from it. */
+.panel {
+  position: fixed;
+  inset: 0 0 0 auto;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  /* Short of the viewport, so a strip of the page it covers stays visible
+     beside it and the sheet reads as something laid over that page rather than
+     as the next screen. */
+  width: min(20rem, 86vw);
+  padding: 1.25rem 0.75rem;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 0 40px var(--shadow);
+  animation: slide-in 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.panel[data-state="closed"] {
+  animation: slide-out 180ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+.scrim[data-state="closed"] {
+  animation: fade-out 180ms ease-out;
+}
+
+/* Radix needs a title for the dialog; the sheet shows its own brand instead. */
+.label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes slide-in {
+  from { translate: 100% 0; }
+  to { translate: 0 0; }
+}
+
+@keyframes slide-out {
+  from { translate: 0 0; }
+  to { translate: 100% 0; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .panel[data-state="closed"],
+  .scrim,
+  .scrim[data-state="closed"] {
+    animation-duration: 1ms;
+  }
+}
