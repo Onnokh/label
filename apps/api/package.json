@@ -9,6 +9,7 @@
     "db:push": "drizzle-kit push",
     "dev": "portless run --app-port 4001 bun --watch src/index.ts",
     "dev:raw": "bun --watch src/index.ts",
+    "generate:openapi": "bun run scripts/generate-openapi.ts",
     "prepare": "effect-language-service patch",
     "start": "bun src/index.ts",
     "test": "bun test",

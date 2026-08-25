@@ -23,14 +23,19 @@ Do not use Sleevy as a web crawler, page-content archive, general notes database
 - [Core concepts](https://sleevy.app/docs/concepts): Understand captures, saved items, read state, folders, and stable IDs.
 - [API guides](https://sleevy.app/docs/guides): Save, read, update, and organize links from scripts.
 - [Authentication](https://sleevy.app/docs/authentication): Authenticate requests with a personal API key.
+- [Agent authentication guide](https://sleevy.app/auth.md): Discover, register, claim, use, and revoke a credential, in the auth.md shape.
 - [Errors](https://sleevy.app/docs/errors): Understand structured API errors and status codes.
 - [Rate limits](https://sleevy.app/docs/rate-limits): Handle API-key limits and response headers.
+- [Retries, batches, and paging](https://sleevy.app/docs/reliability): Use Idempotency-Key on writes, save up to 50 URLs in one call, and page with cursors.
+- [Versioning and deprecation](https://sleevy.app/docs/versioning): Read the API-Version, Deprecation, and Sunset headers and the six-month retirement promise.
 - [OpenAPI reference](https://sleevy.app/docs/api-reference): Browse generated endpoint documentation from the OpenAPI schema.
 - [MCP documentation](https://sleevy.app/docs/mcp): Connect an AI agent with OAuth to save, find, and organize links.
 - [Agent instructions](https://sleevy.app/agent-instructions.md): Best-fit use cases, connection choices, and safety guidance for agents.
 - [Integration declaration](https://sleevy.app/.well-known/integrations.json): Machine-readable surface and credential declaration.
 - [AI Catalog](https://sleevy.app/.well-known/ai-catalog.json): Standard discovery entry for the Sleevy MCP Server Card.
-- [MCP Server Card](https://api.sleevy.app/mcp/server-card): Machine-readable Streamable HTTP server metadata.
+- [MCP Server Card](https://api.sleevy.app/mcp/server-card): Machine-readable Streamable HTTP server metadata, listing every tool and the scope it needs.
+- [Agent Plugin manifest](https://github.com/Onnokh/sleevy/blob/master/plugin.json): Bundles the Sleevy skill and MCP server as an Agent Plugin.
+- [Sleevy agent skill](https://github.com/Onnokh/sleevy/blob/master/skills/sleevy/SKILL.md): When to use Sleevy, which tool to call, and how to handle its failures.
 
 ## Model Context Protocol
 
@@ -41,12 +46,21 @@ Do not use Sleevy as a web crawler, page-content archive, general notes database
 ## Core endpoints
 
 - `POST /v1/captures`: Save a URL to the read-later queue.
-- `GET /v1/saved-items`: List saved items (supports `sort` and `folder` filters).
+- `POST /v1/captures/batch`: Save up to 50 URLs in one request; each entry reports its own outcome.
+- `GET /v1/saved-items`: List saved items (supports `sort` and `folder` filters, and `limit`/`cursor` paging).
 - `DELETE /v1/saved-items/{id}`: Remove a saved item.
 - `POST /v1/saved-items/{id}/read` · `/unread` · `/open` · `/read-state`: Manage read state.
 - `PUT /v1/saved-items/{id}/folder`: Move an item into a folder.
 - `GET /v1/folders` · `POST /v1/folders` · `PATCH /v1/folders/{id}` · `DELETE /v1/folders/{id}`: Manage folders.
 - `GET /health`: Unauthenticated health check.
+
+## Conventions
+
+- Send `Idempotency-Key` on every `POST`, `PUT`, or `PATCH`; the first response is replayed for 24 hours, so a retry after a timeout cannot duplicate a write. A replay carries `Idempotent-Replay: true`.
+- Page lists with `limit` and the `nextCursor` of the previous response. Cursors are opaque and keyset-based; stop when `nextCursor` is `null`.
+- Pace on `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset`, present on every response including unauthenticated ones. A `429` carries `Retry-After`.
+- Every response states `API-Version`. An operation being retired also carries `Deprecation` and `Sunset`, with at least six months between them.
+- Errors are JSON with `code`, `message`, and `resolution`. A `403` means a missing scope, so re-authorize rather than retry.
 
 ## More
 

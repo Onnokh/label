@@ -1,9 +1,91 @@
+# Sleevy — https://sleevy.app
+#
+# Content Signals state what a crawler may do with what it fetches, separately
+# from whether it may fetch it at all. Sleevy wants its docs and marketing pages
+# to be findable and to be quotable in an answer with a link back, but it does
+# not offer them as model training data.
+Content-Signal: search=yes, ai-input=yes, ai-train=no
+
 User-agent: *
 Allow: /
 # /inbox is intentionally crawlable: it's already indexed from a past crawl and
 # is kept out via the X-Robots-Tag: noindex header (server.ts) instead, so
 # Google can actually see the noindex signal and drop it. Disallowing it here
 # would just block the crawl that's needed to deindex it.
+Disallow: /library
+Disallow: /settings
+Disallow: /connect
+Disallow: /oauth/
+
+# Answer-engine and agent crawlers are welcome on the public site. A named group
+# replaces the `*` group outright for that crawler, so each one repeats the
+# private paths rather than inheriting them.
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /library
+Disallow: /settings
+Disallow: /connect
+Disallow: /oauth/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /library
+Disallow: /settings
+Disallow: /connect
+Disallow: /oauth/
+
+User-agent: GPTBot
+Allow: /
+Disallow: /library
+Disallow: /settings
+Disallow: /connect
+Disallow: /oauth/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /library
+Disallow: /settings
+Disallow: /connect
+Disallow: /oauth/
+
+User-agent: Claude-User
+Allow: /
+Disallow: /library
+Disallow: /settings
+Disallow: /connect
+Disallow: /oauth/
+
+User-agent: Claude-SearchBot
+Allow: /
+Disallow: /library
+Disallow: /settings
+Disallow: /connect
+Disallow: /oauth/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /library
+Disallow: /settings
+Disallow: /connect
+Disallow: /oauth/
+
+User-agent: Perplexity-User
+Allow: /
+Disallow: /library
+Disallow: /settings
+Disallow: /connect
+Disallow: /oauth/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /library
+Disallow: /settings
+Disallow: /connect
+Disallow: /oauth/
+
+User-agent: Applebot-Extended
+Allow: /
 Disallow: /library
 Disallow: /settings
 Disallow: /connect

@@ -1,10 +1,149 @@
 {
   "specVersion": "1.0",
+  "displayName": "Sleevy",
+  "description": "Agent-facing resources for Sleevy, a native-first read-later app: the MCP server, the REST API, and the documentation an agent needs to use them.",
+  "homepage": "https://sleevy.app",
   "entries": [
     {
       "identifier": "urn:air:sleevy.app:mcp:sleevy",
+      "displayName": "Sleevy MCP Server Card",
+      "description": "Streamable HTTP MCP server for saving links and managing Saved Items and Folders in a person's Sleevy queue.",
       "type": "application/mcp-server-card+json",
-      "url": "https://api.sleevy.app/mcp/server-card"
+      "url": "https://api.sleevy.app/mcp/server-card",
+      "trustManifest": {
+        "identity": {
+          "name": "Sleevy",
+          "domain": "sleevy.app",
+          "contact": "https://sleevy.app/support"
+        },
+        "attestations": [
+          {
+            "type": "domain-control",
+            "claim": "The publisher of this catalog controls sleevy.app and api.sleevy.app.",
+            "evidence": "https://sleevy.app/.well-known/ai-catalog.json"
+          },
+          {
+            "type": "oauth-protected-resource",
+            "claim": "The MCP endpoint is an RFC 9728 protected resource with a published authorization server.",
+            "evidence": "https://api.sleevy.app/.well-known/oauth-protected-resource/mcp"
+          },
+          {
+            "type": "transport-security",
+            "claim": "Every advertised endpoint is served over HTTPS only.",
+            "evidence": "https://api.sleevy.app/mcp"
+          }
+        ]
+      }
+    },
+    {
+      "identifier": "urn:air:sleevy.app:openapi:rest-v1",
+      "displayName": "Sleevy REST API (OpenAPI 3.1)",
+      "description": "Machine-readable OpenAPI 3.1 description of the Sleevy v1 REST API, including authentication, scopes, idempotency, and pagination.",
+      "type": "application/vnd.oai.openapi+json",
+      "url": "https://sleevy.app/openapi.json",
+      "trustManifest": {
+        "identity": {
+          "name": "Sleevy",
+          "domain": "sleevy.app",
+          "contact": "https://sleevy.app/support"
+        },
+        "attestations": [
+          {
+            "type": "domain-control",
+            "claim": "This specification is served from the apex domain that operates the API.",
+            "evidence": "https://sleevy.app/.well-known/api-catalog"
+          },
+          {
+            "type": "generated-from-source",
+            "claim": "The document is generated from the running API's route definitions rather than written by hand.",
+            "evidence": "https://api.sleevy.app/openapi.json"
+          }
+        ]
+      }
+    },
+    {
+      "identifier": "urn:air:sleevy.app:doc:agent-instructions",
+      "displayName": "Sleevy agent instructions",
+      "description": "When to use Sleevy, when not to, how to connect, and the safety rules an agent should follow.",
+      "type": "text/markdown",
+      "url": "https://sleevy.app/agent-instructions.md",
+      "trustManifest": {
+        "identity": {
+          "name": "Sleevy",
+          "domain": "sleevy.app",
+          "contact": "https://sleevy.app/support"
+        },
+        "attestations": [
+          {
+            "type": "domain-control",
+            "claim": "Published by the operator of sleevy.app.",
+            "evidence": "https://sleevy.app/llms.txt"
+          }
+        ]
+      }
+    },
+    {
+      "identifier": "urn:air:sleevy.app:doc:auth",
+      "displayName": "Sleevy agent authentication guide",
+      "description": "Prose walkthrough of how an agent discovers, registers for, claims, uses, and revokes Sleevy credentials.",
+      "type": "text/markdown",
+      "url": "https://sleevy.app/auth.md",
+      "trustManifest": {
+        "identity": {
+          "name": "Sleevy",
+          "domain": "sleevy.app",
+          "contact": "https://sleevy.app/support"
+        },
+        "attestations": [
+          {
+            "type": "domain-control",
+            "claim": "Published by the operator of the authorization server it describes.",
+            "evidence": "https://api.sleevy.app/.well-known/oauth-authorization-server/api/auth"
+          }
+        ]
+      }
+    },
+    {
+      "identifier": "urn:air:sleevy.app:doc:llms-txt",
+      "displayName": "Sleevy agent index (llms.txt)",
+      "description": "Index of every Sleevy developer and agent resource, with a short description of each.",
+      "type": "text/markdown",
+      "url": "https://sleevy.app/llms.txt",
+      "trustManifest": {
+        "identity": {
+          "name": "Sleevy",
+          "domain": "sleevy.app",
+          "contact": "https://sleevy.app/support"
+        },
+        "attestations": [
+          {
+            "type": "domain-control",
+            "claim": "Published by the operator of sleevy.app.",
+            "evidence": "https://sleevy.app/index.md"
+          }
+        ]
+      }
+    },
+    {
+      "identifier": "urn:air:sleevy.app:doc:integrations",
+      "displayName": "Sleevy integration declaration",
+      "description": "Machine-readable declaration of Sleevy's agent-facing surfaces and the credentials each one accepts.",
+      "type": "application/json",
+      "url": "https://sleevy.app/.well-known/integrations.json",
+      "trustManifest": {
+        "identity": {
+          "name": "Sleevy",
+          "domain": "sleevy.app",
+          "contact": "https://sleevy.app/support"
+        },
+        "attestations": [
+          {
+            "type": "domain-control",
+            "claim": "Served from the well-known namespace of the domain it describes.",
+            "evidence": "https://sleevy.app/.well-known/integrations.json"
+          }
+        ]
+      }
     }
   ]
 }

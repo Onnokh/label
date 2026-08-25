@@ -175,6 +175,7 @@ export type SavedItemsResponse = {
       | "public-profile"
       | undefined;
   }[];
+  readonly nextCursor?: string | null | undefined;
 };
 
 export type CaptureCreated = {
@@ -318,6 +319,8 @@ export type SavedItemReadStatePayload = { readonly isRead: boolean };
 export type SavedItemsQuery = {
   readonly sort?: "title" | "newest" | "oldest" | "unread" | undefined;
   readonly folder?: string | undefined;
+  readonly limit?: string | undefined;
+  readonly cursor?: string | undefined;
 };
 
 export type FolderNamePayload = {

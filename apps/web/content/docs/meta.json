@@ -10,10 +10,12 @@
     "---Build with the API---",
     "concepts",
     "guides",
+    "reliability",
     "---API reference---",
     "authentication",
     "errors",
     "rate-limits",
+    "versioning",
     "api-reference"
   ]
 }

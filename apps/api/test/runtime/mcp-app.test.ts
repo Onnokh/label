@@ -5,7 +5,7 @@ import { mcpOAuthVerificationOptions } from "../../src/runtime/McpApp.js"
 import {
   decodeSavedItemsCursor,
   encodeSavedItemsCursor,
-} from "../../src/modules/mcp/McpTools.js"
+} from "../../src/modules/saved-items/SavedItemRepository.js"
 import { AUTH_BASE_PATH, authServerUrl } from "../../src/modules/auth/BetterAuth.js"
 import type { SavedItemId } from "../../src/domain/SavedItem.js"
 

@@ -6,12 +6,16 @@ import { sleevyApiLive } from "../api/ApiHandlers.js"
 import { Analytics } from "../modules/analytics/Analytics.js"
 import { AuthHandler } from "../modules/auth/AuthHandler.js"
 import { AUTH_BASE_PATH, authServerUrl, BetterAuth } from "../modules/auth/BetterAuth.js"
+import { authServerMetadataPaths, withAgentAuthMetadata } from "../modules/auth/AgentAuthMetadata.js"
 import { CaptureService } from "../modules/capture/CaptureService.js"
 import { ConnectCodeRepository } from "../modules/connect/ConnectCodeRepository.js"
 import { EnrichmentWorkflow } from "../modules/enrichment/EnrichmentWorkflow.js"
 import { FolderRepository } from "../modules/folders/FolderRepository.js"
+import { IdempotencyStore } from "../modules/idempotency/IdempotencyStore.js"
+import { withIdempotency } from "../modules/idempotency/IdempotentWrites.js"
 import { ProfileRepository } from "../modules/profiles/ProfileRepository.js"
 import { PublicProfileRepository } from "../modules/profiles/PublicProfileRepository.js"
+import { AnonymousRateLimiter } from "../modules/rate-limit/AnonymousRateLimiter.js"
 import { ApiKeyRateLimiter } from "../modules/rate-limit/ApiKeyRateLimiter.js"
 import { BearerRateLimiter } from "../modules/rate-limit/BearerRateLimiter.js"
 import { ConnectAuthorizeRateLimiter } from "../modules/rate-limit/ConnectAuthorizeRateLimiter.js"
@@ -25,7 +29,8 @@ import {
   withPublicRateLimit,
 } from "./ApiRequestMiddleware.js"
 import { OAUTH_PROTOCOL_SCOPES, V1_SCOPES } from "../modules/auth/Scopes.js"
-import { MCP_SCOPES } from "../modules/mcp/McpTools.js"
+import { MCP_SCOPES, MCP_TOOL_CATALOG } from "../modules/mcp/McpTools.js"
+import { withVersionHeaders } from "./ApiVersioning.js"
 import { AppConfig } from "./Config.js"
 import { makeMcpWebHandler } from "./McpApp.js"
 
@@ -42,7 +47,7 @@ export const corsHeaders = (
   const origin = request.headers.get("origin")
   const headers = new Headers({
     "access-control-allow-credentials": "true",
-    "access-control-allow-headers": "authorization, content-type",
+    "access-control-allow-headers": "authorization, content-type, idempotency-key",
     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "access-control-expose-headers": exposedApiResponseHeaders.join(", "),
     vary: "Origin",
@@ -152,21 +157,40 @@ const mcpServerCardResponse = (request: Request, input: {
   readonly apiBaseUrl: string
   readonly webUrl: string
 }) => {
+  const serverUrl = `${input.apiBaseUrl}/mcp`
+  const description =
+    "Save links to your Sleevy library and manage your saved items and folders."
+
   const body = JSON.stringify({
     $schema: "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json",
     name: "app.sleevy/mcp",
     version: "1.0.0",
     title: "Sleevy",
-    description:
-      "Save links to your Sleevy library and manage your saved items and folders.",
+    description,
     websiteUrl: input.webUrl,
+    documentationUrl: `${input.webUrl}/docs/mcp`,
+    // `remotes` is the Server Card shape; `serverUrl` and `tools` are the flat
+    // fields most client previews and directory scanners read. Both describe
+    // the same endpoint and the same tool set.
+    serverUrl,
+    transport: "streamable-http",
     remotes: [
       {
         type: "streamable-http",
-        url: `${input.apiBaseUrl}/mcp`,
+        url: serverUrl,
         supportedProtocolVersions: SUPPORTED_PROTOCOL_VERSIONS,
       },
     ],
+    // A card is fetched before a transport is opened, so it lists every tool
+    // the server can expose. Which of them a given session actually sees
+    // depends on the scopes that session was granted, named here per tool.
+    tools: MCP_TOOL_CATALOG.map((tool) => ({
+      name: tool.name,
+      title: tool.title,
+      description: tool.description,
+      requiredScopes: [...tool.scopes],
+      annotations: { ...tool.annotations },
+    })),
   })
   const etag = entityTagFor(body)
   const headers = new Headers({
@@ -206,20 +230,24 @@ const mcpServerCardResponse = (request: Request, input: {
 export const makeApiWebHandler = Effect.gen(function* () {
   const config = yield* AppConfig
   const context = yield* Effect.context<
-    Analytics | AuthHandler | BetterAuth | CaptureService | EnrichmentWorkflow | SavedItemRepository | FolderRepository | ProfileRepository | PublicProfileRepository | ApiKeyRateLimiter | BearerRateLimiter | ConnectCodeRepository | ConnectAuthorizeRateLimiter | ConnectExchangeRateLimiter | PublicProfileRateLimiter
+    Analytics | AuthHandler | BetterAuth | CaptureService | EnrichmentWorkflow | IdempotencyStore | SavedItemRepository | FolderRepository | ProfileRepository | PublicProfileRepository | AnonymousRateLimiter | ApiKeyRateLimiter | BearerRateLimiter | ConnectCodeRepository | ConnectAuthorizeRateLimiter | ConnectExchangeRateLimiter | PublicProfileRateLimiter
   >()
   const authHandler = yield* AuthHandler
   const { auth } = yield* BetterAuth
   const rateLimiter = yield* ApiKeyRateLimiter
   const publicRateLimiter = yield* PublicProfileRateLimiter
   const bearerRateLimiter = yield* BearerRateLimiter
+  const idempotencyStore = yield* IdempotencyStore
+  const anonymousRateLimiter = yield* AnonymousRateLimiter
   const mcpFetch = yield* makeMcpWebHandler
   const httpEffect = yield* HttpRouter.toHttpEffect(httpAppLayer)
   const apiFetch = HttpEffect.toWebHandler(
     Effect.provideContext(HttpMiddleware.tracer(httpEffect), context),
   )
 
-  return (async (request) => {
+  const metadataPaths = authServerMetadataPaths()
+
+  const handle = async (request: Request): Promise<Response> => {
     const pathname = new URL(request.url).pathname
     const isAuthRequest =
       pathname.startsWith(`${AUTH_BASE_PATH}/`) ||
@@ -267,7 +295,7 @@ export const makeApiWebHandler = Effect.gen(function* () {
     }
 
     if (pathname === "/mcp") {
-      return withApiKeyRateLimit(request, auth, rateLimiter, bearerRateLimiter, mcpFetch)
+      return withApiKeyRateLimit(request, auth, rateLimiter, bearerRateLimiter, anonymousRateLimiter, mcpFetch)
     }
 
     // The public group carries no API Key, so it takes the per-IP budget
@@ -285,8 +313,29 @@ export const makeApiWebHandler = Effect.gen(function* () {
       isAuthRequest
         ? authHandler.handle
         : (request) =>
-            withApiKeyRateLimit(request, auth, rateLimiter, bearerRateLimiter, apiFetch),
+            // Idempotency sits inside the rate limit on purpose: a replayed
+            // response is still a request the caller made, so it costs budget,
+            // and the 429 for an over-budget caller must not be recorded as
+            // the answer to their key.
+            withApiKeyRateLimit(request, auth, rateLimiter, bearerRateLimiter, anonymousRateLimiter, (request) =>
+              withIdempotency(request, idempotencyStore, apiFetch)),
     )
-    return isAuthRequest ? response : withJsonErrorFallback(request, response)
-  }) satisfies ApiWebHandler
+    if (!isAuthRequest) return withJsonErrorFallback(request, response)
+
+    // The authorization-server metadata is where an agent looks for the
+    // auth.md `agent_auth` block, so it is added on the way out rather than
+    // published as a separate document that could drift from the real one.
+    return metadataPaths.has(pathname)
+      ? withAgentAuthMetadata(response, {
+          apiBaseUrl: config.auth.baseUrl,
+          webUrl: config.auth.webUrl,
+        })
+      : response
+  }
+
+  // Every response says which version of the API answered it, and any operation
+  // on its way out announces its own retirement, so a client learns about a
+  // change from the responses it is already reading.
+  return (async (request) =>
+    withVersionHeaders(request, await handle(request))) satisfies ApiWebHandler
 })

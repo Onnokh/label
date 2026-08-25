@@ -217,21 +217,96 @@ describe("agent-ready web routing", () => {
     }
   })
 
-  test("publishes an AI Catalog entry for the Sleevy MCP Server Card", async () => {
+  test("publishes a valid AI Catalog entry for every agent-facing resource", async () => {
     const catalog = await Bun.file(
       `${import.meta.dir}/../../public/.well-known/ai-catalog.json`,
     ).json()
 
-    expect(catalog).toEqual({
-      specVersion: "1.0",
-      entries: [
-        {
-          identifier: "urn:air:sleevy.app:mcp:sleevy",
-          type: "application/mcp-server-card+json",
-          url: "https://api.sleevy.app/mcp/server-card",
-        },
-      ],
-    })
+    expect(catalog.specVersion).toBe("1.0")
+    expect(catalog.entries.length).toBeGreaterThan(0)
+
+    // The MCP Server Card is the entry a client follows to open a transport, so
+    // it stays addressable at a fixed identifier.
+    const serverCard = catalog.entries.find(
+      (entry: { readonly identifier: string }) =>
+        entry.identifier === "urn:air:sleevy.app:mcp:sleevy",
+    )
+    expect(serverCard.type).toBe("application/mcp-server-card+json")
+    expect(serverCard.url).toBe("https://api.sleevy.app/mcp/server-card")
+
+    for (const entry of catalog.entries) {
+      // A catalog entry is only usable if a reader can name it, type it, and
+      // fetch it — and exactly one of url or data may say where it lives.
+      expect(entry.identifier).toMatch(/^urn:air:sleevy\.app:/)
+      expect(typeof entry.displayName).toBe("string")
+      expect(entry.displayName.length).toBeGreaterThan(0)
+      expect(typeof entry.type).toBe("string")
+      expect(("url" in entry) !== ("data" in entry)).toBe(true)
+
+      // Progressive trust: each entry says who published it and what can be
+      // checked, so a client can verify before it follows the link.
+      expect(entry.trustManifest.identity.domain).toBe("sleevy.app")
+      expect(entry.trustManifest.attestations.length).toBeGreaterThan(0)
+      for (const attestation of entry.trustManifest.attestations) {
+        expect(typeof attestation.type).toBe("string")
+        expect(typeof attestation.claim).toBe("string")
+        expect(attestation.evidence).toMatch(/^https:\/\//)
+      }
+    }
+  })
+
+  test("publishes an auth.md walkthrough with the sections the spec prescribes", async () => {
+    const authMd = await Bun.file(`${import.meta.dir}/../../public/auth.md`).text()
+
+    expect(authMd.startsWith("# ")).toBe(true)
+    expect(authMd.length).toBeGreaterThan(200)
+
+    for (const heading of [
+      "## Discover",
+      "## Pick a method",
+      "## Register",
+      "## Claim",
+      "## Use the credential",
+      "## Errors",
+      "## Revocation",
+    ]) {
+      expect(authMd).toContain(heading)
+    }
+
+    // The anchor terms an agent greps for when it is looking for the shape of
+    // the flow rather than reading the prose.
+    for (const keyword of [
+      "agent_auth",
+      "register_uri",
+      "identity_assertion",
+      "id-jag",
+      "WWW-Authenticate",
+    ]) {
+      expect(authMd).toContain(keyword)
+    }
+  })
+
+  test("names AI crawlers explicitly in robots.txt without blocking any of them", async () => {
+    const robots = await Bun.file(`${import.meta.dir}/../../public/robots.txt`).text()
+
+    // A Content Signal states what may be done with what is fetched, which is a
+    // separate question from whether it may be fetched.
+    expect(robots).toContain("Content-Signal:")
+
+    // Answer-engine crawlers get their own group. A named group replaces the
+    // `*` group outright, so each one has to repeat the private paths.
+    for (const agent of ["GPTBot", "ClaudeBot", "PerplexityBot", "OAI-SearchBot"]) {
+      expect(robots).toContain(`User-agent: ${agent}`)
+    }
+
+    // Sleevy blocks no crawler: every group allows the public site and only the
+    // account-private paths are held back.
+    const groups = robots.split(/\n(?=User-agent:)/).slice(1)
+    expect(groups.length).toBeGreaterThan(0)
+    for (const group of groups) {
+      expect(group).toContain("Allow: /")
+      expect(group).not.toMatch(/^Disallow: \/$/m)
+    }
   })
 
   test("publishes specific agent guidance and indexes every developer overview", async () => {

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://agent-plugins.org/schema/v1/plugin.json",
+  "name": "sleevy",
+  "version": "1.0.0",
+  "description": "Save links to a personal Sleevy read-later queue and manage saved items and folders, from any MCP-capable agent.",
+  "homepage": "https://sleevy.app",
+  "documentation": "https://sleevy.app/docs",
+  "repository": "https://github.com/Onnokh/sleevy",
+  "license": "UNLICENSED",
+  "keywords": ["read-later", "bookmarks", "reading-queue", "mcp", "sleevy"],
+  "skills": ["./skills/sleevy/SKILL.md"],
+  "mcpServers": {
+    "sleevy": {
+      "type": "http",
+      "url": "https://api.sleevy.app/mcp",
+      "description": "Sleevy's Streamable HTTP MCP server. The client completes OAuth sign-in and scoped consent on first use; no API key is needed.",
+      "serverCard": "https://api.sleevy.app/mcp/server-card"
+    }
+  }
+}

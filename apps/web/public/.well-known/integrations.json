@@ -1,18 +1,20 @@
 {
-  "version": 3,
+  "version": 4,
   "summary": "Sleevy is a native-first read-later app. Save any URL to your queue, organize items with folders and tags, and manage read state from web, iOS, a Chrome extension, Raycast, and a REST API.",
   "credentials": {
     "sleevy_api_key": {
       "type": "api_key",
       "label": "Sleevy API Key",
       "generateUrl": "https://sleevy.app/settings",
-      "setup": "Sign in at https://sleevy.app, open **Settings**, and create a personal API Key under **API Keys**. Send it as `Authorization: Bearer <api-key>` on every request. Keys are scoped and rate-limited per key, and can be revoked from the same screen."
+      "setup": "Sign in at https://sleevy.app, open **Settings**, and create a personal API Key under **API Keys**. Send it as `Authorization: Bearer <api-key>` on every request. Keys are scoped and rate-limited per key, and can be revoked from the same screen.",
+      "docs": "https://sleevy.app/auth.md"
     },
     "sleevy_oauth": {
       "type": "oauth2",
       "label": "Sleevy OAuth",
       "generateUrl": "https://api.sleevy.app/api/auth",
-      "setup": "Connect an MCP client to https://api.sleevy.app/mcp. The client discovers Sleevy's OAuth authorization server and opens a browser for sign-in and consent."
+      "setup": "Connect an MCP client to https://api.sleevy.app/mcp. The client discovers Sleevy's OAuth authorization server, registers itself through unauthenticated Dynamic Client Registration (RFC 7591), and opens a browser for sign-in and consent. The full walkthrough is at https://sleevy.app/auth.md.",
+      "docs": "https://sleevy.app/auth.md"
     }
   },
   "surfaces": [
@@ -48,6 +50,52 @@
             }
           }
         ]
+      },
+      "conventions": {
+        "idempotency": {
+          "header": "Idempotency-Key",
+          "methods": [
+            "POST",
+            "PUT",
+            "PATCH"
+          ],
+          "retentionSeconds": 86400,
+          "replayHeader": "Idempotent-Replay",
+          "docs": "https://sleevy.app/docs/reliability"
+        },
+        "pagination": {
+          "style": "cursor",
+          "limitParameter": "limit",
+          "cursorParameter": "cursor",
+          "nextCursorField": "nextCursor",
+          "maxLimit": 100,
+          "docs": "https://sleevy.app/docs/reliability"
+        },
+        "batch": {
+          "endpoint": "https://api.sleevy.app/v1/captures/batch",
+          "maxItems": 50,
+          "transactional": false,
+          "docs": "https://sleevy.app/docs/reliability"
+        },
+        "rateLimit": {
+          "headers": [
+            "RateLimit-Limit",
+            "RateLimit-Remaining",
+            "RateLimit-Reset",
+            "Retry-After"
+          ],
+          "docs": "https://sleevy.app/docs/rate-limits"
+        },
+        "versioning": {
+          "style": "url-path",
+          "versionHeader": "API-Version",
+          "deprecationHeaders": [
+            "Deprecation",
+            "Sunset"
+          ],
+          "minimumSunsetNoticeDays": 180,
+          "docs": "https://sleevy.app/docs/versioning"
+        }
       }
     },
     {
@@ -56,7 +104,9 @@
       "type": "mcp",
       "docs": "https://sleevy.app/docs",
       "url": "https://api.sleevy.app/mcp",
-      "transports": ["streamable-http"],
+      "transports": [
+        "streamable-http"
+      ],
       "basis": {
         "via": "declared",
         "source": "https://sleevy.app/.well-known/integrations.json"
@@ -79,7 +129,8 @@
             }
           }
         ]
-      }
+      },
+      "serverCard": "https://api.sleevy.app/mcp/server-card"
     }
   ]
 }

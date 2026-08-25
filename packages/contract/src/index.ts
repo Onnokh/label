@@ -104,6 +104,9 @@ export namespace SavedItemDto {
 
 export class SavedItemsResponse extends Schema.Class<SavedItemsResponse>("SavedItemsResponse")({
   savedItems: Schema.Array(SavedItemDto),
+  // The token for the next page, or null on the last one. Optional so a client
+  // built against the unpaged response still decodes this one.
+  nextCursor: Schema.optional(Schema.NullOr(Schema.String)),
 }) {}
 export namespace SavedItemsResponse {
   export type Encoded = Schema.Codec.Encoded<typeof SavedItemsResponse>
@@ -343,9 +346,62 @@ export namespace SavedItemReadStatePayload {
   export type Encoded = Schema.Codec.Encoded<typeof SavedItemReadStatePayload>
 }
 
+// `limit` and `cursor` are what make this list pageable, and both are optional
+// so a caller that wants the whole list keeps asking for it exactly as before.
+// Sending `limit` opts into a page; `cursor` is the opaque token the previous
+// page returned as `nextCursor`, and it is only meaningful against the same
+// `sort` and `folder` it was produced under.
+// The largest number of URLs one batch may carry. Small enough that a batch
+// stays a single request with a predictable cost, large enough that an agent
+// clearing a reading list does not have to loop.
+export const BATCH_CAPTURE_LIMIT = 50
+
+// A batch of captures, applied one by one.
+//
+// The batch is deliberately not a transaction: an agent saving twenty links
+// wants the nineteen good ones saved even if one URL is malformed, so a failing
+// entry is reported in its own result rather than rolling the others back.
+export class BatchCapturePayload extends Schema.Class<BatchCapturePayload>("BatchCapturePayload")({
+  captures: Schema.Array(CapturePayload).check(
+    Schema.isMinLength(1),
+    Schema.isMaxLength(BATCH_CAPTURE_LIMIT),
+  ),
+}) {}
+export namespace BatchCapturePayload {
+  export type Encoded = Schema.Codec.Encoded<typeof BatchCapturePayload>
+}
+
+// One entry's outcome. `index` is the position in the request array, so a
+// caller can line results up with what it sent without matching on URL.
+export class BatchCaptureResult extends Schema.Class<BatchCaptureResult>("BatchCaptureResult")({
+  index: Schema.Number,
+  url: Schema.String,
+  outcome: Schema.Literals(["created", "updated", "failed"] as const),
+  savedItem: Schema.optional(Schema.NullOr(SavedItemDto)),
+  // Present only when `outcome` is "failed", carrying the same `code` and
+  // `message` the single-capture endpoint would have answered with.
+  code: Schema.optional(Schema.String),
+  message: Schema.optional(Schema.String),
+}) {}
+export namespace BatchCaptureResult {
+  export type Encoded = Schema.Codec.Encoded<typeof BatchCaptureResult>
+}
+
+export class BatchCaptureResponse extends Schema.Class<BatchCaptureResponse>("BatchCaptureResponse")({
+  results: Schema.Array(BatchCaptureResult),
+  created: Schema.Number,
+  updated: Schema.Number,
+  failed: Schema.Number,
+}) {}
+export namespace BatchCaptureResponse {
+  export type Encoded = Schema.Codec.Encoded<typeof BatchCaptureResponse>
+}
+
 export class SavedItemsQuery extends Schema.Class<SavedItemsQuery>("SavedItemsQuery")({
   sort: Schema.optional(SavedItemSort),
   folder: Schema.optional(Schema.String),
+  limit: Schema.optional(Schema.FiniteFromString),
+  cursor: Schema.optional(Schema.String),
 }) {}
 export namespace SavedItemsQuery {
   export type Encoded = Schema.Codec.Encoded<typeof SavedItemsQuery>

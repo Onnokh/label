@@ -42,6 +42,8 @@ export const staticSitemapUrls: ReadonlyArray<SitemapUrl> = [
   { loc: `${SITE_ORIGIN}/docs/api-reference`, lastmod: "2026-07-18" },
   { loc: `${SITE_ORIGIN}/docs/mcp`, lastmod: "2026-08-25", changefreq: "monthly", priority: "0.8" },
   { loc: `${SITE_ORIGIN}/docs/guides`, lastmod: "2026-07-18", changefreq: "monthly", priority: "0.8" },
+  { loc: `${SITE_ORIGIN}/docs/reliability`, lastmod: "2026-08-25", changefreq: "monthly", priority: "0.8" },
+  { loc: `${SITE_ORIGIN}/docs/versioning`, lastmod: "2026-08-25", changefreq: "monthly", priority: "0.6" },
   { loc: `${SITE_ORIGIN}/privacy`, lastmod: "2026-07-16", changefreq: "yearly", priority: "0.5" },
   { loc: `${SITE_ORIGIN}/support`, lastmod: "2026-07-16", changefreq: "monthly", priority: "0.6" },
   { loc: `${SITE_ORIGIN}/raycast`, lastmod: "2026-07-16", changefreq: "monthly", priority: "0.8" },
