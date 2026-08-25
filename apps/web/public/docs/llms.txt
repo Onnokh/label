@@ -1,0 +1,37 @@
+# Sleevy documentation
+
+> Scoped index of the Sleevy developer documentation: the REST API, the MCP server, and the conventions an agent needs to drive them. For the whole product, read https://sleevy.app/llms.txt.
+
+Base URL: `https://api.sleevy.app`. Authenticate with `Authorization: Bearer <credential>` — either a personal API Key created at https://sleevy.app/settings, or an OAuth 2.1 access token. Every page below is also served as Markdown by appending `.md`.
+
+## Start here
+
+- [Documentation home](https://sleevy.app/docs/index.md): What Sleevy exposes and which surface to pick.
+- [Overview](https://sleevy.app/docs/overview.md): The shape of the API and what it is for.
+- [Getting started](https://sleevy.app/docs/getting-started.md): Create a key, capture a URL, read the queue.
+- [Core concepts](https://sleevy.app/docs/concepts.md): Saved Items, Links, read state, Folders, and stable IDs.
+
+## Connect an agent
+
+- [MCP](https://sleevy.app/docs/mcp.md): Connect over Streamable HTTP at `https://api.sleevy.app/mcp` with OAuth and scoped consent.
+- [Agent authentication](https://sleevy.app/auth.md): Discover, register, claim, use, and revoke a credential.
+- [Agent instructions](https://sleevy.app/agent-instructions.md): When to use Sleevy, when not to, and the safety rules.
+
+## Build with the REST API
+
+- [Guides](https://sleevy.app/docs/guides.md): Save, read, update, and organize links from scripts.
+- [Retries, batches, and paging](https://sleevy.app/docs/reliability.md): `Idempotency-Key` on writes, `POST /v1/captures/batch` for up to 50 URLs, and cursor paging.
+- [Authentication](https://sleevy.app/docs/authentication.md): Personal API Keys and scopes.
+- [Errors](https://sleevy.app/docs/errors.md): Structured `code`, `message`, and `resolution` failures.
+- [Rate limits](https://sleevy.app/docs/rate-limits.md): `RateLimit-*` headers and `Retry-After`.
+- [Versioning and deprecation](https://sleevy.app/docs/versioning.md): `API-Version`, and the six-month `Sunset` promise.
+- [API reference](https://sleevy.app/docs/api-reference): Generated from the OpenAPI document.
+
+## Machine-readable
+
+- [OpenAPI 3.1](https://sleevy.app/openapi.json)
+- [MCP Server Card](https://sleevy.app/.well-known/mcp/server-card.json)
+- [Agent skills index](https://sleevy.app/.well-known/agent-skills/index.json)
+- [A2A agent card](https://sleevy.app/.well-known/agent-card.json)
+- [AI catalog](https://sleevy.app/.well-known/ai-catalog.json)
+- [API catalog (RFC 9727)](https://sleevy.app/.well-known/api-catalog)

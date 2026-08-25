@@ -1,0 +1,26 @@
+{
+  "$schema": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
+  "skills": [
+    {
+      "name": "sleevy-organize-folders",
+      "type": "skill-md",
+      "description": "Organize the user's Sleevy queue into folders, move saved items between them, and remove items or folders. Use when the user wants to tidy their reading list. Deletion is permanent, so always confirm first.",
+      "url": "/.well-known/agent-skills/sleevy-organize-folders/SKILL.md",
+      "digest": "sha256:7c2daac8082898b32a071b6c631a392709373a618482f84545aad99636c35ce8"
+    },
+    {
+      "name": "sleevy-read-queue",
+      "type": "skill-md",
+      "description": "Read and search the user's Sleevy reading queue, and mark items read or unread. Use when the user asks what is in their reading list, wants to find something they saved, or wants to mark something off.",
+      "url": "/.well-known/agent-skills/sleevy-read-queue/SKILL.md",
+      "digest": "sha256:06a5450a6683e6157b5326b8c0c1e6c5ecbf331d9b0a0d0aceb553415b8ddf90"
+    },
+    {
+      "name": "sleevy-save-links",
+      "type": "skill-md",
+      "description": "Save one link or many to the user's Sleevy read-later queue. Use when the user asks to save, bookmark, or \"read later\" a URL, or hands over a list of links to file away. Not for fetching or archiving page content.",
+      "url": "/.well-known/agent-skills/sleevy-save-links/SKILL.md",
+      "digest": "sha256:b4ea6fcefef642cae319a53eaecc5143eb5fd19bd974d6609dd75d27caddcdbe"
+    }
+  ]
+}

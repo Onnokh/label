@@ -112,6 +112,19 @@ export const appendVary = (headers: Headers, value: string) => {
   if (values.length > 0) headers.set("Vary", values.join(", "))
 }
 
+/**
+ * Paths that are the same document under another name.
+ *
+ * `/docs/{$}.md` covers every page below `/docs/`, but not `/docs` itself, so
+ * an agent appending `.md` to the documentation root used to get a 404.
+ */
+const markdownAliases: Record<string, string> = {
+  "/docs.md": "/docs/index.md",
+}
+
+export const markdownAliasPath = (pathname: string): string | null =>
+  markdownAliases[pathname] ?? null
+
 export const markdownVariantPath = (pathname: string): string | null => {
   const path = pathname.length > 1 && pathname.endsWith("/")
     ? pathname.slice(0, -1)
@@ -119,9 +132,123 @@ export const markdownVariantPath = (pathname: string): string | null => {
 
   if (path === "/") return "/index.md"
   if (path === "/docs") return "/docs/index.md"
-  if (path.startsWith("/docs/") && !path.endsWith(".md")) return `${path}.md`
+  // Only extensionless documentation pages have a Markdown twin. A path that
+  // already names a file — /docs/llms.txt, /docs/whatever.json — is the
+  // document itself, and asking for `<that>.md` would 404.
+  if (path.startsWith("/docs/") && !/\.[a-z0-9]+$/i.test(path)) return `${path}.md`
   return null
 }
+
+/**
+ * The RFC 8288 links every page advertises about itself and about the site.
+ *
+ * An agent that reads response headers learns where the sitemap, the agent
+ * index, the OpenAPI document, and the API catalog are without parsing HTML —
+ * and, for a page that has one, where its Markdown twin lives.
+ */
+export const linkHeaderValue = (pathname: string, origin = "https://sleevy.app") => {
+  const links = [
+    `<${origin}/sitemap.xml>; rel="sitemap"; type="application/xml"`,
+    `<${origin}/llms.txt>; rel="describedby"; type="text/markdown"`,
+    `<${origin}/openapi.json>; rel="service-desc"; type="application/vnd.oai.openapi+json"`,
+    `<${origin}/docs>; rel="service-doc"; type="text/html"`,
+    `<${origin}/.well-known/api-catalog>; rel="api-catalog"`,
+  ]
+
+  const markdownPath = markdownVariantPath(pathname)
+  if (markdownPath !== null) {
+    // The advertised twin is the URL an agent can actually fetch: /docs/x.md
+    // for /docs/x, and /index.md for the home page.
+    links.unshift(`<${origin}${markdownPath}>; rel="alternate"; type="text/markdown"`)
+  }
+
+  return links.join(", ")
+}
+
+/** Adds the site's Link header to a response, keeping any the route already set. */
+export const withLinkHeader = (pathname: string, response: Response): Response => {
+  const contentType = response.headers.get("Content-Type") ?? ""
+  if (!contentType.includes(HTML) && !contentType.includes(MARKDOWN)) return response
+
+  const headers = new Headers(response.headers)
+  headers.append("Link", linkHeaderValue(pathname))
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
+/**
+ * The machine-readable view of the home page, for `?mode=agent`.
+ *
+ * A marketing page answers "should I use this"; this answers "how do I call
+ * it". Everything here is a pointer to a document that is itself
+ * machine-readable, so an agent needs one request to orient and one more to
+ * get whatever it actually needs.
+ */
+export const agentModeDocument = (origin = "https://sleevy.app") => ({
+  name: "Sleevy",
+  description:
+    "A native-first read-later service. Save any URL to a personal reading queue, then find, organize, and mark off what is in it.",
+  homepage: `${origin}/`,
+  documentation: `${origin}/docs`,
+  apiBaseUrl: "https://api.sleevy.app",
+  contact: "support@sleevy.app",
+  authentication: {
+    type: "oauth2",
+    alternative: "bearer-api-key",
+    selfService: true,
+    guide: `${origin}/auth.md`,
+    apiKeys: `${origin}/settings`,
+    protectedResourceMetadata:
+      "https://api.sleevy.app/.well-known/oauth-protected-resource",
+    authorizationServerMetadata:
+      "https://api.sleevy.app/.well-known/oauth-authorization-server/api/auth",
+  },
+  surfaces: {
+    mcp: "https://api.sleevy.app/mcp",
+    rest: "https://api.sleevy.app",
+  },
+  discovery: {
+    llmsTxt: `${origin}/llms.txt`,
+    docsLlmsTxt: `${origin}/docs/llms.txt`,
+    agentInstructions: `${origin}/agent-instructions.md`,
+    openapi: `${origin}/openapi.json`,
+    mcpServerCard: `${origin}/.well-known/mcp/server-card.json`,
+    agentCard: `${origin}/.well-known/agent-card.json`,
+    agentSkills: `${origin}/.well-known/agent-skills/index.json`,
+    aiCatalog: `${origin}/.well-known/ai-catalog.json`,
+    apiCatalog: `${origin}/.well-known/api-catalog`,
+    integrations: `${origin}/.well-known/integrations.json`,
+    sitemap: `${origin}/sitemap.xml`,
+  },
+  capabilities: [
+    "Save an HTTP or HTTPS URL to a personal read-later queue.",
+    "Save up to 50 URLs in one batch request, each reporting its own outcome.",
+    "List and page through Saved Items with an opaque cursor.",
+    "Mark Saved Items read or unread, and record opens.",
+    "Create, update, publish, and delete Folders, and move Saved Items between them.",
+  ],
+  conventions: {
+    idempotency: {
+      header: "Idempotency-Key",
+      methods: ["POST", "PUT", "PATCH"],
+      retentionSeconds: 86_400,
+      replayHeader: "Idempotent-Replay",
+    },
+    pagination: { style: "cursor", limitParameter: "limit", cursorParameter: "cursor", maxLimit: 100 },
+    rateLimit: { headers: ["RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset", "Retry-After"] },
+    versioning: { style: "url-path", versionHeader: "API-Version", deprecationHeaders: ["Deprecation", "Sunset"] },
+    errors: { shape: ["code", "message", "resolution"] },
+  },
+  notFor: [
+    "Crawling or archiving the content of a page.",
+    "Acting as a general notes database.",
+    "Answering questions about pages that have not been saved.",
+  ],
+})
 
 const responseWithHeaders = (response: Response, headers: Headers, body = response.body) =>
   new Response(body, {

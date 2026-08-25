@@ -2,6 +2,18 @@
   "linkset": [
     {
       "anchor": "https://api.sleevy.app",
+      "item": [
+        {
+          "href": "https://sleevy.app/openapi.json",
+          "type": "application/vnd.oai.openapi+json",
+          "title": "Sleevy REST API (OpenAPI 3.1)"
+        },
+        {
+          "href": "https://api.sleevy.app/mcp/server-card",
+          "type": "application/mcp-server-card+json",
+          "title": "Sleevy MCP Server Card"
+        }
+      ],
       "service-desc": [
         {
           "href": "https://sleevy.app/openapi.json",
@@ -14,6 +26,49 @@
           "href": "https://sleevy.app/docs",
           "type": "text/html",
           "title": "Sleevy API documentation"
+        },
+        {
+          "href": "https://sleevy.app/llms.txt",
+          "type": "text/markdown",
+          "title": "Sleevy agent index"
+        }
+      ],
+      "service-meta": [
+        {
+          "href": "https://sleevy.app/.well-known/integrations.json",
+          "type": "application/json",
+          "title": "Sleevy integration declaration"
+        }
+      ],
+      "status": [
+        {
+          "href": "https://api.sleevy.app/health",
+          "type": "application/json",
+          "title": "Sleevy API health check"
+        }
+      ]
+    },
+    {
+      "anchor": "https://api.sleevy.app/mcp",
+      "item": [
+        {
+          "href": "https://sleevy.app/.well-known/mcp/server-card.json",
+          "type": "application/mcp-server-card+json",
+          "title": "Sleevy MCP Server Card"
+        }
+      ],
+      "service-doc": [
+        {
+          "href": "https://sleevy.app/docs/mcp",
+          "type": "text/html",
+          "title": "Connect an AI agent to Sleevy"
+        }
+      ],
+      "author": [
+        {
+          "href": "https://sleevy.app/auth.md",
+          "type": "text/markdown",
+          "title": "Sleevy agent authentication guide"
         }
       ]
     }

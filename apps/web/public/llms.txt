@@ -33,6 +33,8 @@ Do not use Sleevy as a web crawler, page-content archive, general notes database
 - [Agent instructions](https://sleevy.app/agent-instructions.md): Best-fit use cases, connection choices, and safety guidance for agents.
 - [Integration declaration](https://sleevy.app/.well-known/integrations.json): Machine-readable surface and credential declaration.
 - [AI Catalog](https://sleevy.app/.well-known/ai-catalog.json): Standard discovery entry for the Sleevy MCP Server Card.
+- [Agent skills index](https://sleevy.app/.well-known/agent-skills/index.json): Agent Skills discovery 0.2.0 index of the published Sleevy skills.
+- [A2A agent card](https://sleevy.app/.well-known/agent-card.json): Agent-to-Agent card describing the skills and how to authenticate.
 - [MCP Server Card](https://api.sleevy.app/mcp/server-card): Machine-readable Streamable HTTP server metadata, listing every tool and the scope it needs.
 - [Agent Plugin manifest](https://github.com/Onnokh/sleevy/blob/master/plugin.json): Bundles the Sleevy skill and MCP server as an Agent Plugin.
 - [Sleevy agent skill](https://github.com/Onnokh/sleevy/blob/master/skills/sleevy/SKILL.md): When to use Sleevy, which tool to call, and how to handle its failures.
@@ -42,6 +44,7 @@ Do not use Sleevy as a web crawler, page-content archive, general notes database
 - MCP endpoint: `https://api.sleevy.app/mcp`.
 - Install it with `npx add-mcp https://api.sleevy.app/mcp --name sleevy`; the installer detects supported MCP clients and lets the user choose where to add it.
 - Connect with OAuth to save and list links, manage read state and folders, and remove saved items or folders. Destructive operations should require agent confirmation.
+- `initialize` and `tools/list` need no credential, so a client can read the full tool list before deciding to connect. Every `tools/call` needs a credential and the scope that covers it.
 
 ## Core endpoints
 

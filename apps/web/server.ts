@@ -1,7 +1,11 @@
 import handler from "./dist/server/server.js"
 import {
+  agentModeDocument,
   discoveryRedirect,
+  markdownAliasPath,
+  markdownVariantPath,
   withAgentReadyRouting,
+  withLinkHeader,
 } from "./server/agent-readiness"
 
 const port = Number(process.env.PORT ?? 3000)
@@ -40,6 +44,16 @@ const contentTypeByPathname: Record<string, string> = {
 // routes the module scripts are swapped for a tiny loader that starts them on
 // the first sign of life (scroll/pointer/key/focus) instead. Any interaction —
 // including the tap that would need hydrated JS — triggers loading first.
+
+// The AI crawlers and agent fetchers that get Markdown instead of the marketing
+// HTML. They are here to read, not to render, so the document without the
+// layout is both smaller and easier for them to use.
+const markdownBotPattern =
+  /(GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|PerplexityBot|Perplexity-User|Google-Extended|Applebot-Extended|DeepSeekBot|ora-agent)/i
+
+const wantsMarkdownByUserAgent = (req: Request) =>
+  markdownBotPattern.test(req.headers.get("user-agent") ?? "")
+
 const deferredHydrationPaths = new Set(["/", "/support", "/privacy"])
 
 // Docs pages are content-first too; their slugs come from content/docs and the
@@ -121,6 +135,19 @@ function withCompression(req: Request, response: Response): Response {
   })
 }
 
+// A path whose representation depends on who asked must say so, or a shared
+// cache will hand a browser the Markdown a crawler asked for.
+function withVary(response: Response): Response {
+  const headers = new Headers(response.headers)
+  headers.append("Vary", "User-Agent")
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
 async function serveStatic(url: URL) {
   const pathname = decodeURIComponent(url.pathname)
 
@@ -181,6 +208,19 @@ Bun.serve({
     const discoveryResponse = discoveryRedirect(url.pathname, apiBaseUrl)
     if (discoveryResponse) return discoveryResponse
 
+    // The structured view of the home page. A marketing page answers "should I
+    // use this"; this answers "how do I call it".
+    if (url.pathname === "/" && url.searchParams.get("mode") === "agent") {
+      return Response.json(agentModeDocument(), {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Cache-Control": "public, max-age=3600",
+          Link: '<https://sleevy.app/>; rel="canonical", <https://sleevy.app/index.md>; rel="alternate"; type="text/markdown"',
+          Vary: "Accept, User-Agent",
+        },
+      })
+    }
+
     // IndexNow verifies site ownership by fetching a public text file whose
     // filename and contents both equal the configured key. Keep the key in
     // deployment configuration so it can be rotated without a rebuild.
@@ -193,7 +233,21 @@ Bun.serve({
       })
     }
 
-    const response = await withAgentReadyRouting(req, async (routeRequest) => {
+    // `/docs.md` is the documentation index under another name, and an AI
+    // crawler asking for an HTML page gets the Markdown twin of it instead.
+    // Both are served by rewriting the path, so one document has one
+    // implementation rather than two that can drift.
+    const aliasPath = markdownAliasPath(url.pathname)
+    const botMarkdownPath = aliasPath === null && wantsMarkdownByUserAgent(req)
+      ? markdownVariantPath(url.pathname)
+      : null
+    const rewrittenPath = aliasPath ?? botMarkdownPath
+
+    const routedRequest = rewrittenPath === null
+      ? req
+      : new Request(new URL(rewrittenPath, url), { method: "GET", headers: req.headers })
+
+    const response = await withAgentReadyRouting(routedRequest, async (routeRequest) => {
       const routeUrl = new URL(routeRequest.url)
       const staticResponse = await serveStatic(routeUrl)
       if (staticResponse) return staticResponse
@@ -204,7 +258,10 @@ Bun.serve({
       )
     })
 
-    return withCompression(req, response)
+    const withLinks = withLinkHeader(url.pathname, response)
+    const varied = rewrittenPath === null ? withLinks : withVary(withLinks)
+
+    return withCompression(req, varied)
   },
 })
 

@@ -1,11 +1,15 @@
 import { describe, expect, test } from "bun:test"
 
 import {
+  agentModeDocument,
   discoveryRedirect,
+  linkHeaderValue,
+  markdownAliasPath,
   markdownVariantPath,
   negotiateRepresentation,
   withAgentReadyRouting,
 } from "../../server/agent-readiness"
+import { discoverSkillNames, sha256Digest } from "../../scripts/generate-agent-skills-index"
 import { staticSitemapUrls } from "../../src/lib/sitemap"
 
 describe("agent-ready web routing", () => {
@@ -363,4 +367,158 @@ describe("agent-ready web routing", () => {
     expect(indexed).toContain("https://sleevy.app/docs/overview")
     expect(indexed).toContain("https://sleevy.app/docs/mcp")
   })
+
+  test("advertises the site's documents in an RFC 8288 Link header", () => {
+    const header = linkHeaderValue("/")
+
+    // The Markdown twin comes first: it is the one link that is about this
+    // page rather than about the site.
+    expect(header.startsWith('<https://sleevy.app/index.md>; rel="alternate"; type="text/markdown"')).toBe(true)
+    for (const rel of ['rel="sitemap"', 'rel="describedby"', 'rel="service-desc"', 'rel="service-doc"', 'rel="api-catalog"']) {
+      expect(header).toContain(rel)
+    }
+
+    // A page with no Markdown twin advertises the site links and nothing else.
+    expect(linkHeaderValue("/privacy")).not.toContain('rel="alternate"')
+    expect(linkHeaderValue("/docs/mcp")).toContain('<https://sleevy.app/docs/mcp.md>; rel="alternate"')
+  })
+
+  test("only advertises a markdown twin for extensionless docs pages", () => {
+    expect(markdownVariantPath("/docs/mcp")).toBe("/docs/mcp.md")
+    expect(markdownVariantPath("/docs")).toBe("/docs/index.md")
+    expect(markdownVariantPath("/")).toBe("/index.md")
+
+    // A path that already names a file is the document itself; asking for
+    // `<that>.md` would 404.
+    expect(markdownVariantPath("/docs/llms.txt")).toBeNull()
+    expect(markdownVariantPath("/docs/mcp.md")).toBeNull()
+  })
+
+  test("serves the docs index under its .md alias", () => {
+    // `/docs/{$}.md` covers everything below /docs/, but not /docs itself.
+    expect(markdownAliasPath("/docs.md")).toBe("/docs/index.md")
+    expect(markdownAliasPath("/docs/mcp.md")).toBeNull()
+  })
+
+  test("answers ?mode=agent with a machine-readable orientation document", () => {
+    const doc = agentModeDocument()
+
+    expect(doc.name).toBe("Sleevy")
+    expect(doc.description.length).toBeGreaterThan(0)
+    expect(doc.surfaces.mcp).toBe("https://api.sleevy.app/mcp")
+    expect(doc.authentication.selfService).toBe(true)
+    expect(doc.authentication.guide).toBe("https://sleevy.app/auth.md")
+    expect(doc.capabilities.length).toBeGreaterThan(0)
+    // What it is *not* for matters as much as what it is for.
+    expect(doc.notFor.length).toBeGreaterThan(0)
+
+    // Every advertised discovery document is an absolute URL on the site.
+    for (const url of Object.values(doc.discovery)) {
+      expect(url).toMatch(/^https:\/\/sleevy\.app\//)
+    }
+  })
+
+  test("publishes an agent skills index that conforms to discovery 0.2.0", async () => {
+    const index = await Bun.file(
+      `${import.meta.dir}/../../public/.well-known/agent-skills/index.json`,
+    ).json()
+
+    expect(index.$schema).toBe("https://schemas.agentskills.io/discovery/0.2.0/schema.json")
+    expect(index.skills.length).toBeGreaterThan(0)
+
+    for (const skill of index.skills) {
+      // Declaring a schema version means being validated against it. Every
+      // field the spec requires, in the shape it requires.
+      expect(skill.name).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/)
+      expect(skill.name.length).toBeLessThanOrEqual(64)
+      expect(["skill-md", "archive"]).toContain(skill.type)
+      expect(skill.description.length).toBeGreaterThan(0)
+      expect(skill.description.length).toBeLessThanOrEqual(1024)
+      expect(skill.url).toBe(`/.well-known/agent-skills/${skill.name}/SKILL.md`)
+      expect(skill.digest).toMatch(/^sha256:[0-9a-f]{64}$/)
+    }
+  })
+
+  test("keeps every skill digest equal to the bytes it is served as", async () => {
+    // A wrong digest is worse than no index: a client that verifies it rejects
+    // the skill. Re-deriving here means editing a SKILL.md without
+    // regenerating the index fails the build rather than shipping.
+    const index = await Bun.file(
+      `${import.meta.dir}/../../public/.well-known/agent-skills/index.json`,
+    ).json()
+
+    for (const skill of index.skills) {
+      const bytes = await Bun.file(
+        `${import.meta.dir}/../../public${skill.url}`,
+      ).arrayBuffer()
+
+      expect(await sha256Digest(bytes)).toBe(skill.digest)
+    }
+  })
+
+  test("lists every published skill in the index", async () => {
+    const [index, names] = await Promise.all([
+      Bun.file(`${import.meta.dir}/../../public/.well-known/agent-skills/index.json`).json(),
+      discoverSkillNames(),
+    ])
+
+    // A SKILL.md nobody indexed is a skill nobody can find.
+    expect(index.skills.map((skill: { readonly name: string }) => skill.name).sort())
+      .toEqual([...names].sort())
+  })
+
+  test("publishes an A2A agent card describing the skills and how to authenticate", async () => {
+    const card = await Bun.file(
+      `${import.meta.dir}/../../public/.well-known/agent-card.json`,
+    ).json()
+
+    expect(card.name).toBe("Sleevy")
+    expect(card.description.length).toBeGreaterThan(0)
+    expect(card.url).toBe("https://api.sleevy.app/mcp")
+    expect(card.skills.length).toBeGreaterThan(0)
+    for (const skill of card.skills) {
+      expect(typeof skill.id).toBe("string")
+      expect(skill.description.length).toBeGreaterThan(0)
+      expect(skill.tags.length).toBeGreaterThan(0)
+    }
+    // A card that says where to connect but not how to get in is half a card.
+    expect(Object.keys(card.securitySchemes)).toContain("oauth2")
+  })
+
+  test("lists item entries in the RFC 9727 API catalog", async () => {
+    const catalog = await Bun.file(
+      `${import.meta.dir}/../../public/.well-known/api-catalog`,
+    ).json()
+
+    expect(catalog.linkset.length).toBeGreaterThan(0)
+    for (const entry of catalog.linkset) {
+      expect(entry.anchor).toMatch(/^https:\/\//)
+      expect(entry.item.length).toBeGreaterThan(0)
+      for (const item of entry.item) {
+        expect(item.href).toMatch(/^https:\/\//)
+        expect(typeof item.type).toBe("string")
+        expect(typeof item.title).toBe("string")
+      }
+    }
+  })
+
+  test("opens the served markdown home page with frontmatter", async () => {
+    const home = await Bun.file(`${import.meta.dir}/../../public/index.md`).text()
+
+    expect(home.startsWith("---\n")).toBe(true)
+    const frontmatter = home.slice(4, home.indexOf("\n---", 4))
+    expect(frontmatter).toContain("title:")
+    expect(frontmatter).toContain("description:")
+    expect(frontmatter).toContain("canonical:")
+  })
+
+  test("scopes a docs-only llms.txt to the developer surface", async () => {
+    const scoped = await Bun.file(`${import.meta.dir}/../../public/docs/llms.txt`).text()
+
+    expect(scoped.startsWith("# ")).toBe(true)
+    // It points back at the whole-site index rather than duplicating it.
+    expect(scoped).toContain("https://sleevy.app/llms.txt")
+    expect(scoped).toContain("https://sleevy.app/docs/mcp.md")
+  })
+
 })

@@ -1,0 +1,47 @@
+# Sleevy REST API
+
+> Scoped index of the Sleevy REST API: the endpoints, the conventions that make them safe to drive unattended, and the machine-readable descriptions of both. For the documentation site, read https://sleevy.app/docs/llms.txt; for the whole product, https://sleevy.app/llms.txt.
+
+Base URL: `https://api.sleevy.app`. Every route lives under `/v1`. Authenticate with `Authorization: Bearer <credential>` — a personal API Key created at https://sleevy.app/settings, or an OAuth 2.1 access token. Key creation is self-serve and immediate; there is no sales contact.
+
+## Machine-readable
+
+- [OpenAPI 3.1](https://sleevy.app/openapi.json): Every operation, parameter, and response schema, each with a summary and a description.
+- [API catalog (RFC 9727)](https://sleevy.app/.well-known/api-catalog): The service descriptions and documentation for this API.
+- [Protected resource metadata (RFC 9728)](https://api.sleevy.app/.well-known/oauth-protected-resource): The authorization servers that guard it.
+- [Authorization server metadata (RFC 8414)](https://api.sleevy.app/.well-known/oauth-authorization-server/api/auth): Endpoints, scopes, and the auth.md `agent_auth` block.
+
+## Endpoints
+
+- `POST /v1/captures`: Save a URL. Returns `201` for a new Saved Item and `200` when the URL was already saved.
+- `POST /v1/captures/batch`: Save up to 50 URLs. Not a transaction — each entry reports its own outcome.
+- `GET /v1/saved-items`: List Saved Items. Filters: `sort`, `folder`. Pages with `limit` and `cursor`.
+- `POST /v1/saved-items/{id}/read` · `/unread` · `/open` · `/read-state`: Manage read state.
+- `PUT /v1/saved-items/{id}/folder`: Move an item into a Folder, or out of one.
+- `DELETE /v1/saved-items/{id}`: Permanently delete a Saved Item.
+- `GET /v1/folders` · `POST /v1/folders` · `PATCH /v1/folders/{id}` · `DELETE /v1/folders/{id}`: Manage Folders. Deleting a Folder keeps the Saved Items in it.
+- `GET /v1/public/profiles/{handle}`: Read a published Public Profile. No credential needed.
+- `GET /health`: Unauthenticated health check.
+
+## Conventions
+
+- **Retries.** Send `Idempotency-Key` on any `POST`, `PUT`, or `PATCH`. The first response is recorded for 24 hours and replayed, so a retry after a timeout cannot duplicate a write. A replay carries `Idempotent-Replay: true`; a key still running returns `409`.
+- **Paging.** Send `limit` to get a page, then follow `nextCursor` until it is `null`. Cursors are opaque and keyset-based; `limit` is capped at 100.
+- **Rate limits.** Every response carries `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset`. A `429` carries `Retry-After`.
+- **Versioning.** Every response states `API-Version`. A retiring operation carries `Deprecation` and `Sunset`, with at least six months between them.
+- **Errors.** JSON with `code`, `message`, and `resolution`. A `403` means a missing scope, so re-authorize rather than retry.
+
+## Scopes
+
+`saved-items:capture` · `saved-items:read` · `saved-items:write` · `saved-items:delete` · `folders:read` · `folders:write` · `folders:delete` · `account:read` · `offline_access`
+
+Ask for the narrowest set that does the job; a person sees exactly what was requested on the consent screen.
+
+## Guides
+
+- [Getting started](https://sleevy.app/docs/getting-started.md)
+- [Retries, batches, and paging](https://sleevy.app/docs/reliability.md)
+- [Authentication](https://sleevy.app/auth.md)
+- [Errors](https://sleevy.app/docs/errors.md)
+- [Rate limits](https://sleevy.app/docs/rate-limits.md)
+- [Versioning and deprecation](https://sleevy.app/docs/versioning.md)
