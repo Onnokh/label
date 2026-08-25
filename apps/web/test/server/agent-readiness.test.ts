@@ -9,6 +9,7 @@ import {
   negotiateRepresentation,
   withAgentReadyRouting,
 } from "../../server/agent-readiness"
+import { discoverSkillNames, sha256Digest } from "../../scripts/generate-agent-skills-index"
 import { staticSitemapUrls } from "../../src/lib/sitemap"
 
 describe("agent-ready web routing", () => {
@@ -417,19 +418,53 @@ describe("agent-ready web routing", () => {
     }
   })
 
-  test("publishes an agent skills index with a name and description per skill", async () => {
+  test("publishes an agent skills index that conforms to discovery 0.2.0", async () => {
     const index = await Bun.file(
       `${import.meta.dir}/../../public/.well-known/agent-skills/index.json`,
     ).json()
 
-    expect(index.name).toBe("Sleevy")
-    expect(index.description.length).toBeGreaterThan(0)
+    expect(index.$schema).toBe("https://schemas.agentskills.io/discovery/0.2.0/schema.json")
     expect(index.skills.length).toBeGreaterThan(0)
+
     for (const skill of index.skills) {
-      expect(typeof skill.name).toBe("string")
+      // Declaring a schema version means being validated against it. Every
+      // field the spec requires, in the shape it requires.
+      expect(skill.name).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/)
+      expect(skill.name.length).toBeLessThanOrEqual(64)
+      expect(["skill-md", "archive"]).toContain(skill.type)
       expect(skill.description.length).toBeGreaterThan(0)
-      expect(skill.scopes.length).toBeGreaterThan(0)
+      expect(skill.description.length).toBeLessThanOrEqual(1024)
+      expect(skill.url).toBe(`/.well-known/agent-skills/${skill.name}/SKILL.md`)
+      expect(skill.digest).toMatch(/^sha256:[0-9a-f]{64}$/)
     }
+  })
+
+  test("keeps every skill digest equal to the bytes it is served as", async () => {
+    // A wrong digest is worse than no index: a client that verifies it rejects
+    // the skill. Re-deriving here means editing a SKILL.md without
+    // regenerating the index fails the build rather than shipping.
+    const index = await Bun.file(
+      `${import.meta.dir}/../../public/.well-known/agent-skills/index.json`,
+    ).json()
+
+    for (const skill of index.skills) {
+      const bytes = await Bun.file(
+        `${import.meta.dir}/../../public${skill.url}`,
+      ).arrayBuffer()
+
+      expect(await sha256Digest(bytes)).toBe(skill.digest)
+    }
+  })
+
+  test("lists every published skill in the index", async () => {
+    const [index, names] = await Promise.all([
+      Bun.file(`${import.meta.dir}/../../public/.well-known/agent-skills/index.json`).json(),
+      discoverSkillNames(),
+    ])
+
+    // A SKILL.md nobody indexed is a skill nobody can find.
+    expect(index.skills.map((skill: { readonly name: string }) => skill.name).sort())
+      .toEqual([...names].sort())
   })
 
   test("publishes an A2A agent card describing the skills and how to authenticate", async () => {
