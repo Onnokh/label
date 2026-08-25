@@ -298,10 +298,13 @@ export const discoveryRedirect = (
       },
     })
   }
-  if (
-    pathname === "/.well-known/mcp-server-card" ||
-    pathname === "/.well-known/mcp/server-card.json"
-  ) {
+  // `/.well-known/mcp/server-card.json` is NOT redirected. It is served as a
+  // real document from public/, generated from the same tool catalogue the API
+  // builds its card from (`bun run generate:discovery`). A client reading a
+  // well-known path should get the card, not a 308 to another origin it may
+  // decline to follow. The older extensionless alias still redirects, since
+  // nothing generates a file for it.
+  if (pathname === "/.well-known/mcp-server-card") {
     return new Response(null, {
       status: 308,
       headers: {

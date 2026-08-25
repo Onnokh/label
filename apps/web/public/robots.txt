@@ -4,7 +4,7 @@
 # from whether it may fetch it at all. Sleevy wants its docs and marketing pages
 # to be findable and to be quotable in an answer with a link back, but it does
 # not offer them as model training data.
-Content-Signal: search=yes, ai-input=yes, ai-train=no
+Content-Signal: search=yes, ai-train=no
 
 User-agent: *
 Allow: /

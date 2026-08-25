@@ -28,6 +28,7 @@ const longLivedStaticExtensions = new Set(["avif", "gif", "ico", "jfif", "jpg", 
 const contentTypeByPathname: Record<string, string> = {
   "/.well-known/api-catalog": "application/linkset+json; charset=utf-8",
   "/.well-known/ai-catalog.json": "application/ai-catalog+json; charset=utf-8",
+  "/.well-known/mcp/server-card.json": "application/mcp-server-card+json; charset=utf-8",
 }
 
 // Marketing pages are fully server-rendered: every visible element (including
@@ -155,6 +156,12 @@ async function serveStatic(url: URL) {
           ? "public, max-age=31536000, immutable"
           : "public, max-age=3600",
         "Content-Type": contentTypeByPathname[pathname] ?? contentTypes[extension] ?? file.type,
+        // Discovery documents are read cross-origin by agents and browser-based
+        // MCP clients, so they are readable from anywhere. They describe public
+        // surfaces and carry nothing account-specific.
+        ...(pathname.startsWith("/.well-known/")
+          ? { "Access-Control-Allow-Origin": "*" }
+          : {}),
       },
     })
   }
