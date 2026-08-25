@@ -318,17 +318,49 @@
   transform: translateX(-50%) translateY(var(--phone-y-rest));
 }
 
+/* Carries the entrance so the still and the loop rise together as one object;
+   animating them separately drifts the loop off the screen area mid-flight. */
+.phoneFrame {
+  position: relative;
+  display: block;
+
+  @media (prefers-reduced-motion: no-preference) {
+    animation: phone-enter 1.7s cubic-bezier(0.22, 1, 0.36, 1) 0.45s backwards;
+  }
+}
+
 .phone {
   display: block;
   width: 100%;
   height: auto;
+  /* Above the absolutely-positioned screen, so the bezel, buttons and Dynamic
+     Island composite over it. */
+  position: relative;
+  z-index: 1;
+}
 
-  /* Entrance: rises, sharpens and settles. CSS (not Motion) so it plays from the
-     SSR HTML before any JS loads; `backwards` holds the hidden from-pose through
-     the delay. Same curve/timing as the old Motion transition. */
-  @media (prefers-reduced-motion: no-preference) {
-    animation: phone-enter 1.7s cubic-bezier(0.22, 1, 0.36, 1) 0.45s backwards;
-  }
+/* The display aperture of hero-phone-frame.webp, measured from its alpha
+   channel: x 28-1271 and y 26-2631 of a 1300x2650 canvas, corner radius 179px.
+   The radius is reproduced here rather than left to the frame: the frame is
+   transparent OUTSIDE the phone as well as inside the display, so it masks
+   nothing — square video corners poked out past the rounded rim.
+   The frame draws no Dynamic Island, on purpose: iOS bakes one into the
+   capture, and two islands never line up. */
+.phoneScreen {
+  position: absolute;
+  top: 0.9811%;
+  left: 2.1538%;
+  width: 95.6923%;
+  height: 98.3396%;
+  border-radius: 14.39% / 6.87%;
+  /* `fill`, not `cover`: this aperture is 0.4774 where a 19.5:9 capture is
+     0.460, so cover would scale the capture to the aperture's width and crop
+     ~3.6% off the bottom — taking the floating tab bar with it. Stretching by
+     that 3.6% keeps the whole screen. Once the aperture matches the capture's
+     aspect this can go back to cover. */
+  object-fit: fill;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 @keyframes phone-enter {

@@ -171,13 +171,34 @@ export function Hero({ children }: { children: ReactNode }) {
             {/* No fetchPriority boost: the entrance keeps the phone blurred out for
                 its first ~half second, so it can afford to load after the blob
                 layers — which paint immediately and set the page's LCP. */}
-            <img
-              className={styles.phone}
-              src="/hero-phone-full.webp"
-              alt="Sleevy inbox on iPhone"
-              width={613}
-              height={1252}
-            />
+            <div className={styles.phoneFrame}>
+              {/* The screen content sits BEHIND the frame: iphone17pro.png has a
+                  transparent display aperture, so the bezel's rounded corners and
+                  its opaque Dynamic Island mask the video for us — no radius to
+                  hand-match, and the Island is drawn over the app rather than by it. */}
+              {reduceMotion ? (
+                <img className={styles.phoneScreen} src="/hero-phone-screen.webp" alt="Sleevy inbox on iPhone" />
+              ) : (
+                <video
+                  className={styles.phoneScreen}
+                  src="/hero-phone-loop.mp4"
+                  poster="/hero-phone-screen.webp"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  aria-hidden="true"
+                />
+              )}
+              <img
+                className={styles.phone}
+                src="/hero-phone-frame.webp"
+                alt=""
+                aria-hidden="true"
+                width={1300}
+                height={2650}
+              />
+            </div>
           </m.div>
           <div className={styles.grain} aria-hidden="true" />
           <div className={styles.fade} aria-hidden="true">
