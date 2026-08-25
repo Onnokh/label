@@ -156,7 +156,8 @@ final class ReadingListStore {
         pendingCaptureQueue: PendingCaptureQueue? = nil,
         readStateQueue: ReadStateQueue? = nil,
         retrievalIndexCache: RetrievalIndexCache? = nil,
-        statusDefaults: UserDefaults = .standard
+        statusDefaults: UserDefaults = .standard,
+        network: (any ReadingListNetworkPort)? = nil
     ) {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .sleevyISO8601
@@ -187,7 +188,7 @@ final class ReadingListStore {
 
         self.init(
             userId: session.userId,
-            network: HTTPReadingListAdapter(api: apiClient),
+            network: network ?? HTTPReadingListAdapter(api: apiClient),
             cache: cache,
             readStateQueue: readState,
             pendingCaptureQueue: captureQueue,

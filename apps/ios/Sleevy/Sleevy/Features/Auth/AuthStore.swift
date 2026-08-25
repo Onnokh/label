@@ -56,6 +56,14 @@ final class AuthStore {
     func restoreSession() async {
         guard !isRestoringSession else { return }
 
+        // Marketing-capture mode signs in as the demo Account without a token
+        // exchange, so screenshots never show a real reader.
+        if DemoMode.isEnabled {
+            session = DemoMode.session
+            googleUserProfile = nil
+            return
+        }
+
         isRestoringSession = true
         errorMessage = nil
         defer { isRestoringSession = false }

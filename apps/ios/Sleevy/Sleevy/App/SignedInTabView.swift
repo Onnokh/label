@@ -17,8 +17,16 @@ struct SignedInTabView: View {
 
     init(session: AppSession, tokenStore: SessionTokenStore) {
         self.session = session
-        _store = State(wrappedValue: ReadingListStore(session: session, tokenStore: tokenStore))
-        _profileStore = State(wrappedValue: ProfileStore.live(tokenStore: tokenStore))
+        _store = State(
+            wrappedValue: ReadingListStore(
+                session: session,
+                tokenStore: tokenStore,
+                network: DemoMode.isEnabled ? DemoReadingListAdapter() : nil
+            )
+        )
+        _profileStore = State(
+            wrappedValue: DemoMode.isEnabled ? ProfileStore.demo() : ProfileStore.live(tokenStore: tokenStore)
+        )
     }
 
     var body: some View {
@@ -66,6 +74,7 @@ struct SignedInTabView: View {
             // Folder cards suppress their published marker while the profile
             // is private, so the record must be known outside the profile page.
             await profileStore.load()
+            openDemoScreenIfNeeded()
         }
         .onAppear {
             store.onAuthenticationInvalid = { message in
@@ -99,6 +108,30 @@ struct SignedInTabView: View {
             shouldRefreshAfterActivation = true
         @unknown default:
             break
+        }
+    }
+
+    /// Marketing-capture mode opens straight on the screen named by
+    /// `SLEEVY_DEMO_SCREEN`, so each App Store screenshot is one launch rather
+    /// than a scripted sequence of taps.
+    private func openDemoScreenIfNeeded() {
+        guard let screen = DemoMode.initialScreen else { return }
+
+        switch screen {
+        case .inbox:
+            selectedTab = .sleevy
+        case .library:
+            selectedTab = .library
+        case .folder:
+            selectedTab = .library
+            if let folderID = DemoMode.featuredFolderID {
+                libraryPath = [.folder(id: folderID)]
+            }
+        case .profile:
+            selectedTab = .sleevy
+            sleevyPath = [.myProfile]
+        case .search:
+            selectedTab = .search
         }
     }
 

@@ -487,6 +487,14 @@ _Avoid_: API Key, session token, bearer credential, CF-Connecting-IP
 The server-computed boolean that tells a client whether a Public Profile may be offered to search engines.
 _Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
 
+**Demo Mode**:
+The state the iOS app runs in when it is launched for marketing capture: a fabricated Account, its Saved Items, Folders, and Public Profile, all served in memory. The API is never called, so a capture shows no real reader's library. Switched on per launch, never by a build setting or a user-facing control.
+_Avoid_: Test mode, mock mode, staging account, seed data, fixtures
+
+**Capture Screen**:
+The screen a Demo Mode launch opens on, named per launch so one App Store screenshot is one launch instead of a scripted sequence of taps.
+_Avoid_: Deep link, route argument, UI test step
+
 ## Relationships
 
 - A **Read-Later App** contains many **Saved Items**.
@@ -498,6 +506,8 @@ _Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
 - A **Source** is lazily registered by the API when a capture includes a `sourceName` not yet known for the Account.
 - A **Link** has shared **Link Metadata** and **Link Enrichment**.
 - The **V1 Read-Later MVP** includes native iOS, backend API, web companion, and shared API contract projects.
+- **Demo Mode** replaces the Account, its **Saved Items**, its **Folders**, and its **Public Profile**; every other behaviour stays the real one.
+- A **Capture Screen** names one screen of the signed-in shell and is only read while **Demo Mode** is on.
 - The monorepo uses five **App Workspaces**: `apps/api`, `apps/web`, `apps/ios`, `apps/chrome-extension`, and `apps/raycast-plugin`.
 - The backend API should be the **Backend Core**, adapted from bookmarks-core, rather than a separate core package plus API wrapper.
 - The API uses Postgres through Drizzle for v1 deployment on a single VPS.
