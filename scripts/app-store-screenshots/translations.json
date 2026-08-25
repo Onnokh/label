@@ -1,0 +1,36 @@
+{
+  "en": {
+    "oneTap": "One tap to save.\nevery device in sync.",
+    "organize": "Organize yourself.",
+    "folders": "Folders, tags and filters",
+    "saveNow": "Save it now.",
+    "readReady": "Read it when you’re ready.",
+    "oneHandle": "One handle, one page.",
+    "publish": "Publish a folder, share the link.",
+    "workflow": "In your workflow",
+    "alreadyThere": "Already there.",
+    "browser": "In your browser",
+    "chrome": "Google Chrome",
+    "launcher": "In your Launcher",
+    "raycast": "Raycast",
+    "phone": "In your phone",
+    "nativeShare": "Native Share"
+  },
+  "nl": {
+    "oneTap": "Bewaar met één tik.\nElk apparaat gesynchroniseerd.",
+    "organize": "Organiseer jezelf.",
+    "folders": "Mappen, tags en filters",
+    "saveNow": "Bewaar het nu.",
+    "readReady": "Lees het wanneer je er klaar voor bent.",
+    "oneHandle": "Eén handle, één pagina.",
+    "publish": "Publiceer een map, deel de link.",
+    "workflow": "In je workflow",
+    "alreadyThere": "Al aanwezig.",
+    "browser": "In je browser",
+    "chrome": "Google Chrome",
+    "launcher": "In je launcher",
+    "raycast": "Raycast",
+    "phone": "Op je telefoon",
+    "nativeShare": "Native Share"
+  }
+}
