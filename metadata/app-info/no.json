@@ -1,0 +1,7 @@
+{
+  "name": "Sleevy – Bokmerker",
+  "subtitle": "Lagre lenker. Les senere.",
+  "privacyPolicyUrl": "https://sleevy.app/privacy",
+  "privacyChoicesUrl": "https://sleevy.app/privacy",
+  "privacyPolicyText": "Enkelt med vilje.\n\nSleevy lagrer lenkene du vil ta vare på, beriker dem slik at du lettere finner dem igjen, og synkroniserer leselisten på enhetene du bruker.\n\nKONTO\nNavn, e-postadresse, innloggingsleverandør, økter og API-nøkler.\n\nBIBLIOTEK\nLagrede lenker, lesestatus, tagger, kilde og tidsstempler.\n\nBERIKELSE\nLenkemetadata, sammendrag og foreslåtte tagger.\n\nTJENESTER\nSleevy bruker leverandører til drift, lagring, innlogging med Google og Apple, analyse, henting av sidemetadata og AI-berikelse. Leverandørene behandler bare informasjon for å levere Sleevy.\n\nSLETTING\nDu kan slette lagrede elementer enkeltvis. Du kan også slette kontoen i Innstillinger, slik at kontoen og tilknyttede elementer fjernes.\n\nBesøk https://sleevy.app/privacy ved spørsmål om personvern, data eller sletting."
+}

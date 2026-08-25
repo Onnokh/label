@@ -1,0 +1,7 @@
+{
+  "name": "Sleevy - Menedżer zakładek",
+  "subtitle": "Zapisuj linki. Czytaj później.",
+  "privacyPolicyUrl": "https://sleevy.app/privacy",
+  "privacyChoicesUrl": "https://sleevy.app/privacy",
+  "privacyPolicyText": "Prosto z założenia.\n\nSleevy zapisuje linki, które chcesz zachować, wzbogaca je, aby łatwiej było je później znaleźć, i synchronizuje listę do przeczytania na używanych urządzeniach.\n\nKONTO\nImię, adres e-mail, dostawca logowania, sesje i klucze API.\n\nBIBLIOTEKA\nZapisane linki, stan przeczytania, tagi, źródło i znaczniki czasu.\n\nWZBOGACANIE\nMetadane linków, podsumowania i sugerowane tagi.\n\nUSŁUGI\nSleevy korzysta z dostawców hostingu, przechowywania, logowania przez Google i Apple, analiz, pobierania metadanych stron i wzbogacania przez AI. Dostawcy przetwarzają informacje wyłącznie w celu udostępniania Sleevy.\n\nUSUWANIE\nZapisane elementy możesz usuwać pojedynczo. Konto możesz usunąć w Ustawieniach, co usunie również powiązane elementy.\n\nW sprawach prywatności, danych lub usuwania odwiedź https://sleevy.app/privacy."
+}

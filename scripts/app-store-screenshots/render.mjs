@@ -113,6 +113,8 @@ const fontFamily = ".SF NS";
 const fontFamilies = {
   ja: "Hiragino Sans",
   ko: "Apple SD Gothic Neo",
+  "zh-Hans": "Hiragino Sans GB",
+  "zh-Hant": "Hiragino Sans GB",
 };
 const trackingRatio = -0.04;
 const textSafeArea = 0.88;

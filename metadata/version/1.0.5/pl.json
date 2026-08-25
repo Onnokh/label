@@ -1,0 +1,8 @@
+{
+  "description": "Sleevy to menedżer zakładek do czytania później, który pozwala zapisywać linki z dowolnego miejsca i czytać je na każdym urządzeniu.\n\nZAPISZ JEDNYM DOTKNIĘCIEM\nDotknij przycisku udostępniania na stronie lub linku, wybierz Sleevy, a element trafi do kolejki. Dostępne są też rozszerzenie Chrome, wtyczka Raycast, aplikacja webowa, MCP i API REST.\n\nSYNCHRONIZACJA NA KAŻDYM URZĄDZENIU\nZapisuj na jednym urządzeniu, czytaj na innym. Elementy synchronizują się między iPhonem, komputerem i siecią.\n\nINTELIGENTNA ORGANIZACJA\nElementy są automatycznie klasyfikowane jako artykuły, filmy, repozytoria i strony. Dodawaj tagi i filtruj według źródła, tagu lub pełnego tekstu.\n\nGOTOWE NA ROZBUDOWĘ\nAPI REST z osobistymi kluczami API pozwala łączyć Sleevy ze skryptami, skrótami i automatyzacjami. Prosty JSON przez HTTPS, bez SDK.\n\nOBSŁUGA KLAWIATURĄ\nAplikacją webową możesz sterować z klawiatury. j/k do nawigacji, o do otwierania, n do zapisywania, a resztę załatwia paleta poleceń z wyszukiwaniem rozmytym.",
+  "keywords": "czytaj później,zakładki,zapisz linki,lista lektur,menedżer zakładek,synchronizacja,artykuły,kolejka",
+  "marketingUrl": "https://sleevy.app",
+  "promotionalText": "Zapisuj linki z dowolnego miejsca, organizuj je folderami, tagami i filtrami, a potem udostępniaj foldery.",
+  "supportUrl": "https://sleevy.app/support",
+  "whatsNew": "Łatwiej organizuj i udostępniaj bibliotekę dzięki ulepszonym kartom folderów, nowym ustawieniom profilu publicznego i dopracowanym układom iPada. Ulepszyliśmy też tryb jasny i ciemny oraz naprawiliśmy kilka drobnych problemów."
+}

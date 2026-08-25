@@ -1,0 +1,8 @@
+{
+  "description": "Sleevy är en bokmärkeshanterare för senare läsning som låter dig spara länkar var som helst och läsa dem på valfri enhet.\n\nSPARA MED ETT TRYCK\nTryck på delningsknappen på en sida eller länk, välj Sleevy och den hamnar i kön. Finns även som Chrome-tillägg, Raycast-plugin, webbapp, MCP och REST API.\n\nALLA ENHETER I SYNK\nSpara på en enhet och läs på en annan. Dina objekt synkroniseras mellan iPhone, dator och webben.\n\nSMART ORGANISERING\nObjekt sorteras automatiskt efter typ: artiklar, videor, arkiv och webbplatser. Lägg till taggar och filtrera efter källa, tagg eller fulltextsökning.\n\nBYGGT FÖR ATT UTÖKAS\nEtt REST API med personliga API-nycklar låter dig ansluta Sleevy till skript, genvägar och automatiseringar. Enkel JSON över HTTPS, inget SDK behövs.\n\nTANGENTBORDSSTYRT\nWebbappen kan användas helt med tangentbordet. j/k för att navigera, o för att öppna, n för att spara och en kommandopalett med fuzzy-sökning för resten.",
+  "keywords": "läs senare,bokmärken,spara länkar,läslista,bokmärkeshanterare,synk,artiklar,kö",
+  "marketingUrl": "https://sleevy.app",
+  "promotionalText": "Spara länkar var som helst, organisera med mappar, taggar och filter och dela en mapp när du vill.",
+  "supportUrl": "https://sleevy.app/support",
+  "whatsNew": "Organisera och dela biblioteket enklare med förbättrade mappkort, nya inställningar för offentliga profiler och putsade iPad-layouter. Vi har också förbättrat ljust och mörkt läge och åtgärdat flera små problem."
+}

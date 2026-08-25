@@ -1,0 +1,7 @@
+{
+  "name": "Sleevy - 書籤管理器",
+  "subtitle": "儲存連結，稍後閱讀。",
+  "privacyPolicyUrl": "https://sleevy.app/privacy",
+  "privacyChoicesUrl": "https://sleevy.app/privacy",
+  "privacyPolicyText": "簡潔設計。\n\nSleevy會儲存你想保留的連結，補充連結資訊，方便你稍後尋找，並在你使用的裝置之間同步閱讀清單。\n\n帳戶\n姓名、電子郵件、登入服務供應商、工作階段和API金鑰。\n\n資料庫\n已儲存的連結、閱讀狀態、標籤、來源和時間戳記。\n\n資訊補全\n連結中繼資料、摘要和建議標籤。\n\n服務\nSleevy使用服務供應商提供託管、儲存、Google和Apple登入、分析、擷取頁面中繼資料以及AI資訊補全。這些服務供應商只會為提供Sleevy而處理資訊。\n\n刪除\n你可以個別刪除已儲存的項目，也可以在設定中刪除帳戶。刪除帳戶會移除帳戶及其相關的已儲存項目。\n\n如有私隱、資料要求或刪除方面的問題，請瀏覽 https://sleevy.app/privacy。"
+}
