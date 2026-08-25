@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Library, Pencil } from "lucide-react"
 
 import { type SavedItem, type SavedItemSort, useDeleteItem, useMarkAsRead, useSavedItems, useSetReadState } from "../sleevy/saved-items"
@@ -6,6 +6,7 @@ import { SavedCard } from "../components/saved-card/saved-card"
 import { SavedListSkeleton } from "../components/saved-card/saved-card-skeleton"
 import { FolderCardGrid } from "../components/folders/folder-card-grid"
 import { FolderEditDialog } from "../components/folders/folder-dialog"
+import { FolderHeaderBackground } from "../components/folders/folder-header-background"
 import { useSourceFilter } from "../components/source-filter/source-filter"
 import {
   byCountDescending,
@@ -17,6 +18,7 @@ import { useKeyboardNav } from "../contexts/keyboard-nav-context"
 import { useSelectedItemActions } from "../hooks/use-selected-item-actions"
 import { folderErrorMessage, type Folder, useFolders, useRenameFolder } from "../sleevy/folders"
 import { Button } from "../components/ui/button/button"
+import { PageTitleBar } from "../components/ui/page-title-bar/page-title-bar"
 import { PageToolbar } from "../components/ui/page-toolbar/page-toolbar"
 import { Select, type SelectOption } from "../components/ui/select/select"
 
@@ -44,6 +46,7 @@ export function LibraryPage({ folderId }: { readonly folderId?: string }) {
   const { activeSource, setActiveSource, activeType, activeTag, setActiveTag } = useSourceFilter()
   const { selectedIndex, setSelectedIndex, setListLength, setItemActions, pendingDelete } = useKeyboardNav()
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null)
+  const titleRef = useRef<HTMLHeadingElement>(null)
 
   // Source and Tag show their state in the toolbar chips, so repeating them
   // beside the title says the same thing twice. Type has no control yet.
@@ -88,12 +91,23 @@ export function LibraryPage({ folderId }: { readonly folderId?: string }) {
     if (selectedIndex >= items.length) setSelectedIndex(Math.max(items.length - 1, -1))
   }, [items.length, selectedIndex, setSelectedIndex])
 
+  const pageTitle = folderId ? (folder?.name ?? "Folder") : "Library"
+
   return (
     <>
-      <div className="page-header">
+      <PageTitleBar title={pageTitle} watch={titleRef} />
+
+      <div className={folder ? "page-header page-header-card" : "page-header"}>
+        {folder ? (
+          <FolderHeaderBackground
+            folderId={folder.id}
+            color={folder.color}
+            className="page-header-card-shader"
+          />
+        ) : null}
         <div className="page-heading">
-          <h1 className="page-title">
-            <span>{folderId ? (folder?.name ?? "Folder") : "Library"}</span>
+          <h1 className="page-title" ref={titleRef}>
+            <span>{pageTitle}</span>
             {activeFilters.length > 0 && (
               <span className="page-title-filters">
                 {activeFilters.map((filter) => (

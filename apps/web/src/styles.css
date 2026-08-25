@@ -1,13 +1,14 @@
 .dashboard {
   display: flex;
-  height: 100vh;
+  /* Pinned to the viewport rather than laid out in the document. As a flow
+     item the shell was only as steady as the document around it: anything
+     that made body taller than the viewport gave the window a scrollbar, and
+     scrolling it carried the sidebar away with the rows. Fixed, the column
+     cannot move whatever else the page does, and `.content` stays the one
+     thing that scrolls. */
+  position: fixed;
+  inset: 0;
   overflow: hidden;
-  /* Fill the container instead of shrink-wrapping to content. Because body is
-     a flex container, the default flex: 0 1 auto sized the dashboard to its
-     content — so its width changed with the loaded items/URLs (CLS). Spanning
-     the full width keeps every route and content state a constant width. */
-  width: 100%;
-  flex: 1;
 }
 
 .sidebar {
@@ -27,6 +28,17 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  /* The rows have no bound: folders, tags and sources all grow with the
+     library. Scroll them inside the column rather than clipping them at the
+     sidebar's edge, which left the account menu below the fold and
+     unreachable. `min-height: 0` is what lets a flex item shrink far enough
+     to scroll at all. */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* The sidebar is a fixed column: reaching the end of the rows must not
+     hand the scroll on to anything else. */
+  overscroll-behavior: contain;
 }
 
 .sidebar-brand {
@@ -95,7 +107,11 @@
 
 .content {
   flex: 1;
-  padding: 2rem;
+  /* One source of truth for the content inset. Anything that has to bleed
+     past it — the Inbox header card, the collapsing title bar — reads this
+     rather than repeating the number and drifting from it. */
+  --content-padding: 2rem;
+  padding: var(--content-padding);
   min-width: 0;
   overflow-y: auto;
   /* Always reserve the scrollbar gutter so the content width stays constant
@@ -250,6 +266,33 @@
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1.5rem;
+}
+
+/* A screen's brand header card: the Inbox wears the aurora, a folder wears
+   its own corona. It bleeds past the content padding to the top, leading and
+   trailing edges the way the native card spans the physical screen edges, and
+   rounds only its bottom corners. Neither field carries a fill of its own, so
+   the card's backdrop IS the page: there is no seam to hide at the bleed. */
+.page-header-card {
+  position: relative;
+  align-items: flex-end;
+  min-height: 11rem;
+  margin: calc(var(--content-padding) * -1) calc(var(--content-padding) * -1) 1.5rem;
+  padding: var(--content-padding);
+  border-bottom-right-radius: 1.75rem;
+  border-bottom-left-radius: 1.75rem;
+  overflow: hidden;
+}
+
+.page-header-card > :not(canvas) {
+  position: relative;
+  z-index: 1;
+}
+
+.page-header-card-shader {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
 }
 
 .folder-edit-button {
@@ -461,7 +504,7 @@
 
 @media (max-width: 760px) {
   .content {
-    padding: 1.25rem;
+    --content-padding: 1.25rem;
   }
 
   .settings-section {
@@ -481,6 +524,10 @@
   .page-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .page-header-card {
+    align-items: flex-start;
   }
 
   .settings-form,
