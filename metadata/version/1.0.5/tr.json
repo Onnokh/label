@@ -1,0 +1,8 @@
+{
+  "description": "Sleevy, bağlantıları her yerden kaydedip istediğiniz cihazda daha sonra okumanızı sağlayan bir yer imi yöneticisidir.\n\nTEK DOKUNUŞLA KAYDET\nHerhangi bir sayfada veya bağlantıda paylaş düğmesine dokunun, Sleevy’yi seçin; içerik kuyruğunuza gelsin. Chrome uzantısı, Raycast eklentisi, web uygulaması, MCP ve REST API olarak da kullanılabilir.\n\nTÜM CİHAZLARDA EŞİTLEME\nBir cihazda kaydedin, diğerinde okuyun. Öğeleriniz iPhone, masaüstü ve web arasında anında eşitlenir.\n\nAKILLI DÜZENLEME\nÖğeler makale, video, depo ve web sitesi gibi türlere göre otomatik sınıflandırılır. Etiket ekleyin, kaynağa, etikete veya tam metne göre filtreleyin.\n\nGENİŞLEMEYE HAZIR\nKişisel API anahtarlarına sahip REST API ile Sleevy’yi komut dosyalarınıza, kestirmelerinize ve otomasyonlarınıza bağlayın. SDK gerektirmeyen basit HTTPS JSON.\n\nKLAVYE ODAKLI\nWeb uygulamasını tamamen klavyeyle kullanın. Gezinmek için j/k, açmak için o, kaydetmek için n ve geri kalanı bulanık aramalı komut paletiyle.",
+  "keywords": "sonra oku,yer imleri,bağlantı kaydet,okuma listesi,yer imi yöneticisi,eşitleme,makaleler,kuyruk",
+  "marketingUrl": "https://sleevy.app",
+  "promotionalText": "Bağlantıları her yerden kaydedin, klasörler, etiketler ve filtrelerle düzenleyin, hazır olduğunuzda paylaşın.",
+  "supportUrl": "https://sleevy.app/support",
+  "whatsNew": "Geliştirilmiş klasör kartları, yeni herkese açık profil kontrolleri ve yenilenen iPad düzenleriyle kitaplığınızı daha kolay düzenleyip paylaşın. Açık ve koyu görünümü de geliştirdik ve birkaç küçük sorunu düzelttik."
+}

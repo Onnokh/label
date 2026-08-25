@@ -1,0 +1,7 @@
+{
+  "name": "Sleevy – Bokmärkeshanterare",
+  "subtitle": "Spara länkar. Läs senare.",
+  "privacyPolicyUrl": "https://sleevy.app/privacy",
+  "privacyChoicesUrl": "https://sleevy.app/privacy",
+  "privacyPolicyText": "Enkelt av en anledning.\n\nSleevy sparar länkarna du vill behålla, berikar dem så att du lättare hittar dem senare och synkroniserar din läslista mellan de enheter du använder.\n\nKONTO\nNamn, e-postadress, inloggningsleverantör, sessioner och API-nycklar.\n\nBIBLIOTEK\nSparade länkar, lässtatus, taggar, källa och tidsstämplar.\n\nBERIKNING\nLänkmetadata, sammanfattningar och föreslagna taggar.\n\nTJÄNSTER\nSleevy använder leverantörer för hosting, lagring, inloggning med Google och Apple, analys, hämtning av sidmetadata och AI-berikning. Leverantörerna behandlar bara information för att tillhandahålla Sleevy.\n\nRADERING\nDu kan radera sparade objekt ett i taget. Du kan även radera kontot i Inställningar, vilket tar bort kontot och tillhörande objekt.\n\nBesök https://sleevy.app/privacy vid frågor om integritet, data eller radering."
+}

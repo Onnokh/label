@@ -1,0 +1,8 @@
+{
+  "description": "Sleevy er en bogmærkeadministrator til senere læsning, som lader dig gemme links overalt og læse dem på enhver enhed.\n\nGEM MED ÉT TRYK\nTryk på deleknappen på en side eller et link, vælg Sleevy, så lander det i din kø. Fås også som Chrome-udvidelse, Raycast-plugin, webapp, MCP og REST API.\n\nALLE ENHEDER SYNKRONISERET\nGem på én enhed, og læs på en anden. Dine elementer synkroniseres mellem iPhone, computer og web.\n\nSMART ORGANISERING\nElementer sorteres automatisk efter type: artikler, videoer, arkiver og websteder. Tilføj tags, og filtrer efter kilde, tag eller fuldtekstsøgning.\n\nBYGGET TIL AT BLIVE UDVIDET\nEn REST API med personlige API-nøgler forbinder Sleevy med scripts, genveje og automatiseringer. Enkel JSON over HTTPS, uden SDK.\n\nTASTATURSTYRET\nWebappen kan bruges fuldt ud med tastaturet. j/k til navigation, o til at åbne, n til at gemme og en kommandopal med fuzzy-søgning til resten.",
+  "keywords": "læs senere,bogmærker,gem links,læseliste,bogmærkeadministrator,synk,artikler,kø",
+  "marketingUrl": "https://sleevy.app",
+  "promotionalText": "Gem links overalt, organiser med mapper, tags og filtre, og del en mappe, når du er klar.",
+  "supportUrl": "https://sleevy.app/support",
+  "whatsNew": "Organiser og del biblioteket lettere med forbedrede mappekort, nye indstillinger for offentlige profiler og finpudsede iPad-layouts. Vi har også forbedret lys og mørk tilstand og løst flere små problemer."
+}

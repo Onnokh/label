@@ -1,0 +1,7 @@
+{
+  "name": "Sleevy - 书签管理器",
+  "subtitle": "保存链接，稍后阅读。",
+  "privacyPolicyUrl": "https://sleevy.app/privacy",
+  "privacyChoicesUrl": "https://sleevy.app/privacy",
+  "privacyPolicyText": "简洁设计。\n\nSleevy会保存你想保留的链接，为链接补充信息，方便你稍后查找，并在你使用的设备之间同步阅读列表。\n\n账户\n姓名、电子邮箱、登录服务商、会话和API密钥。\n\n资料库\n已保存的链接、阅读状态、标签、来源和时间戳。\n\n信息补全\n链接元数据、摘要和推荐标签。\n\n服务\nSleevy使用服务商提供托管、存储、Google和Apple登录、分析、页面元数据获取以及AI信息补全。这些服务商仅为提供Sleevy而处理信息。\n\n删除\n你可以单独删除已保存的项目，也可以在设置中删除账户。删除账户会移除账户及其关联的已保存项目。\n\n如有隐私、数据请求或删除方面的问题，请访问 https://sleevy.app/privacy。"
+}

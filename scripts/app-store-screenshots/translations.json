@@ -1,0 +1,443 @@
+{
+  "en": {
+    "oneTap": "One tap to save.\nevery device in sync.",
+    "organize": "Organize yourself.",
+    "folders": "Folders, tags and filters",
+    "saveNow": "Save it now.",
+    "readReady": "Read it when you’re ready.",
+    "oneHandle": "One handle, one page.",
+    "publish": "Publish a folder, share the link.",
+    "workflow": "In your workflow",
+    "alreadyThere": "Already there.",
+    "browser": "In your browser",
+    "chrome": "Google Chrome",
+    "launcher": "In your Launcher",
+    "raycast": "Raycast",
+    "phone": "In your phone",
+    "nativeShare": "Native Share"
+  },
+  "ar-SA": {
+    "oneTap": "احفظ بلمسة واحدة.\nاقرأ في كل مكان.",
+    "organize": "نظّم نفسك.",
+    "folders": "مجلدات ووسوم وفلاتر",
+    "saveNow": "احفظ الآن.",
+    "readReady": "اقرأ عندما تكون مستعدًا.",
+    "oneHandle": "لمسة واحدة، صفحة واحدة.",
+    "publish": "انشر مجلدًا وشارك الرابط.",
+    "workflow": "ضمن سير عملك",
+    "alreadyThere": "موجود هنا.",
+    "browser": "في متصفحك",
+    "chrome": "Google Chrome",
+    "launcher": "في المشغّل",
+    "raycast": "Raycast",
+    "phone": "على هاتفك",
+    "nativeShare": "مشاركة أصلية"
+  },
+  "bn-BD": {
+    "oneTap": "এক ট্যাপে সেভ করুন।\nযেকোনো জায়গায় পড়ুন।",
+    "organize": "গুছিয়ে নিন।",
+    "folders": "ফোল্ডার, ট্যাগ ও ফিল্টার",
+    "saveNow": "এখনই সেভ করুন।",
+    "readReady": "প্রস্তুত হলে পড়ুন।",
+    "oneHandle": "এক ট্যাপ, এক পেজ।",
+    "publish": "ফোল্ডার প্রকাশ করুন, লিংক শেয়ার করুন।",
+    "workflow": "আপনার ওয়ার্কফ্লোতে",
+    "alreadyThere": "এখানেই আছে।",
+    "browser": "ব্রাউজারে",
+    "chrome": "Google Chrome",
+    "launcher": "লঞ্চারে",
+    "raycast": "Raycast",
+    "phone": "ফোনে",
+    "nativeShare": "নেটিভ শেয়ার"
+  },
+  "nl": {
+    "oneTap": "Bewaar met één tik.\nLees overal.",
+    "organize": "Organiseer jezelf.",
+    "folders": "Mappen, tags en filters",
+    "saveNow": "Bewaar het nu.",
+    "readReady": "Lees het wanneer je er klaar voor bent.",
+    "oneHandle": "Eén handle, één pagina.",
+    "publish": "Publiceer een map, deel de link.",
+    "workflow": "In je workflow",
+    "alreadyThere": "Al aanwezig.",
+    "browser": "In je browser",
+    "chrome": "Google Chrome",
+    "launcher": "In je launcher",
+    "raycast": "Raycast",
+    "phone": "Op je telefoon",
+    "nativeShare": "Native Share"
+  },
+  "fr": {
+    "oneTap": "Enregistrez d’un geste.\nLisez partout.",
+    "organize": "Organisez-vous.",
+    "folders": "Dossiers, tags et filtres",
+    "saveNow": "Enregistrez maintenant.",
+    "readReady": "Lisez quand vous êtes prêt.",
+    "oneHandle": "Un geste, une page.",
+    "publish": "Publiez un dossier, partagez le lien.",
+    "workflow": "Dans votre flux de travail",
+    "alreadyThere": "Déjà là.",
+    "browser": "Dans votre navigateur",
+    "chrome": "Google Chrome",
+    "launcher": "Dans votre lanceur",
+    "raycast": "Raycast",
+    "phone": "Sur votre téléphone",
+    "nativeShare": "Partage natif"
+  },
+  "de": {
+    "oneTap": "Mit einem Tipp speichern.\nÜberall lesen.",
+    "organize": "Organisieren Sie sich.",
+    "folders": "Ordner, Tags und Filter",
+    "saveNow": "Jetzt speichern.",
+    "readReady": "Lesen, wann Sie bereit sind.",
+    "oneHandle": "Ein Tipp, eine Seite.",
+    "publish": "Ordner veröffentlichen, Link teilen.",
+    "workflow": "In Ihrem Workflow",
+    "alreadyThere": "Schon da.",
+    "browser": "Im Browser",
+    "chrome": "Google Chrome",
+    "launcher": "Im Launcher",
+    "raycast": "Raycast",
+    "phone": "Auf dem Smartphone",
+    "nativeShare": "Native Freigabe"
+  },
+  "es": {
+    "oneTap": "Guarda con un toque.\nLee en cualquier lugar.",
+    "organize": "Organízate.",
+    "folders": "Carpetas, etiquetas y filtros",
+    "saveNow": "Guárdalo ahora.",
+    "readReady": "Léelo cuando quieras.",
+    "oneHandle": "Un gesto, una página.",
+    "publish": "Publica una carpeta y comparte el enlace.",
+    "workflow": "En tu flujo de trabajo",
+    "alreadyThere": "Ya está ahí.",
+    "browser": "En tu navegador",
+    "chrome": "Google Chrome",
+    "launcher": "En tu lanzador",
+    "raycast": "Raycast",
+    "phone": "En tu teléfono",
+    "nativeShare": "Compartir de forma nativa"
+  },
+  "it": {
+    "oneTap": "Salva con un tocco.\nLeggi ovunque.",
+    "organize": "Organizzati.",
+    "folders": "Cartelle, tag e filtri",
+    "saveNow": "Salva ora.",
+    "readReady": "Leggi quando vuoi.",
+    "oneHandle": "Un gesto, una pagina.",
+    "publish": "Pubblica una cartella, condividi il link.",
+    "workflow": "Nel tuo flusso di lavoro",
+    "alreadyThere": "È già lì.",
+    "browser": "Nel tuo browser",
+    "chrome": "Google Chrome",
+    "launcher": "Nel tuo launcher",
+    "raycast": "Raycast",
+    "phone": "Sul tuo telefono",
+    "nativeShare": "Condivisione nativa"
+  },
+  "pt-BR": {
+    "oneTap": "Salve com um toque.\nLeia em qualquer lugar.",
+    "organize": "Organize-se.",
+    "folders": "Pastas, tags e filtros",
+    "saveNow": "Salve agora.",
+    "readReady": "Leia quando quiser.",
+    "oneHandle": "Um toque, uma página.",
+    "publish": "Publique uma pasta e compartilhe o link.",
+    "workflow": "No seu fluxo de trabalho",
+    "alreadyThere": "Já está lá.",
+    "browser": "No seu navegador",
+    "chrome": "Google Chrome",
+    "launcher": "No seu launcher",
+    "raycast": "Raycast",
+    "phone": "No seu celular",
+    "nativeShare": "Compartilhamento nativo"
+  },
+  "ja": {
+    "oneTap": "ワンタップで保存。\nどのデバイスでも読める。",
+    "organize": "整理しましょう。",
+    "folders": "フォルダ、タグ、フィルター",
+    "saveNow": "今すぐ保存。",
+    "readReady": "好きなときに読む。",
+    "oneHandle": "ひとつの操作、ひとつのページ。",
+    "publish": "フォルダを公開して、リンクを共有。",
+    "workflow": "ワークフローに",
+    "alreadyThere": "そこにあります。",
+    "browser": "ブラウザで",
+    "chrome": "Google Chrome",
+    "launcher": "ランチャーで",
+    "raycast": "Raycast",
+    "phone": "スマートフォンで",
+    "nativeShare": "ネイティブ共有"
+  },
+  "ko": {
+    "oneTap": "한 번에 저장.\n어디서나 읽기.",
+    "organize": "깔끔하게 정리하세요.",
+    "folders": "폴더, 태그, 필터",
+    "saveNow": "지금 저장하세요.",
+    "readReady": "원할 때 읽으세요.",
+    "oneHandle": "한 번의 동작, 한 페이지.",
+    "publish": "폴더를 공개하고 링크를 공유하세요.",
+    "workflow": "워크플로에서",
+    "alreadyThere": "이미 있습니다.",
+    "browser": "브라우저에서",
+    "chrome": "Google Chrome",
+    "launcher": "런처에서",
+    "raycast": "Raycast",
+    "phone": "휴대폰에서",
+    "nativeShare": "네이티브 공유"
+  },
+  "es-MX": {
+    "oneTap": "Guarda con un toque.\nLee donde quieras.",
+    "organize": "Organízate.",
+    "folders": "Carpetas, etiquetas y filtros",
+    "saveNow": "Guárdalo ahora.",
+    "readReady": "Léelo cuando quieras.",
+    "oneHandle": "Un gesto, una página.",
+    "publish": "Publica una carpeta y comparte el enlace.",
+    "workflow": "En tu flujo de trabajo",
+    "alreadyThere": "Ya está ahí.",
+    "browser": "En tu navegador",
+    "chrome": "Google Chrome",
+    "launcher": "En tu lanzador",
+    "raycast": "Raycast",
+    "phone": "En tu teléfono",
+    "nativeShare": "Compartir de forma nativa"
+  },
+  "pt-PT": {
+    "oneTap": "Guarda com um toque.\nLê em qualquer lugar.",
+    "organize": "Organiza-te.",
+    "folders": "Pastas, etiquetas e filtros",
+    "saveNow": "Guarda agora.",
+    "readReady": "Lê quando quiseres.",
+    "oneHandle": "Um gesto, uma página.",
+    "publish": "Publica uma pasta e partilha o link.",
+    "workflow": "No teu fluxo de trabalho",
+    "alreadyThere": "Já está lá.",
+    "browser": "No teu navegador",
+    "chrome": "Google Chrome",
+    "launcher": "No teu launcher",
+    "raycast": "Raycast",
+    "phone": "No teu telemóvel",
+    "nativeShare": "Partilha nativa"
+  },
+  "zh-Hans": {
+    "oneTap": "轻点一下即可保存。\n随时随地阅读。",
+    "organize": "整理起来。",
+    "folders": "文件夹、标签和筛选器",
+    "saveNow": "立即保存。",
+    "readReady": "准备好后再读。",
+    "oneHandle": "一个操作，一页内容。",
+    "publish": "公开文件夹，分享链接。",
+    "workflow": "融入你的工作流",
+    "alreadyThere": "已经在这里。",
+    "browser": "在浏览器中",
+    "chrome": "Google Chrome",
+    "launcher": "在启动器中",
+    "raycast": "Raycast",
+    "phone": "在手机上",
+    "nativeShare": "原生分享"
+  },
+  "zh-Hant": {
+    "oneTap": "輕點一下即可儲存。\n隨時隨地閱讀。",
+    "organize": "整理起來。",
+    "folders": "資料夾、標籤和篩選器",
+    "saveNow": "立即儲存。",
+    "readReady": "準備好後再讀。",
+    "oneHandle": "一個操作，一頁內容。",
+    "publish": "公開資料夾，分享連結。",
+    "workflow": "融入你的工作流程",
+    "alreadyThere": "已經在這裡。",
+    "browser": "在瀏覽器中",
+    "chrome": "Google Chrome",
+    "launcher": "在啟動器中",
+    "raycast": "Raycast",
+    "phone": "在手機上",
+    "nativeShare": "原生分享"
+  },
+  "ru": {
+    "oneTap": "Сохраняйте в одно касание.\nЧитайте где угодно.",
+    "organize": "Наводите порядок.",
+    "folders": "Папки, теги и фильтры",
+    "saveNow": "Сохранить сейчас.",
+    "readReady": "Читайте, когда удобно.",
+    "oneHandle": "Один жест — одна страница.",
+    "publish": "Публикуйте папку и делитесь ссылкой.",
+    "workflow": "В вашем рабочем процессе",
+    "alreadyThere": "Уже здесь.",
+    "browser": "В браузере",
+    "chrome": "Google Chrome",
+    "launcher": "В лаунчере",
+    "raycast": "Raycast",
+    "phone": "На телефоне",
+    "nativeShare": "Нативная отправка"
+  },
+  "tr": {
+    "oneTap": "Tek dokunuşla kaydet.\nHer yerde oku.",
+    "organize": "Düzenini kur.",
+    "folders": "Klasörler, etiketler ve filtreler",
+    "saveNow": "Şimdi kaydet.",
+    "readReady": "Hazır olduğunda oku.",
+    "oneHandle": "Tek hareket, tek sayfa.",
+    "publish": "Klasörü yayınla, bağlantıyı paylaş.",
+    "workflow": "İş akışında",
+    "alreadyThere": "Zaten burada.",
+    "browser": "Tarayıcında",
+    "chrome": "Google Chrome",
+    "launcher": "Başlatıcında",
+    "raycast": "Raycast",
+    "phone": "Telefonunda",
+    "nativeShare": "Yerel paylaşım"
+  },
+  "pl": {
+    "oneTap": "Zapisz jednym dotknięciem.\nCzytaj wszędzie.",
+    "organize": "Uporządkuj się.",
+    "folders": "Foldery, tagi i filtry",
+    "saveNow": "Zapisz teraz.",
+    "readReady": "Czytaj, kiedy chcesz.",
+    "oneHandle": "Jeden gest, jedna strona.",
+    "publish": "Opublikuj folder i udostępnij link.",
+    "workflow": "W Twoim przepływie pracy",
+    "alreadyThere": "Już tu jest.",
+    "browser": "W przeglądarce",
+    "chrome": "Google Chrome",
+    "launcher": "W launcherze",
+    "raycast": "Raycast",
+    "phone": "Na telefonie",
+    "nativeShare": "Udostępnianie systemowe"
+  },
+  "sv": {
+    "oneTap": "Spara med ett tryck.\nLäs överallt.",
+    "organize": "Organisera dig.",
+    "folders": "Mappar, taggar och filter",
+    "saveNow": "Spara nu.",
+    "readReady": "Läs när du vill.",
+    "oneHandle": "Ett tryck, en sida.",
+    "publish": "Publicera en mapp och dela länken.",
+    "workflow": "I ditt arbetsflöde",
+    "alreadyThere": "Redan där.",
+    "browser": "I din webbläsare",
+    "chrome": "Google Chrome",
+    "launcher": "I din launcher",
+    "raycast": "Raycast",
+    "phone": "På din telefon",
+    "nativeShare": "Delning i systemet"
+  },
+  "da": {
+    "oneTap": "Gem med ét tryk.\nLæs overalt.",
+    "organize": "Få styr på det.",
+    "folders": "Mapper, tags og filtre",
+    "saveNow": "Gem nu.",
+    "readReady": "Læs, når du er klar.",
+    "oneHandle": "Ét tryk, én side.",
+    "publish": "Udgiv en mappe, og del linket.",
+    "workflow": "I dit workflow",
+    "alreadyThere": "Allerede der.",
+    "browser": "I din browser",
+    "chrome": "Google Chrome",
+    "launcher": "I din launcher",
+    "raycast": "Raycast",
+    "phone": "På din telefon",
+    "nativeShare": "Indbygget deling"
+  },
+  "no": {
+    "oneTap": "Lagre med ett trykk.\nLes overalt.",
+    "organize": "Få orden på det.",
+    "folders": "Mapper, tagger og filtre",
+    "saveNow": "Lagre nå.",
+    "readReady": "Les når du er klar.",
+    "oneHandle": "Ett trykk, én side.",
+    "publish": "Publiser en mappe og del lenken.",
+    "workflow": "I arbeidsflyten din",
+    "alreadyThere": "Allerede der.",
+    "browser": "I nettleseren din",
+    "chrome": "Google Chrome",
+    "launcher": "I launcheren din",
+    "raycast": "Raycast",
+    "phone": "På telefonen din",
+    "nativeShare": "Innebygd deling"
+  },
+  "ar-SA": {
+    "oneTap": "احفظ بلمسة واحدة.\nاقرأ في كل مكان.", "organize": "نظّم نفسك.", "folders": "مجلدات ووسوم وفلاتر", "saveNow": "احفظ الآن.", "readReady": "اقرأ عندما تكون مستعدًا.", "oneHandle": "لمسة واحدة، صفحة واحدة.", "publish": "انشر مجلدًا وشارك الرابط.", "workflow": "ضمن سير عملك", "alreadyThere": "موجود هنا.", "browser": "في متصفحك", "chrome": "Google Chrome", "launcher": "في المشغّل", "raycast": "Raycast", "phone": "على هاتفك", "nativeShare": "مشاركة أصلية"
+  },
+  "bn-BD": {
+    "oneTap": "এক ট্যাপে সেভ করুন।\nযেকোনো জায়গায় পড়ুন।", "organize": "গুছিয়ে নিন।", "folders": "ফোল্ডার, ট্যাগ ও ফিল্টার", "saveNow": "এখনই সেভ করুন।", "readReady": "প্রস্তুত হলে পড়ুন।", "oneHandle": "এক ট্যাপ, এক পেজ।", "publish": "ফোল্ডার প্রকাশ করুন, লিংক শেয়ার করুন।", "workflow": "আপনার ওয়ার্কফ্লোতে", "alreadyThere": "এখানেই আছে।", "browser": "ব্রাউজারে", "chrome": "Google Chrome", "launcher": "লঞ্চারে", "raycast": "Raycast", "phone": "ফোনে", "nativeShare": "নেটিভ শেয়ার"
+  },
+  "ca": {
+    "oneTap": "Desa amb un toc.\nLlegeix a tot arreu.", "organize": "Organitza’t.", "folders": "Carpetes, etiquetes i filtres", "saveNow": "Desa-ho ara.", "readReady": "Llegeix quan vulguis.", "oneHandle": "Un toc, una pàgina.", "publish": "Publica una carpeta i comparteix l’enllaç.", "workflow": "Al teu flux de treball", "alreadyThere": "Ja hi és.", "browser": "Al navegador", "chrome": "Google Chrome", "launcher": "Al teu launcher", "raycast": "Raycast", "phone": "Al telèfon", "nativeShare": "Compartició nativa"
+  },
+  "cs": {
+    "oneTap": "Ulož jedním klepnutím.\nČti kdekoli.", "organize": "Uspořádej si to.", "folders": "Složky, štítky a filtry", "saveNow": "Ulož hned.", "readReady": "Čti, kdy chceš.", "oneHandle": "Jedno klepnutí, jedna stránka.", "publish": "Publikuj složku a sdílej odkaz.", "workflow": "Ve tvém pracovním postupu", "alreadyThere": "Už je tu.", "browser": "V prohlížeči", "chrome": "Google Chrome", "launcher": "V launcheru", "raycast": "Raycast", "phone": "V telefonu", "nativeShare": "Nativní sdílení"
+  },
+  "el": {
+    "oneTap": "Αποθήκευση με ένα πάτημα.\nΔιάβασε παντού.", "organize": "Βάλε τάξη.", "folders": "Φάκελοι, ετικέτες και φίλτρα", "saveNow": "Αποθήκευσε τώρα.", "readReady": "Διάβασε όταν είσαι έτοιμος.", "oneHandle": "Μία κίνηση, μία σελίδα.", "publish": "Δημοσίευσε φάκελο και μοιράσου τον σύνδεσμο.", "workflow": "Στη ροή εργασίας σου", "alreadyThere": "Είναι ήδη εδώ.", "browser": "Στο πρόγραμμα περιήγησης", "chrome": "Google Chrome", "launcher": "Στον launcher", "raycast": "Raycast", "phone": "Στο τηλέφωνό σου", "nativeShare": "Εγγενής κοινή χρήση"
+  },
+  "fi": {
+    "oneTap": "Säästä napautuksella.\nLue kaikkialla.", "organize": "Järjestä sisältösi.", "folders": "Kansiot, tunnisteet ja suodattimet", "saveNow": "Tallenna nyt.", "readReady": "Lue kun olet valmis.", "oneHandle": "Yksi napautus, yksi sivu.", "publish": "Julkaise kansio ja jaa linkki.", "workflow": "Työskentelysi ohessa", "alreadyThere": "Se on jo täällä.", "browser": "Selaimessa", "chrome": "Google Chrome", "launcher": "Käynnistimessä", "raycast": "Raycast", "phone": "Puhelimessa", "nativeShare": "Natiivi jako"
+  },
+  "fr-CA": {
+    "oneTap": "Enregistrez d’un geste.\nLisez partout.", "organize": "Organisez-vous.", "folders": "Dossiers, étiquettes et filtres", "saveNow": "Enregistrez maintenant.", "readReady": "Lisez quand vous êtes prêt.", "oneHandle": "Un geste, une page.", "publish": "Publiez un dossier, partagez le lien.", "workflow": "Dans votre flux de travail", "alreadyThere": "Déjà là.", "browser": "Dans votre navigateur", "chrome": "Google Chrome", "launcher": "Dans votre lanceur", "raycast": "Raycast", "phone": "Sur votre téléphone", "nativeShare": "Partage natif"
+  },
+  "gu-IN": {
+    "oneTap": "એક ટૅપમાં સાચવો.\nક્યાંય પણ વાંચો.", "organize": "વ્યવસ્થિત કરો.", "folders": "ફોલ્ડર, ટૅગ અને ફિલ્ટર", "saveNow": "હમણાં સાચવો.", "readReady": "તૈયાર હો ત્યારે વાંચો.", "oneHandle": "એક ટૅપ, એક પેજ.", "publish": "ફોલ્ડર પ્રકાશિત કરો, લિંક શેર કરો.", "workflow": "તમારા વર્કફ્લોમાં", "alreadyThere": "અહીં જ છે.", "browser": "બ્રાઉઝરમાં", "chrome": "Google Chrome", "launcher": "લૉન્ચરમાં", "raycast": "Raycast", "phone": "ફોનમાં", "nativeShare": "નેટિવ શેર"
+  },
+  "he": {
+    "oneTap": "שמרו בנגיעה אחת.\nקראו מכל מקום.", "organize": "עשו סדר.", "folders": "תיקיות, תגיות ומסננים", "saveNow": "שמרו עכשיו.", "readReady": "קראו כשתהיו מוכנים.", "oneHandle": "מחווה אחת, עמוד אחד.", "publish": "פרסמו תיקייה ושתפו את הקישור.", "workflow": "בתהליך העבודה שלכם", "alreadyThere": "כבר כאן.", "browser": "בדפדפן", "chrome": "Google Chrome", "launcher": "במפעיל", "raycast": "Raycast", "phone": "בטלפון", "nativeShare": "שיתוף מובנה"
+  },
+  "hi": {
+    "oneTap": "एक टैप में सेव करें।\nहर जगह पढ़ें।", "organize": "व्यवस्थित करें।", "folders": "फ़ोल्डर, टैग और फ़िल्टर", "saveNow": "अभी सेव करें।", "readReady": "तैयार होने पर पढ़ें।", "oneHandle": "एक टैप, एक पेज।", "publish": "फ़ोल्डर प्रकाशित करें, लिंक शेयर करें।", "workflow": "आपके वर्कफ़्लो में", "alreadyThere": "यहीं है।", "browser": "ब्राउज़र में", "chrome": "Google Chrome", "launcher": "लॉन्चर में", "raycast": "Raycast", "phone": "फ़ोन पर", "nativeShare": "नेटिव शेयर"
+  },
+  "hr": {
+    "oneTap": "Spremi jednim dodirom.\nČitaj svugdje.", "organize": "Organiziraj se.", "folders": "Mape, oznake i filtri", "saveNow": "Spremi sada.", "readReady": "Čitaj kad želiš.", "oneHandle": "Jedan dodir, jedna stranica.", "publish": "Objavi mapu i podijeli poveznicu.", "workflow": "U tvom tijeku rada", "alreadyThere": "Već je ovdje.", "browser": "U pregledniku", "chrome": "Google Chrome", "launcher": "U pokretaču", "raycast": "Raycast", "phone": "Na telefonu", "nativeShare": "Izvorno dijeljenje"
+  },
+  "hu": {
+    "oneTap": "Mentés egy koppintással.\nOlvass bárhol.", "organize": "Rendezd el.", "folders": "Mappák, címkék és szűrők", "saveNow": "Mentés most.", "readReady": "Olvasd, amikor szeretnéd.", "oneHandle": "Egy koppintás, egy oldal.", "publish": "Tégy közzé egy mappát, oszd meg a linket.", "workflow": "A munkafolyamatodban", "alreadyThere": "Már itt van.", "browser": "A böngésződben", "chrome": "Google Chrome", "launcher": "Az indítóban", "raycast": "Raycast", "phone": "A telefonodon", "nativeShare": "Natív megosztás"
+  },
+  "id": {
+    "oneTap": "Simpan sekali ketuk.\nBaca di mana saja.", "organize": "Rapikan semuanya.", "folders": "Folder, tag, dan filter", "saveNow": "Simpan sekarang.", "readReady": "Baca saat siap.", "oneHandle": "Satu ketukan, satu halaman.", "publish": "Publikasikan folder, bagikan tautan.", "workflow": "Dalam alur kerja Anda", "alreadyThere": "Sudah ada.", "browser": "Di browser", "chrome": "Google Chrome", "launcher": "Di peluncur", "raycast": "Raycast", "phone": "Di ponsel", "nativeShare": "Bagikan secara native"
+  },
+  "kn-IN": {
+    "oneTap": "ಒಂದು ಟ್ಯಾಪ್‌ನಲ್ಲಿ ಉಳಿಸಿ.\nಎಲ್ಲೆಡೆ ಓದಿ.", "organize": "ವ್ಯವಸ್ಥಿತಗೊಳಿಸಿ.", "folders": "ಫೋಲ್ಡರ್‌ಗಳು, ಟ್ಯಾಗ್‌ಗಳು ಮತ್ತು ಫಿಲ್ಟರ್‌ಗಳು", "saveNow": "ಈಗ ಉಳಿಸಿ.", "readReady": "ಸಿದ್ಧರಾದಾಗ ಓದಿ.", "oneHandle": "ಒಂದು ಟ್ಯಾಪ್, ಒಂದು ಪುಟ.", "publish": "ಫೋಲ್ಡರ್ ಪ್ರಕಟಿಸಿ, ಲಿಂಕ್ ಹಂಚಿಕೊಳ್ಳಿ.", "workflow": "ನಿಮ್ಮ ವರ್ಕ್‌ಫ್ಲೋದಲ್ಲಿ", "alreadyThere": "ಇಲ್ಲೇ ಇದೆ.", "browser": "ಬ್ರೌಸರ್‌ನಲ್ಲಿ", "chrome": "Google Chrome", "launcher": "ಲಾಂಚರ್‌ನಲ್ಲಿ", "raycast": "Raycast", "phone": "ಫೋನ್‌ನಲ್ಲಿ", "nativeShare": "ನೇಟಿವ್ ಹಂಚಿಕೆ"
+  },
+  "ml-IN": {
+    "oneTap": "ഒറ്റ ടാപ്പിൽ സേവ് ചെയ്യൂ.\nഎവിടെയും വായിക്കൂ.", "organize": "ക്രമീകരിക്കൂ.", "folders": "ഫോൾഡറുകൾ, ടാഗുകൾ, ഫിൽട്ടറുകൾ", "saveNow": "ഇപ്പോൾ സേവ് ചെയ്യൂ.", "readReady": "തയ്യാറാകുമ്പോൾ വായിക്കൂ.", "oneHandle": "ഒരു ടാപ്പ്, ഒരു പേജ്.", "publish": "ഫോൾഡർ പ്രസിദ്ധീകരിച്ച് ലിങ്ക് പങ്കിടൂ.", "workflow": "നിങ്ങളുടെ വർക്ക്‌ഫ്ലോയിൽ", "alreadyThere": "ഇവിടെയുണ്ട്.", "browser": "ബ്രൗസറിൽ", "chrome": "Google Chrome", "launcher": "ലോഞ്ചറിൽ", "raycast": "Raycast", "phone": "ഫോണിൽ", "nativeShare": "നേറ്റീവ് പങ്കിടൽ"
+  },
+  "mr-IN": {
+    "oneTap": "एका टॅपमध्ये सेव्ह करा.\nकुठेही वाचा.", "organize": "व्यवस्थित करा.", "folders": "फोल्डर, टॅग आणि फिल्टर", "saveNow": "आत्ताच सेव्ह करा.", "readReady": "तयार असाल तेव्हा वाचा.", "oneHandle": "एक टॅप, एक पेज.", "publish": "फोल्डर प्रकाशित करा, लिंक शेअर करा.", "workflow": "तुमच्या वर्कफ्लोमध्ये", "alreadyThere": "इथेच आहे.", "browser": "ब्राउझरमध्ये", "chrome": "Google Chrome", "launcher": "लाँचरमध्ये", "raycast": "Raycast", "phone": "फोनवर", "nativeShare": "नेटिव्ह शेअर"
+  },
+  "ms": {
+    "oneTap": "Simpan dengan satu ketikan.\nBaca di mana-mana.", "organize": "Susun semuanya.", "folders": "Folder, tag dan penapis", "saveNow": "Simpan sekarang.", "readReady": "Baca apabila anda bersedia.", "oneHandle": "Satu ketikan, satu halaman.", "publish": "Terbitkan folder dan kongsi pautan.", "workflow": "Dalam aliran kerja anda", "alreadyThere": "Sudah ada.", "browser": "Pada pelayar anda", "chrome": "Google Chrome", "launcher": "Pada pelancar", "raycast": "Raycast", "phone": "Pada telefon anda", "nativeShare": "Perkongsian natif"
+  },
+  "or-IN": {
+    "oneTap": "ଗୋଟିଏ ଟ୍ୟାପ୍‌ରେ ସେଭ୍ କରନ୍ତୁ।\nସବୁଠାରେ ପଢ଼ନ୍ତୁ।", "organize": "ସଜାନ୍ତୁ।", "folders": "ଫୋଲ୍ଡର, ଟ୍ୟାଗ୍ ଓ ଫିଲ୍ଟର", "saveNow": "ଏବେ ସେଭ୍ କରନ୍ତୁ।", "readReady": "ପ୍ରସ୍ତୁତ ହେଲେ ପଢ଼ନ୍ତୁ।", "oneHandle": "ଗୋଟିଏ ଟ୍ୟାପ୍, ଗୋଟିଏ ପେଜ୍।", "publish": "ଫୋଲ୍ଡର ପ୍ରକାଶ କରନ୍ତୁ, ଲିଙ୍କ୍ ସେୟାର୍ କରନ୍ତୁ।", "workflow": "ଆପଣଙ୍କ ୱର୍କଫ୍ଲୋରେ", "alreadyThere": "ଏଠାରେ ଅଛି।", "browser": "ବ୍ରାଉଜର୍‌ରେ", "chrome": "Google Chrome", "launcher": "ଲଞ୍ଚର୍‌ରେ", "raycast": "Raycast", "phone": "ଫୋନ୍‌ରେ", "nativeShare": "ନେଟିଭ୍ ସେୟାର୍"
+  },
+  "pa-IN": {
+    "oneTap": "ਇੱਕ ਟੈਪ ਨਾਲ ਸੇਵ ਕਰੋ।\nਹਰ ਥਾਂ ਪੜ੍ਹੋ।", "organize": "ਸੁਚੱਜਾ ਕਰੋ।", "folders": "ਫੋਲਡਰ, ਟੈਗ ਅਤੇ ਫਿਲਟਰ", "saveNow": "ਹੁਣੇ ਸੇਵ ਕਰੋ।", "readReady": "ਤਿਆਰ ਹੋਣ ’ਤੇ ਪੜ੍ਹੋ।", "oneHandle": "ਇੱਕ ਟੈਪ, ਇੱਕ ਪੇਜ।", "publish": "ਫੋਲਡਰ ਪ੍ਰਕਾਸ਼ਿਤ ਕਰੋ, ਲਿੰਕ ਸਾਂਝਾ ਕਰੋ।", "workflow": "ਤੁਹਾਡੇ ਵਰਕਫਲੋ ਵਿੱਚ", "alreadyThere": "ਇੱਥੇ ਹੀ ਹੈ।", "browser": "ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ", "chrome": "Google Chrome", "launcher": "ਲਾਂਚਰ ਵਿੱਚ", "raycast": "Raycast", "phone": "ਫੋਨ ’ਤੇ", "nativeShare": "ਨੇਟਿਵ ਸਾਂਝਾ"
+  },
+  "ro": {
+    "oneTap": "Salvează printr-o atingere.\nCitește oriunde.", "organize": "Organizează-te.", "folders": "Foldere, etichete și filtre", "saveNow": "Salvează acum.", "readReady": "Citește când vrei.", "oneHandle": "Un gest, o pagină.", "publish": "Publică un folder și distribuie linkul.", "workflow": "În fluxul tău de lucru", "alreadyThere": "Este deja aici.", "browser": "În browser", "chrome": "Google Chrome", "launcher": "În launcher", "raycast": "Raycast", "phone": "Pe telefon", "nativeShare": "Partajare nativă"
+  },
+  "sk": {
+    "oneTap": "Ulož jedným ťuknutím.\nČítaj kdekoľvek.", "organize": "Usporiadaj si to.", "folders": "Priečinky, štítky a filtre", "saveNow": "Ulož teraz.", "readReady": "Čítaj, keď chceš.", "oneHandle": "Jedno ťuknutie, jedna stránka.", "publish": "Publikuj priečinok a zdieľaj odkaz.", "workflow": "V tvojom pracovnom postupe", "alreadyThere": "Už je tu.", "browser": "V prehliadači", "chrome": "Google Chrome", "launcher": "V launcheri", "raycast": "Raycast", "phone": "V telefóne", "nativeShare": "Natívne zdieľanie"
+  },
+  "sl-SI": {
+    "oneTap": "Shrani z enim dotikom.\nBeri povsod.", "organize": "Uredi se.", "folders": "Mape, oznake in filtri", "saveNow": "Shrani zdaj.", "readReady": "Beri, ko želiš.", "oneHandle": "En dotik, ena stran.", "publish": "Objavi mapo in deli povezavo.", "workflow": "V tvojem poteku dela", "alreadyThere": "Že je tukaj.", "browser": "V brskalniku", "chrome": "Google Chrome", "launcher": "V zaganjalniku", "raycast": "Raycast", "phone": "V telefonu", "nativeShare": "Osnovna skupna raba"
+  },
+  "ta-IN": {
+    "oneTap": "ஒரே தட்டலில் சேமிக்கவும்.\nஎங்கும் படிக்கவும்.", "organize": "ஒழுங்குபடுத்துங்கள்.", "folders": "கோப்புறைகள், குறிச்சொற்கள் மற்றும் வடிப்பான்கள்", "saveNow": "இப்போதே சேமிக்கவும்.", "readReady": "தயாராக இருக்கும்போது படிக்கவும்.", "oneHandle": "ஒரு தட்டு, ஒரு பக்கம்.", "publish": "கோப்புறையை வெளியிட்டு இணைப்பைப் பகிரவும்.", "workflow": "உங்கள் பணிப்பாய்வில்", "alreadyThere": "இங்கேயே உள்ளது.", "browser": "உலாவியில்", "chrome": "Google Chrome", "launcher": "தொடக்கியில்", "raycast": "Raycast", "phone": "தொலைபேசியில்", "nativeShare": "நேட்டிவ் பகிர்வு"
+  },
+  "te-IN": {
+    "oneTap": "ఒక్క ట్యాప్‌తో సేవ్ చేయండి.\nఎక్కడైనా చదవండి.", "organize": "సర్దుబాటు చేసుకోండి.", "folders": "ఫోల్డర్లు, ట్యాగ్‌లు, ఫిల్టర్లు", "saveNow": "ఇప్పుడే సేవ్ చేయండి.", "readReady": "సిద్ధమైనప్పుడు చదవండి.", "oneHandle": "ఒక్క ట్యాప్, ఒక పేజీ.", "publish": "ఫోల్డర్‌ను ప్రచురించి లింక్‌ను షేర్ చేయండి.", "workflow": "మీ వర్క్‌ఫ్లోలో", "alreadyThere": "ఇక్కడే ఉంది.", "browser": "బ్రౌజర్‌లో", "chrome": "Google Chrome", "launcher": "లాంచర్‌లో", "raycast": "Raycast", "phone": "ఫోన్‌లో", "nativeShare": "నేటివ్ షేర్"
+  },
+  "th": {
+    "oneTap": "บันทึกด้วยการแตะครั้งเดียว\nอ่านได้ทุกที่", "organize": "จัดระเบียบให้ลงตัว", "folders": "โฟลเดอร์ แท็ก และตัวกรอง", "saveNow": "บันทึกเลย", "readReady": "อ่านเมื่อพร้อม", "oneHandle": "หนึ่งแตะ หนึ่งหน้า", "publish": "เผยแพร่โฟลเดอร์แล้วแชร์ลิงก์", "workflow": "ในเวิร์กโฟลว์ของคุณ", "alreadyThere": "มีอยู่แล้ว", "browser": "ในเบราว์เซอร์", "chrome": "Google Chrome", "launcher": "ใน Launcher", "raycast": "Raycast", "phone": "บนโทรศัพท์", "nativeShare": "การแชร์แบบเนทีฟ"
+  },
+  "uk": {
+    "oneTap": "Зберігайте одним дотиком.\nЧитайте будь-де.", "organize": "Наведіть лад.", "folders": "Папки, теги й фільтри", "saveNow": "Зберегти зараз.", "readReady": "Читайте, коли зручно.", "oneHandle": "Один жест — одна сторінка.", "publish": "Опублікуйте папку й поділіться посиланням.", "workflow": "У вашому робочому процесі", "alreadyThere": "Уже тут.", "browser": "У браузері", "chrome": "Google Chrome", "launcher": "У лаунчері", "raycast": "Raycast", "phone": "На телефоні", "nativeShare": "Нативне поширення"
+  },
+  "ur-PK": {
+    "oneTap": "ایک ٹیپ سے محفوظ کریں۔\nکہیں بھی پڑھیں۔", "organize": "ترتیب دیں۔", "folders": "فولڈرز، ٹیگز اور فلٹرز", "saveNow": "ابھی محفوظ کریں۔", "readReady": "تیار ہوں تو پڑھیں۔", "oneHandle": "ایک ٹیپ، ایک صفحہ۔", "publish": "فولڈر شائع کریں، لنک شیئر کریں۔", "workflow": "آپ کے ورک فلو میں", "alreadyThere": "یہیں موجود ہے۔", "browser": "براؤزر میں", "chrome": "Google Chrome", "launcher": "لانچر میں", "raycast": "Raycast", "phone": "فون پر", "nativeShare": "مقامی شیئرنگ"
+  },
+  "vi": {
+    "oneTap": "Lưu bằng một chạm.\nĐọc ở mọi nơi.", "organize": "Sắp xếp gọn gàng.", "folders": "Thư mục, thẻ và bộ lọc", "saveNow": "Lưu ngay.", "readReady": "Đọc khi bạn sẵn sàng.", "oneHandle": "Một chạm, một trang.", "publish": "Đăng thư mục, chia sẻ liên kết.", "workflow": "Trong quy trình của bạn", "alreadyThere": "Đã có sẵn.", "browser": "Trong trình duyệt", "chrome": "Google Chrome", "launcher": "Trong trình khởi chạy", "raycast": "Raycast", "phone": "Trên điện thoại", "nativeShare": "Chia sẻ gốc"
+  }
+}

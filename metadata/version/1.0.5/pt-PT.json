@@ -1,0 +1,8 @@
+{
+  "description": "O Sleevy é um gestor de favoritos para ler mais tarde, que permite guardar links de qualquer lugar e lê-los em qualquer dispositivo.\n\nGUARDA COM UM TOQUE\nToca no botão de partilha em qualquer página ou link, escolhe Sleevy e o item entra na tua fila. Também disponível como extensão do Chrome, plugin do Raycast, app web, MCP e API REST.\n\nTODOS OS DISPOSITIVOS SINCRONIZADOS\nGuarda num dispositivo e lê noutro. Os teus itens sincronizam entre iPhone, computador e web antes de dares por isso.\n\nORGANIZAÇÃO INTELIGENTE\nOs itens são classificados automaticamente por tipo: artigos, vídeos, repositórios e sites. Adiciona etiquetas e filtra por origem, etiqueta ou pesquisa de texto completo.\n\nFEITO PARA CRESCER\nUma API REST com chaves de API pessoais permite ligar o Sleevy aos teus scripts, atalhos e automatizações. JSON simples via HTTPS, sem SDK.\n\nCONTROLADO PELO TECLADO\nA app web pode ser usada inteiramente com o teclado. Usa j/k para navegar, o para abrir, n para guardar e a paleta de comandos com pesquisa difusa.",
+  "keywords": "ler mais tarde,favoritos,guardar links,lista leitura,gestor favoritos,sincronizar,artigos,fila",
+  "marketingUrl": "https://sleevy.app",
+  "promotionalText": "Guarda links de qualquer lugar, organiza-os com pastas, etiquetas e filtros e partilha uma pasta quando quiseres.",
+  "supportUrl": "https://sleevy.app/support",
+  "whatsNew": "Organiza e partilha a tua biblioteca com mais facilidade graças a cartões de pastas melhorados, novos controlos de perfil público e layouts de iPad aperfeiçoados. Também refinámos os modos claro e escuro e corrigimos vários problemas menores."
+}
