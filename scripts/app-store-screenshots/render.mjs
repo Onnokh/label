@@ -110,16 +110,24 @@ const artboards = {
 };
 
 const fontFamily = ".SF NS";
+const fontFamilies = {
+  ja: "Hiragino Sans",
+  ko: "Apple SD Gothic Neo",
+};
 const trackingRatio = -0.04;
 const textSafeArea = 0.88;
 
-async function measureTextWidth(value, fontSize, weight, kerning) {
+function fontFamilyForLocale(locale) {
+  return fontFamilies[locale] ?? fontFamily;
+}
+
+async function measureTextWidth(value, fontSize, weight, kerning, family) {
   if (!value) return 0;
   const { stdout } = await execFileAsync("magick", [
     "-background",
     "none",
     "-family",
-    fontFamily,
+    family,
     "-weight",
     String(weight),
     "-pointsize",
@@ -139,13 +147,14 @@ async function measureTextWidth(value, fontSize, weight, kerning) {
 async function renderOverlay(artboard, locale, output) {
   const args = ["-size", `${artboard.width}x${artboard.height}`, "xc:none"];
   const specs = [];
+  const family = fontFamilyForLocale(locale);
 
   for (const spec of artboard.texts) {
     const value = translations[locale]?.[spec.key];
     if (value == null) throw new Error(`Missing ${locale}.${spec.key}`);
     const lines = value.split("\n");
     const kerning = spec.fontSize * trackingRatio;
-    const measuredWidths = await Promise.all(lines.map((line) => measureTextWidth(line, spec.fontSize, spec.weight, kerning)));
+    const measuredWidths = await Promise.all(lines.map((line) => measureTextWidth(line, spec.fontSize, spec.weight, kerning, family)));
     const widestTrackedLine = Math.max(...measuredWidths, 0);
     const usableWidth = spec.width * textSafeArea;
     const scale = widestTrackedLine > usableWidth ? usableWidth / widestTrackedLine : 1;
@@ -161,7 +170,7 @@ async function renderOverlay(artboard, locale, output) {
       const top = spec.y - fontSize * 0.1 + index * lineHeight;
       const horizontalOffset = centerX - artboard.width / 2;
       args.push(
-        "-family", fontFamily,
+        "-family", family,
         "-weight", String(spec.weight),
         "-pointsize", String(fontSize),
         "-fill", spec.color,

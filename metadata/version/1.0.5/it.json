@@ -1,0 +1,8 @@
+{
+  "description": "Sleevy è un gestore di segnalibri per leggere in un secondo momento, che ti permette di salvare link da qualsiasi luogo e leggerli su ogni dispositivo.\n\nSALVA CON UN TOCCO\nTocca il pulsante Condividi su qualsiasi pagina o link, scegli Sleevy e finirà nella tua coda. Disponibile anche come estensione Chrome, plugin Raycast, app web, MCP e API REST.\n\nTUTTI I DISPOSITIVI SINCRONIZZATI\nSalva su un dispositivo e leggi su un altro. I tuoi elementi si sincronizzano tra iPhone, desktop e web prima che tu te ne accorga.\n\nORGANIZZAZIONE INTELLIGENTE\nGli elementi vengono classificati automaticamente per tipo: articoli, video, repository e siti web. Aggiungi tag e filtra per origine, tag o ricerca nel testo completo.\n\nPENSATO PER ESTENDERSI\nUn’API REST con chiavi API personali ti permette di collegare Sleevy a script, scorciatoie e automazioni. Semplice JSON su HTTPS, senza SDK.\n\nTUTTO DA TASTIERA\nL’app web è completamente utilizzabile da tastiera. Usa j/k per navigare, o per aprire, n per salvare e la palette dei comandi con ricerca fuzzy.",
+  "keywords": "leggi dopo,segnalibri,salva link,lista lettura,gestore segnalibri,sincronizza,articoli,coda",
+  "marketingUrl": "https://sleevy.app",
+  "promotionalText": "Salva link ovunque, organizzali con cartelle, tag e filtri e condividi una cartella quando vuoi.",
+  "supportUrl": "https://sleevy.app/support",
+  "whatsNew": "Organizza e condividi la tua libreria più facilmente con schede delle cartelle migliorate, nuovi controlli per i profili pubblici e layout iPad perfezionati. Abbiamo anche rifinito la modalità chiara e scura e risolto diversi piccoli problemi."
+}

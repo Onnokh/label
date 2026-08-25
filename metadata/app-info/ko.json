@@ -1,0 +1,7 @@
+{
+  "name": "Sleevy - 북마크 관리자",
+  "subtitle": "링크를 저장하고 나중에 읽으세요.",
+  "privacyPolicyUrl": "https://sleevy.app/privacy",
+  "privacyChoicesUrl": "https://sleevy.app/privacy",
+  "privacyPolicyText": "간결하게 설계했습니다.\n\nSleevy는 보관하고 싶은 링크를 저장하고, 나중에 쉽게 찾을 수 있도록 정보를 보완하며, 사용하는 기기에서 읽기 목록을 동기화합니다.\n\n계정\n이름, 이메일 주소, 로그인 제공업체, 세션 및 API 키.\n\n라이브러리\n저장된 링크, 읽기 상태, 태그, 출처 및 타임스탬프.\n\n정보 보완\n링크 메타데이터, 요약 및 추천 태그.\n\n서비스\nSleevy는 호스팅, 저장소, Google 및 Apple 로그인, 분석, 페이지 메타데이터 가져오기, AI 기반 정보 보완을 위해 서비스 제공업체를 사용합니다. 이러한 업체는 Sleevy 제공을 위해서만 정보를 처리합니다.\n\n삭제\n저장된 항목은 개별적으로 삭제할 수 있습니다. 설정에서 계정을 삭제하면 계정과 연결된 저장 항목도 삭제됩니다.\n\n개인정보 보호, 데이터 요청 또는 삭제 지원에 관한 문의는 https://sleevy.app/privacy 를 방문하세요."
+}
