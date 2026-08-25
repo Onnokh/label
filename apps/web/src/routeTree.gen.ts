@@ -18,8 +18,10 @@ import { Route as AppInboxRouteImport } from './routes/_app/inbox'
 import { Route as AppLibraryRouteImport } from './routes/_app/library'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as MarketingIndexRouteImport } from './routes/_marketing/index'
+import { Route as MarketingAboutRouteImport } from './routes/_marketing/about'
 import { Route as MarketingArticlesRouteImport } from './routes/_marketing/articles'
 import { Route as MarketingChromeExtensionRouteImport } from './routes/_marketing/chrome-extension'
+import { Route as MarketingContactRouteImport } from './routes/_marketing/contact'
 import { Route as MarketingIosAppRouteImport } from './routes/_marketing/ios-app'
 import { Route as MarketingPocketAlternativeRouteImport } from './routes/_marketing/pocket-alternative'
 import { Route as MarketingPrivacyRouteImport } from './routes/_marketing/privacy'
@@ -81,6 +83,11 @@ const MarketingIndexRoute = MarketingIndexRouteImport.update({
   path: '/',
   getParentRoute: () => MarketingRoute,
 } as any)
+const MarketingAboutRoute = MarketingAboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => MarketingRoute,
+} as any)
 const MarketingArticlesRoute = MarketingArticlesRouteImport.update({
   id: '/articles',
   path: '/articles',
@@ -92,6 +99,11 @@ const MarketingChromeExtensionRoute =
     path: '/chrome-extension',
     getParentRoute: () => MarketingRoute,
   } as any)
+const MarketingContactRoute = MarketingContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => MarketingRoute,
+} as any)
 const MarketingIosAppRoute = MarketingIosAppRouteImport.update({
   id: '/ios-app',
   path: '/ios-app',
@@ -192,8 +204,10 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AppInboxRoute
   '/library': typeof AppLibraryRoute
   '/settings': typeof AppSettingsRoute
+  '/about': typeof MarketingAboutRoute
   '/articles': typeof MarketingArticlesRoute
   '/chrome-extension': typeof MarketingChromeExtensionRoute
+  '/contact': typeof MarketingContactRoute
   '/ios-app': typeof MarketingIosAppRoute
   '/pocket-alternative': typeof MarketingPocketAlternativeRoute
   '/privacy': typeof MarketingPrivacyRoute
@@ -220,8 +234,10 @@ export interface FileRoutesByTo {
   '/inbox': typeof AppInboxRoute
   '/library': typeof AppLibraryRoute
   '/settings': typeof AppSettingsRoute
+  '/about': typeof MarketingAboutRoute
   '/articles': typeof MarketingArticlesRoute
   '/chrome-extension': typeof MarketingChromeExtensionRoute
+  '/contact': typeof MarketingContactRoute
   '/ios-app': typeof MarketingIosAppRoute
   '/pocket-alternative': typeof MarketingPocketAlternativeRoute
   '/privacy': typeof MarketingPrivacyRoute
@@ -250,8 +266,10 @@ export interface FileRoutesById {
   '/_app/inbox': typeof AppInboxRoute
   '/_app/library': typeof AppLibraryRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_marketing/about': typeof MarketingAboutRoute
   '/_marketing/articles': typeof MarketingArticlesRoute
   '/_marketing/chrome-extension': typeof MarketingChromeExtensionRoute
+  '/_marketing/contact': typeof MarketingContactRoute
   '/_marketing/ios-app': typeof MarketingIosAppRoute
   '/_marketing/pocket-alternative': typeof MarketingPocketAlternativeRoute
   '/_marketing/privacy': typeof MarketingPrivacyRoute
@@ -281,8 +299,10 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/library'
     | '/settings'
+    | '/about'
     | '/articles'
     | '/chrome-extension'
+    | '/contact'
     | '/ios-app'
     | '/pocket-alternative'
     | '/privacy'
@@ -309,8 +329,10 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/library'
     | '/settings'
+    | '/about'
     | '/articles'
     | '/chrome-extension'
+    | '/contact'
     | '/ios-app'
     | '/pocket-alternative'
     | '/privacy'
@@ -338,8 +360,10 @@ export interface FileRouteTypes {
     | '/_app/inbox'
     | '/_app/library'
     | '/_app/settings'
+    | '/_marketing/about'
     | '/_marketing/articles'
     | '/_marketing/chrome-extension'
+    | '/_marketing/contact'
     | '/_marketing/ios-app'
     | '/_marketing/pocket-alternative'
     | '/_marketing/privacy'
@@ -437,6 +461,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketingIndexRouteImport
       parentRoute: typeof MarketingRoute
     }
+    '/_marketing/about': {
+      id: '/_marketing/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof MarketingAboutRouteImport
+      parentRoute: typeof MarketingRoute
+    }
     '/_marketing/articles': {
       id: '/_marketing/articles'
       path: '/articles'
@@ -449,6 +480,13 @@ declare module '@tanstack/react-router' {
       path: '/chrome-extension'
       fullPath: '/chrome-extension'
       preLoaderRoute: typeof MarketingChromeExtensionRouteImport
+      parentRoute: typeof MarketingRoute
+    }
+    '/_marketing/contact': {
+      id: '/_marketing/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof MarketingContactRouteImport
       parentRoute: typeof MarketingRoute
     }
     '/_marketing/ios-app': {
@@ -592,8 +630,10 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface MarketingRouteChildren {
+  MarketingAboutRoute: typeof MarketingAboutRoute
   MarketingArticlesRoute: typeof MarketingArticlesRoute
   MarketingChromeExtensionRoute: typeof MarketingChromeExtensionRoute
+  MarketingContactRoute: typeof MarketingContactRoute
   MarketingIosAppRoute: typeof MarketingIosAppRoute
   MarketingPocketAlternativeRoute: typeof MarketingPocketAlternativeRoute
   MarketingPrivacyRoute: typeof MarketingPrivacyRoute
@@ -609,8 +649,10 @@ interface MarketingRouteChildren {
 }
 
 const MarketingRouteChildren: MarketingRouteChildren = {
+  MarketingAboutRoute: MarketingAboutRoute,
   MarketingArticlesRoute: MarketingArticlesRoute,
   MarketingChromeExtensionRoute: MarketingChromeExtensionRoute,
+  MarketingContactRoute: MarketingContactRoute,
   MarketingIosAppRoute: MarketingIosAppRoute,
   MarketingPocketAlternativeRoute: MarketingPocketAlternativeRoute,
   MarketingPrivacyRoute: MarketingPrivacyRoute,

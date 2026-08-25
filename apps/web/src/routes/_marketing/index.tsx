@@ -15,6 +15,9 @@ export const Route = createFileRoute("/_marketing/")({
     ],
     links: [
       { rel: "canonical", href: "https://sleevy.app/" },
+      // The Markdown twin of this page. The advertised URL really serves
+      // Markdown; an alternate that points at HTML is worse than none.
+      { rel: "alternate", type: "text/markdown", href: "https://sleevy.app/index.md" },
       // The hero blob layers are CSS background-images, so the browser only
       // discovers them after the stylesheet loads — too late for the first
       // paint they dominate (the back layer is the page's LCP element).
