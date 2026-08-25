@@ -1,5 +1,5 @@
 ---
-title: Model Context Protocol
+title: Sleevy MCP Server
 description: Connect an AI agent to save, find, and organize your Sleevy reading queue.
 icon: Bot
 ---
@@ -15,6 +15,8 @@ npx add-mcp https://api.sleevy.app/mcp --name sleevy
 ```
 
 The installer detects supported MCP clients and lets you choose where to add Sleevy. It uses the Streamable HTTP endpoint at `https://api.sleevy.app/mcp`.
+
+Machine-readable discovery is available through the [Sleevy AI Catalog](https://sleevy.app/.well-known/ai-catalog.json), which points clients to the [Sleevy MCP Server Card](https://api.sleevy.app/mcp/server-card).
 
 ## Sign in and permissions
 

@@ -21,6 +21,9 @@ Sleevy is a native-first, scriptable read-later app. Save a link once, then retu
 - [API and MCP documentation](https://sleevy.app/docs)
 - [OpenAPI document](https://sleevy.app/openapi.json)
 - [MCP guide](https://sleevy.app/docs/mcp)
+- [Agent instructions](https://sleevy.app/agent-instructions.md)
+- [AI Catalog](https://sleevy.app/.well-known/ai-catalog.json)
+- [MCP Server Card](https://api.sleevy.app/mcp/server-card)
 - [Agent index](https://sleevy.app/llms.txt)
 - [Sitemap](https://sleevy.app/sitemap.xml)
 

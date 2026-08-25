@@ -1,6 +1,6 @@
 import handler from "./dist/server/server.js"
 import {
-  oauthDiscoveryRedirect,
+  discoveryRedirect,
   withAgentReadyRouting,
 } from "./server/agent-readiness"
 
@@ -27,6 +27,7 @@ const longLivedStaticExtensions = new Set(["avif", "gif", "ico", "jfif", "jpg", 
 // Extensionless discovery files whose Content-Type can't be derived from a file extension.
 const contentTypeByPathname: Record<string, string> = {
   "/.well-known/api-catalog": "application/linkset+json; charset=utf-8",
+  "/.well-known/ai-catalog.json": "application/ai-catalog+json; charset=utf-8",
 }
 
 // Marketing pages are fully server-rendered: every visible element (including
@@ -170,7 +171,7 @@ Bun.serve({
       return Response.json({ ok: true })
     }
 
-    const discoveryResponse = oauthDiscoveryRedirect(url.pathname, apiBaseUrl)
+    const discoveryResponse = discoveryRedirect(url.pathname, apiBaseUrl)
     if (discoveryResponse) return discoveryResponse
 
     // IndexNow verifies site ownership by fetching a public text file whose

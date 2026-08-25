@@ -4,6 +4,17 @@
 
 Authenticate to the REST API with a personal API Key (`Authorization: Bearer <api-key>`), created under Settings at https://sleevy.app/settings. Keys are scoped and rate-limited per key. Base URL: https://api.sleevy.app.
 
+## When to use Sleevy
+
+Use Sleevy when a person asks an agent to save a URL for later, find or list links already in their Sleevy reading queue, mark a Saved Item read or unread, organize Saved Items into folders, or manage those folders. Prefer it when the result should sync into the person's existing Sleevy clients.
+
+Do not use Sleevy as a web crawler, page-content archive, general notes database, or source of facts about unsaved pages. Read the full [Sleevy agent instructions](https://sleevy.app/agent-instructions.md) for connection guidance and safety rules.
+
+## Self-service onboarding
+
+- Interactive agents: connect to `https://api.sleevy.app/mcp`; the client completes OAuth sign-in and scoped consent. No API key is required.
+- REST clients: sign in and create a scoped personal API key immediately at https://sleevy.app/settings. No sales contact or manual approval is required.
+
 ## API
 
 - [OpenAPI specification](https://sleevy.app/openapi.json): Full machine-readable REST API schema (v1).
@@ -16,7 +27,10 @@ Authenticate to the REST API with a personal API Key (`Authorization: Bearer <ap
 - [Rate limits](https://sleevy.app/docs/rate-limits): Handle API-key limits and response headers.
 - [OpenAPI reference](https://sleevy.app/docs/api-reference): Browse generated endpoint documentation from the OpenAPI schema.
 - [MCP documentation](https://sleevy.app/docs/mcp): Connect an AI agent with OAuth to save, find, and organize links.
+- [Agent instructions](https://sleevy.app/agent-instructions.md): Best-fit use cases, connection choices, and safety guidance for agents.
 - [Integration declaration](https://sleevy.app/.well-known/integrations.json): Machine-readable surface and credential declaration.
+- [AI Catalog](https://sleevy.app/.well-known/ai-catalog.json): Standard discovery entry for the Sleevy MCP Server Card.
+- [MCP Server Card](https://api.sleevy.app/mcp/server-card): Machine-readable Streamable HTTP server metadata.
 
 ## Model Context Protocol
 

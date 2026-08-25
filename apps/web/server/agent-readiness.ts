@@ -273,7 +273,7 @@ export const withAgentReadyRouting = async (
   return response
 }
 
-export const oauthDiscoveryRedirect = (
+export const discoveryRedirect = (
   pathname: string,
   apiBaseUrl: string,
 ): Response | null => {
@@ -295,6 +295,19 @@ export const oauthDiscoveryRedirect = (
         "Access-Control-Allow-Origin": "*",
         "Cache-Control": "public, max-age=300",
         Location: `${baseUrl}/.well-known/oauth-protected-resource`,
+      },
+    })
+  }
+  if (
+    pathname === "/.well-known/mcp-server-card" ||
+    pathname === "/.well-known/mcp/server-card.json"
+  ) {
+    return new Response(null, {
+      status: 308,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=300",
+        Location: `${baseUrl}/mcp/server-card`,
       },
     })
   }
