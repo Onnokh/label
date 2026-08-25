@@ -19,4 +19,4 @@ app-store-screenshots/ipad/nl/01.png   … 05.png
 
 Add a locale by adding one object to `translations.json`; the renderer will produce both devices and all five screenshots automatically. The CLI also accepts an explicit locale list, for example `node scripts/app-store-screenshots/render.mjs en nl`.
 
-The renderer uses ImageMagick (`magick`) and the system `.SF NS` font to match the Figma SF Pro typography. The marketing copy is composited as SVG so line breaks, alignment, color, weight, and letter spacing stay data-driven.
+The renderer uses ImageMagick (`magick`) and the system `.SF NS` font to match the Figma SF Pro typography. Text is rasterized into a transparent overlay so ImageMagick's font weight and kerning are applied consistently. Each line is measured before rendering: Figma-style tighter tracking is applied, and the font size scales down proportionally to keep every translation inside an 88% safe area within its artboard text box.

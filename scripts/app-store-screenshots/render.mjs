@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, copyFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, copyFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
 import { dirname, join, resolve } from "node:path";
@@ -109,33 +109,71 @@ const artboards = {
   ],
 };
 
-function escapeXml(value) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
+const fontFamily = ".SF NS";
+const trackingRatio = -0.04;
+const textSafeArea = 0.88;
+
+async function measureTextWidth(value, fontSize, weight, kerning) {
+  if (!value) return 0;
+  const { stdout } = await execFileAsync("magick", [
+    "-background",
+    "none",
+    "-family",
+    fontFamily,
+    "-weight",
+    String(weight),
+    "-pointsize",
+    String(fontSize),
+    "-kerning",
+    String(kerning),
+    "-format",
+    "%w",
+    `label:${value}`,
+    "info:",
+  ]);
+  const width = Number.parseFloat(stdout.trim());
+  if (!Number.isFinite(width)) throw new Error(`Could not measure localized text: ${value}`);
+  return width;
 }
 
-function renderText(spec, locale) {
-  const value = translations[locale]?.[spec.key];
-  if (value == null) throw new Error(`Missing ${locale}.${spec.key}`);
-  const lines = value.split("\n");
-  const lineHeight = spec.fontSize * 1.02;
-  const baseline = spec.y + spec.fontSize * 0.84;
-  // ImageMagick's SVG renderer interprets negative letter spacing inconsistently
-  // across the installed font backends, so keep the system font's native spacing.
-  const letterSpacing = 0;
-  const spans = lines.map((line, index) =>
-    `<tspan x="${spec.x + spec.width / 2}" dy="${index === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`,
-  ).join("");
-  return `<text x="${spec.x + spec.width / 2}" y="${baseline}" text-anchor="middle" fill="${spec.color}" font-family=".SF NS" font-size="${spec.fontSize}" font-weight="${spec.weight}" letter-spacing="${letterSpacing}">${spans}</text>`;
-}
+async function renderOverlay(artboard, locale, output) {
+  const args = ["-size", `${artboard.width}x${artboard.height}`, "xc:none"];
+  const specs = [];
 
-function overlaySvg(artboard, locale) {
-  const text = artboard.texts.map((spec) => renderText(spec, locale)).join("\n");
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${artboard.width}" height="${artboard.height}" viewBox="0 0 ${artboard.width} ${artboard.height}">${text}</svg>`;
+  for (const spec of artboard.texts) {
+    const value = translations[locale]?.[spec.key];
+    if (value == null) throw new Error(`Missing ${locale}.${spec.key}`);
+    const lines = value.split("\n");
+    const kerning = spec.fontSize * trackingRatio;
+    const measuredWidths = await Promise.all(lines.map((line) => measureTextWidth(line, spec.fontSize, spec.weight, kerning)));
+    const widestTrackedLine = Math.max(...measuredWidths, 0);
+    const usableWidth = spec.width * textSafeArea;
+    const scale = widestTrackedLine > usableWidth ? usableWidth / widestTrackedLine : 1;
+    const fontSize = spec.fontSize * scale;
+    const lineHeight = fontSize * 1.02;
+    const centerX = spec.x + spec.width / 2;
+    specs.push({ spec, lines, fontSize, lineHeight, centerX });
+  }
+
+  for (const { spec, lines, fontSize, lineHeight, centerX } of specs) {
+    const kerning = fontSize * trackingRatio;
+    for (const [index, line] of lines.entries()) {
+      const top = spec.y - fontSize * 0.1 + index * lineHeight;
+      const horizontalOffset = centerX - artboard.width / 2;
+      args.push(
+        "-family", fontFamily,
+        "-weight", String(spec.weight),
+        "-pointsize", String(fontSize),
+        "-fill", spec.color,
+        "-kerning", String(kerning),
+        "-gravity", "North",
+        "-annotate", `+${horizontalOffset}+${top}`, line,
+      );
+    }
+  }
+
+  args.push(output);
+  await execFileAsync("magick", args);
 }
 
 async function ensureMagick() {
@@ -165,8 +203,8 @@ try {
           await copyFile(input, output);
           continue;
         }
-        const overlay = join(temp, `${device}-${locale}-${artboard.index}.svg`);
-        await writeFile(overlay, overlaySvg(artboard, locale), "utf8");
+        const overlay = join(temp, `${device}-${locale}-${artboard.index}.png`);
+        await renderOverlay(artboard, locale, overlay);
         await execFileAsync("magick", [input, "-background", "none", overlay, "-compose", "over", "-composite", output]);
       }
     }
