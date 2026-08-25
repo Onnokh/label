@@ -17,6 +17,7 @@
     "@better-auth/oauth-provider": "^1.6.23",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
+    "@radix-ui/react-select": "^2.3.7",
     "@sleevy/contract": "workspace:*",
     "@tanstack/react-hotkeys": "^0.10.0",
     "@tanstack/react-query": "^5.100.7",

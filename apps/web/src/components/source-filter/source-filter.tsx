@@ -6,7 +6,7 @@ import { useKeyboardNav } from "../../contexts/keyboard-nav-context"
 import { useMoveItemsToSource, useSavedItems, type Topic } from "../../sleevy/saved-items"
 import { SAVED_ITEM_DRAG_TYPE, useMoveSavedItemToFolder } from "../../sleevy/folders"
 import { ContextMenu, type ContextMenuItem } from "../ui/context-menu/context-menu"
-import { getSourceGroup } from "./source-filter-utils"
+import { byCountDescending, getSourceGroup, sourceCountsOf, tagCountsOf } from "./source-filter-utils"
 import styles from "./source-filter.module.scss"
 
 const SECTION_STORAGE_PREFIX = "sleevy:sidebar-section:"
@@ -263,15 +263,7 @@ export function TagFilterList() {
   const goToLibrary = useNavigateToLibrary()
 
   const items = data?.savedItems ?? []
-  const tagCounts = new Map<string, number>()
-  for (const item of items) {
-    for (const tag of item.tags) {
-      tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1)
-    }
-  }
-
-  const entries: SidebarItem[] = [...tagCounts.entries()]
-    .toSorted((a, b) => b[1] - a[1])
+  const entries: SidebarItem[] = byCountDescending(tagCountsOf(items))
     .map(([tag, count]) => ({ key: tag, label: tag, count, icon: <Hash size={14} /> }))
 
   const handleSelect = (value: string | null) => {
@@ -297,12 +289,11 @@ export function SourceFilterList() {
   const moveMutation = useMoveItemsToSource()
 
   const items = data?.savedItems ?? []
-  const groupCounts = new Map<string, number>()
+  const groupCounts = sourceCountsOf(items)
   const groupItemIds = new Map<string, string[]>()
   for (const item of items) {
     const group = getSourceGroup(item)
     if (group) {
-      groupCounts.set(group, (groupCounts.get(group) ?? 0) + 1)
       const ids = groupItemIds.get(group) ?? []
       ids.push(item.id)
       groupItemIds.set(group, ids)
@@ -310,8 +301,7 @@ export function SourceFilterList() {
   }
 
   const groupNames = [...groupCounts.keys()]
-  const entries: SidebarItem[] = [...groupCounts.entries()]
-    .toSorted((a, b) => b[1] - a[1])
+  const entries: SidebarItem[] = byCountDescending(groupCounts)
     .map(([name, count]) => {
       const targets = groupNames.filter((other) => other !== name)
       const menu: ContextMenuItem[] = targets.length > 0

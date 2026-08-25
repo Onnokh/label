@@ -7,11 +7,28 @@ import { SavedListSkeleton } from "../components/saved-card/saved-card-skeleton"
 import { FolderCardGrid } from "../components/folders/folder-card-grid"
 import { FolderEditDialog } from "../components/folders/folder-dialog"
 import { useSourceFilter } from "../components/source-filter/source-filter"
-import { getSourceGroup } from "../components/source-filter/source-filter-utils"
+import {
+  byCountDescending,
+  getSourceGroup,
+  sourceCountsOf,
+  tagCountsOf,
+} from "../components/source-filter/source-filter-utils"
 import { useKeyboardNav } from "../contexts/keyboard-nav-context"
 import { useSelectedItemActions } from "../hooks/use-selected-item-actions"
 import { folderErrorMessage, type Folder, useFolders, useRenameFolder } from "../sleevy/folders"
 import { Button } from "../components/ui/button/button"
+import { PageToolbar } from "../components/ui/page-toolbar/page-toolbar"
+import { Select, type SelectOption } from "../components/ui/select/select"
+
+// Radix Select reserves the empty string, so "no filter" needs a name.
+const ANY = "all"
+
+const SORT_OPTIONS: readonly SelectOption[] = [
+  { value: "newest", label: "Newest first" },
+  { value: "oldest", label: "Oldest first" },
+  { value: "title", label: "Title A-Z" },
+  { value: "unread", label: "Unread first" },
+]
 
 export function LibraryPage({ folderId }: { readonly folderId?: string }) {
   const [sort, setSort] = useState<SavedItemSort>("newest")
@@ -24,14 +41,14 @@ export function LibraryPage({ folderId }: { readonly folderId?: string }) {
   const deleteMutation = useDeleteItem()
   const markAsReadMutation = useMarkAsRead()
   const setReadStateMutation = useSetReadState()
-  const { activeSource, activeType, activeTag } = useSourceFilter()
+  const { activeSource, setActiveSource, activeType, activeTag, setActiveTag } = useSourceFilter()
   const { selectedIndex, setSelectedIndex, setListLength, setItemActions, pendingDelete } = useKeyboardNav()
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null)
 
+  // Source and Tag show their state in the toolbar chips, so repeating them
+  // beside the title says the same thing twice. Type has no control yet.
   const activeFilters = [
     activeType ? { label: "Type", value: activeType } : null,
-    activeTag ? { label: "Tag", value: activeTag } : null,
-    activeSource ? { label: "Source", value: activeSource } : null,
   ].filter((filter): filter is { label: string; value: string } => filter !== null)
 
   const allItems = savedItemsQuery.data?.savedItems ?? []
@@ -44,6 +61,16 @@ export function LibraryPage({ folderId }: { readonly folderId?: string }) {
     && (!activeTag || item.tags.includes(activeTag as (typeof item.tags)[number]))
   )
   const unreadCount = items.filter((item) => !item.isRead).length
+
+  const allItemsForOptions = allSavedItemsQuery.data?.savedItems ?? allItems
+  const sourceOptions: readonly SelectOption[] = [
+    { value: ANY, label: "All" },
+    ...byCountDescending(sourceCountsOf(allItemsForOptions)).map(([name]) => ({ value: name, label: name })),
+  ]
+  const tagOptions: readonly SelectOption[] = [
+    { value: ANY, label: "All" },
+    ...byCountDescending(tagCountsOf(allItemsForOptions)).map(([tag]) => ({ value: tag, label: tag })),
+  ]
 
   const getItemActions = useCallback((item: SavedItem) => ({
     onOpen: () => {
@@ -84,27 +111,35 @@ export function LibraryPage({ folderId }: { readonly folderId?: string }) {
             </p>
           ) : null}
         </div>
-        <div className="page-header-actions">
-          {folder ? (
+        <PageToolbar
+          actions={folder ? (
             <Button variant="ghost" className="folder-edit-button" type="button" onClick={() => setEditingFolder(folder)}>
               <Pencil size={15} aria-hidden="true" />
               <span>Edit</span>
             </Button>
           ) : null}
-          <label className="library-sort">
-            <span>Sort</span>
-            <select
-              aria-label="Sort library"
-              value={sort}
-              onChange={(event) => setSort(event.target.value as SavedItemSort)}
-            >
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-              <option value="title">Title A-Z</option>
-              <option value="unread">Unread first</option>
-            </select>
-          </label>
-        </div>
+        >
+          <Select
+            label="Source"
+            active={activeSource !== null}
+            value={activeSource ?? ANY}
+            options={sourceOptions}
+            onChange={(value) => setActiveSource(value === ANY ? null : value)}
+          />
+          <Select
+            label="Tags"
+            active={activeTag !== null}
+            value={activeTag ?? ANY}
+            options={tagOptions}
+            onChange={(value) => setActiveTag(value === ANY ? null : value)}
+          />
+          <Select
+            label="Sort"
+            value={sort}
+            options={SORT_OPTIONS}
+            onChange={(value) => setSort(value as SavedItemSort)}
+          />
+        </PageToolbar>
       </div>
 
       {showFolderGrid ? (
