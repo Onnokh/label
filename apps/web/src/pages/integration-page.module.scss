@@ -73,8 +73,10 @@
 }
 
 .icon {
+  display: block;
   width: 2.75rem;
   height: 2.75rem;
+  margin-inline: auto;
   object-fit: contain;
 }
 
