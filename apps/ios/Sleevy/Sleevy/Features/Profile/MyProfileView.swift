@@ -320,9 +320,9 @@ struct MyProfileView: View {
                 )
             }
         }
-        // The arc field is dark in both color schemes, so the back button
-        // and menu over it must render light in light mode too.
-        .toolbarColorScheme(.dark, for: .navigationBar)
+        // No forced scheme: the arc field is a dark slab only in dark mode,
+        // and see-through pastel in light mode, so the back button and menu
+        // read correctly from the real scheme.
         // Favicons warm as soon as items arrive, off the scroll path.
         .task(id: loader.items) {
             await FaviconPrefetcher.warm(

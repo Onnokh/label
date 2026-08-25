@@ -2,8 +2,13 @@
 using namespace metal;
 
 // The folder card fields, in the Inbox aurora's language (domain-warped
-// fBm knots, added light over a near-black ground, the same — but gentler —
-// saturation finish), so every card reads as a sibling of the aurora.
+// fBm knots, the same — but gentler — saturation finish), so every card
+// reads as a sibling of the aurora. Like the aurora, each field has two
+// composites, picked by the `lightMode` uniform: dark mode adds light over
+// a near-black ground and paints the card opaque, while light mode paints
+// the field as premultiplied coverage over whatever lies behind the layer,
+// so a card is the surface it sits on plus a pastel field — never a dark
+// slab on a light screen.
 //
 // Two compositions ship, picked by the `style` uniform from the wider
 // playground of styles (FolderCardLabShader.metal):
@@ -73,6 +78,25 @@ static float3 fcard_rich(float3 tint) {
     return clamp(luminance + (tint - luminance) * 1.08, 0.0, 1.0);
 }
 
+/// The light composite's ink. The dark field is built from `deep` and
+/// `mid`; over a white surface those read as dirt, so light mode paints a
+/// softened version of the same scheme — the walk pulled toward the
+/// palette's highlight, but only part of the way. Pulled all the way it
+/// vanished: `neutral`'s highlight is near-white, so a neutral folder's
+/// whole fan disappeared into the page.
+static float3 fcard_pastel(float3 tint, float3 highlight) {
+    return fcard_rich(mix(highlight, tint, 0.62));
+}
+
+/// Source-over coverage, premultiplied: `ink` painted over `premul`/`alpha`
+/// at `coverage`. The light composite stacks its layers through this, the
+/// same way the aurora's light path does.
+static void fcard_over(float3 ink, float coverage, thread float3 &premul, thread float &alpha) {
+    float m = clamp(coverage, 0.0, 1.0);
+    premul = ink * m + premul * (1.0 - m);
+    alpha = m + alpha * (1.0 - m);
+}
+
 /// The palette's own walk along the field: deep -> mid, leaning into the
 /// highlight where the noise runs hot. The highlight sits a hue over from
 /// the mid (red's is amber, purple's is pink), so the walk is what turns
@@ -93,7 +117,8 @@ fragment float4 folder_card_fragment(
     constant float &aspect [[buffer(5)]],
     constant float &motion [[buffer(6)]],
     constant float &style [[buffer(7)]],
-    constant float &bottomFade [[buffer(8)]]
+    constant float &bottomFade [[buffer(8)]],
+    constant float &lightMode [[buffer(9)]]
 ) {
     float2 uv = in.uv;
     // `time` is the card's frozen seed and places the composition; it
@@ -108,17 +133,30 @@ fragment float4 folder_card_fragment(
     float3 col;
 
     if (int(style + 0.5) == 1) {
-        // Arc: a curved auroral bow across the upper half, knots strung
-        // along it, tails hanging inward off its underside, over the
-        // palette-warmed near-black ground.
-        col = mix(float3(0.045, 0.045, 0.055), deep * 0.22, 0.40)
-            * mix(0.88, 1.10, uv.y);
-
         float bow = mix(0.26, 0.40, shape) + 0.9 * pow(uv.x - 0.5, 2.0);
         float d = uv.y - bow;
         float band = exp(-d * d / 0.0035);
         float clump = smoothstep(0.30, 0.78, fcard_fbm(float2(uv.x * 4.2 + ta * 0.02, 5.4)));
         float tails = exp(-max(0.0, d) * 5.5) * clump * step(0.0, d);
+
+        if (lightMode > 0.5) {
+            // The same bow, as coverage over the surface behind the layer.
+            float3 ink = fcard_pastel(tint, highlight);
+            float3 premul = float3(0.0);
+            float alpha = 0.0;
+
+            fcard_over(ink, band * (0.35 + 0.65 * clump) * 0.80, premul, alpha);
+            fcard_over(fcard_pastel(mid, highlight), tails * 0.34, premul, alpha);
+            fcard_over(mix(highlight, float3(1.0), 0.25), band * clump * 0.26, premul, alpha);
+
+            return float4(clamp(premul, 0.0, 1.0), clamp(alpha, 0.0, 1.0));
+        }
+
+        // Arc: a curved auroral bow across the upper half, knots strung
+        // along it, tails hanging inward off its underside, over the
+        // palette-warmed near-black ground.
+        col = mix(float3(0.045, 0.045, 0.055), deep * 0.22, 0.40)
+            * mix(0.88, 1.10, uv.y);
 
         col += fcard_rich(tint) * band * (0.35 + 0.65 * clump) * 0.85;
         col += fcard_rich(mid) * tails * 0.40;
@@ -127,13 +165,12 @@ fragment float4 folder_card_fragment(
         return float4(clamp(col, 0.0, 1.0), 1.0);
     }
 
-    // Corona. The ground is the Inbox header's true black; the fan alone
-    // defines the card, reaching across most of it. Each folder's seed
+    // Corona. In dark mode the ground is the Inbox header's true black and
+    // the fan alone defines the card; in light mode there is no ground at
+    // all and the fan is coverage over the screen. Each folder's seed
     // places its own zenith — where along the top edge the light hangs,
     // how far above the card it sits, and how tightly its rays fan — so
     // no two folders' coronas originate from the same spot.
-    col = float3(0.008, 0.008, 0.011);
-
     float zenithAlong = fcard_hash(float2(t * 0.13, 1.7));
     float zenithHeight = fcard_hash(float2(t * 0.29, 8.3));
     float rayFrequency = mix(4.5, 6.8, fcard_hash(float2(t * 0.41, 5.1)));
@@ -165,6 +202,24 @@ fragment float4 folder_card_fragment(
     float reach = pow(clamp(1.0 - (r - 0.30) / rayReach, 0.0, 1.0), 1.7);
     float beam = rays * reach;
 
+    if (lightMode > 0.5) {
+        float3 ink = fcard_pastel(tint, highlight);
+        float3 premul = float3(0.0);
+        float alpha = 0.0;
+
+        fcard_over(ink, beam * 0.58, premul, alpha);
+        fcard_over(
+            fcard_pastel(mid, highlight),
+            (density * 0.5 + rayDetail * 0.5) * reach * 0.14,
+            premul,
+            alpha
+        );
+        fcard_over(mix(highlight, float3(1.0), 0.30), pow(beam, 3.0) * 0.22, premul, alpha);
+
+        return float4(clamp(premul, 0.0, 1.0), clamp(alpha, 0.0, 1.0));
+    }
+
+    col = float3(0.008, 0.008, 0.011);
     col += fcard_rich(tint) * beam * 0.62;
     col += fcard_rich(mid) * (density * 0.5 + rayDetail * 0.5) * reach * 0.15;
     col += highlight * pow(beam, 3.0) * 0.16;

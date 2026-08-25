@@ -149,9 +149,9 @@ struct FolderLibraryView: View {
                 isVisible: context.isVisible
             )
         }
-        // The corona field is dark in both color schemes, so the large title
-        // and back button over it must render light in light mode too.
-        .toolbarColorScheme(.dark, for: .navigationBar)
+        // No forced scheme: the corona field is a dark slab only in dark
+        // mode, and see-through pastel in light mode, so the large title and
+        // back button read correctly from the real scheme.
         // Favicons warm as soon as items arrive, off the scroll path.
         .task(id: projection.items) {
             await FaviconPrefetcher.warm(items: projection.items, colorScheme: colorScheme)
@@ -185,9 +185,16 @@ struct FolderCard: View {
     let onSetPublished: @MainActor (Bool) -> Void
 
     @Environment(\.pushRoute) private var pushRoute
+    @Environment(\.colorScheme) private var colorScheme
 
     private var palette: FolderCardPalette {
         FolderAccentColor(rawValue: folder.color ?? "")?.cardPalette ?? .neutral
+    }
+
+    /// The card's field is a dark slab in dark mode and see-through pastel
+    /// in light mode, so its labels cannot be a fixed white.
+    private var labelColor: Color {
+        colorScheme == .light ? .primary : .white
     }
 
     var body: some View {
@@ -207,7 +214,7 @@ struct FolderCard: View {
             HStack {
                 Text(folder.name)
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(labelColor)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
 
@@ -217,17 +224,17 @@ struct FolderCard: View {
                     if folder.isPublished {
                         Image(systemName: "person.crop.circle")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.7))
+                            .foregroundStyle(labelColor.opacity(0.7))
 
                         Rectangle()
-                            .fill(.white.opacity(0.25))
+                            .fill(labelColor.opacity(0.25))
                             .frame(width: 1, height: 12)
                     }
 
                     Text("\(itemCount)")
                         .font(.system(size: 16, weight: .semibold))
                         .monospacedDigit()
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(labelColor.opacity(0.7))
                 }
             }
             .padding(.horizontal, 18)
@@ -245,6 +252,17 @@ struct FolderCard: View {
             .allowsHitTesting(false)
         )
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        // Dark mode's field is an opaque slab and is the card's edge. Light
+        // mode's is see-through, so a pale fan on a white list would leave
+        // the row with no shape — a hairline is enough to give it one,
+        // without putting a grey slab back under the field.
+        .overlay {
+            if colorScheme == .light {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.75)
+                    .allowsHitTesting(false)
+            }
+        }
         // Without this the long-press lift snapshots the row's square
         // bounds; with it the lifted card keeps its rounded shape.
         .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -390,6 +408,8 @@ private struct FolderHeaderCard: View {
     let subtitle: String?
     var isVisible = true
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         FolderCardGradient(
             palette: FolderAccentColor(rawValue: folder.color ?? "")?.cardPalette ?? .neutral,
@@ -407,7 +427,9 @@ private struct FolderHeaderCard: View {
             if let subtitle {
                 Text(subtitle)
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.75))
+                    .foregroundStyle(
+                        colorScheme == .light ? AnyShapeStyle(.secondary) : AnyShapeStyle(.white.opacity(0.75))
+                    )
                     .padding(.leading, 20)
                     .padding(.bottom, 14)
             }

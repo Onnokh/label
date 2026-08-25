@@ -92,6 +92,7 @@ enum FolderCardStyle: Float {
 /// because a stack of cards should cost nothing at rest — with an opt-in
 /// slow drift for a screen's single header card.
 struct FolderCardGradient: UIViewRepresentable {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
 
@@ -124,12 +125,24 @@ struct FolderCardGradient: UIViewRepresentable {
 
     func makeUIView(context: Context) -> FolderCardGradientMetalView {
         let view = FolderCardGradientMetalView()
-        view.apply(palette: palette, shape: shape, seed: seed, animated: isAnimating, style: style, bottomFade: bottomFade)
+        apply(to: view)
         return view
     }
 
     func updateUIView(_ uiView: FolderCardGradientMetalView, context: Context) {
-        uiView.apply(palette: palette, shape: shape, seed: seed, animated: isAnimating, style: style, bottomFade: bottomFade)
+        apply(to: uiView)
+    }
+
+    private func apply(to view: FolderCardGradientMetalView) {
+        view.apply(
+            palette: palette,
+            shape: shape,
+            seed: seed,
+            animated: isAnimating,
+            style: style,
+            bottomFade: bottomFade,
+            isLightMode: colorScheme == .light
+        )
     }
 
     static func dismantleUIView(_ uiView: FolderCardGradientMetalView, coordinator: Void) {
@@ -178,8 +191,10 @@ final class FolderCardGradientMetalView: AnimatedMetalView {
 
         colorPixelFormat = .bgra8Unorm
         framebufferOnly = true
-        // The field paints every pixel itself (alpha 1); opaque lets the
-        // compositor skip blending a whole grid of cards.
+        // Dark mode's field paints every pixel itself (alpha 1), and opaque
+        // lets the compositor skip blending a whole grid of cards. Light
+        // mode gives that up on purpose: the field is coverage over the
+        // screen there, so the layer has to composite (see `isLightMode`).
         isOpaque = true
         clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         // Purely decorative, and it sits under the card's tap target.
@@ -195,7 +210,15 @@ final class FolderCardGradientMetalView: AnimatedMetalView {
         rendererDidBecomeReady()
     }
 
-    func apply(palette: FolderCardPalette, shape: Float, seed: Float, animated: Bool, style: FolderCardStyle, bottomFade: Float) {
+    func apply(
+        palette: FolderCardPalette,
+        shape: Float,
+        seed: Float,
+        animated: Bool,
+        style: FolderCardStyle,
+        bottomFade: Float,
+        isLightMode: Bool
+    ) {
         guard
             renderer?.palette != palette
                 || renderer?.shape != shape
@@ -203,6 +226,7 @@ final class FolderCardGradientMetalView: AnimatedMetalView {
                 || renderer?.animated != animated
                 || renderer?.style != style
                 || renderer?.bottomFade != bottomFade
+                || renderer?.isLightMode != isLightMode
         else { return }
 
         renderer?.palette = palette
@@ -211,6 +235,12 @@ final class FolderCardGradientMetalView: AnimatedMetalView {
         renderer?.animated = animated
         renderer?.style = style
         renderer?.bottomFade = bottomFade
+        renderer?.isLightMode = isLightMode
+        // Light mode's field is premultiplied coverage, so the layer must
+        // blend with what is behind it; dark mode's fills every pixel and
+        // stays opaque.
+        isOpaque = !isLightMode
+        clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: isLightMode ? 0 : 1)
         shouldAnimate = animated
         redrawIfPaused()
     }
@@ -223,6 +253,8 @@ final class FolderCardGradientRenderer: NSObject, MTKViewDelegate {
     var animated = false
     var style = FolderCardStyle.corona
     var bottomFade: Float = 0
+    /// Light mode draws the pastel, see-through variant of the field.
+    var isLightMode = false
 
     private let commandQueue: MTLCommandQueue
     private let pipelineState: MTLRenderPipelineState
@@ -259,6 +291,7 @@ final class FolderCardGradientRenderer: NSObject, MTKViewDelegate {
         var motion = animated ? Float(CACurrentMediaTime() - startTime) : 0
         var styleValue = style.rawValue
         var bottomFadeValue = bottomFade
+        var lightMode: Float = isLightMode ? 1 : 0
 
         encoder.setRenderPipelineState(pipelineState)
         encoder.setFragmentBytes(&time, length: MemoryLayout<Float>.size, index: 0)
@@ -270,6 +303,7 @@ final class FolderCardGradientRenderer: NSObject, MTKViewDelegate {
         encoder.setFragmentBytes(&motion, length: MemoryLayout<Float>.size, index: 6)
         encoder.setFragmentBytes(&styleValue, length: MemoryLayout<Float>.size, index: 7)
         encoder.setFragmentBytes(&bottomFadeValue, length: MemoryLayout<Float>.size, index: 8)
+        encoder.setFragmentBytes(&lightMode, length: MemoryLayout<Float>.size, index: 9)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         encoder.endEncoding()
 
