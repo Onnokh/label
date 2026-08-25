@@ -5,11 +5,14 @@
    769–1024 authored at 1024 (15px root); mobile ≤768 authored at 480 (16px root).
    Scoped via :has() to the marketing tree so the app UI is never affected. */
 html:has(.page) {
+  --page: #101113;
+
   font-size: calc(100vw / 90); /* 1440 / 16 = 90  →  16px at 1440px */
   /* Paint the canvas itself, not just .page — overscroll rubber-banding
      (iOS/desktop Safari) reveals the html background, which otherwise
      falls back to the light app-body color. */
-  background: #101113;
+  background: var(--page);
+  color-scheme: dark;
 }
 
 @media (min-width: 1920px) {
