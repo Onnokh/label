@@ -252,16 +252,19 @@ struct FolderCard: View {
             .allowsHitTesting(false)
         )
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        // Dark mode's field is an opaque slab and is the card's edge. Light
-        // mode's is see-through, so a pale fan on a white list would leave
-        // the row with no shape — a hairline is enough to give it one,
-        // without putting a grey slab back under the field.
+        // A card's edge cannot be left to its own field: the fan reaches
+        // only part of the way across, so wherever it does not, a pale card
+        // on a white list and a near-black card on a near-black list are
+        // equally shapeless. A hairline gives every card an edge — carried
+        // a little stronger in dark mode, where a dark rim on a dark list
+        // reads weaker than a dark rim on a light one.
         .overlay {
-            if colorScheme == .light {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.75)
-                    .allowsHitTesting(false)
-            }
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(
+                    Color.primary.opacity(colorScheme == .light ? 0.08 : 0.12),
+                    lineWidth: 0.75
+                )
+                .allowsHitTesting(false)
         }
         // Without this the long-press lift snapshots the row's square
         // bounds; with it the lifted card keeps its rounded shape.
