@@ -712,7 +712,7 @@ _Avoid_: Client-side robots rule, per-page meta decision, sitemap flag
 - A successful **Public Profile Endpoint** response may be cached for five minutes; a not-found response is not cached.
 - The public **Saved Item** rule is resolved in SQL and owned by Postgres, which decides the one-hour boundary.
 - A signed-in visitor may capture a listed Saved Item into their own Account through the `public-profile` **Capture Channel**.
-- Marking a Saved Item or a Folder private is a **Web Companion** action in v1.
+- Marking a Saved Item or a Folder private is a **Web Companion** or **Native iOS App** action in v1.
 
 ## Flagged Ambiguities
 

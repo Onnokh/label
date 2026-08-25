@@ -516,6 +516,14 @@ final class InMemoryNetworkAdapter: ReadingListNetworkPort {
         return folder
     }
 
+    func setFolderPublished(id: String, isPublished: Bool) async throws(SyncFault) -> Folder {
+        try record("setFolderPublished")
+        var folder = folders[id] ?? Folder(id: id, name: id, emoji: nil, color: nil)
+        folder.isPublished = isPublished
+        folders[id] = folder
+        return folder
+    }
+
     func deleteFolder(id: String) async throws(SyncFault) {
         try record("deleteFolder")
         folders[id] = nil

@@ -26,6 +26,7 @@ protocol ReadingListNetworkPort {
 
     func createFolder(name: String, emoji: String?, color: String?) async throws(SyncFault) -> Folder
     func renameFolder(id: String, name: String, emoji: String?, color: String?) async throws(SyncFault) -> Folder
+    func setFolderPublished(id: String, isPublished: Bool) async throws(SyncFault) -> Folder
     func deleteFolder(id: String) async throws(SyncFault)
     func moveItem(id: String, toFolder folderId: String?) async throws(SyncFault) -> SavedItem
 }

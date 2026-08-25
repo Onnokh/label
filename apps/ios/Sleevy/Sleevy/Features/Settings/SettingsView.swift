@@ -53,6 +53,14 @@ struct SettingsView: View {
                 Text("New links saved from this iPhone will use this name as their source.")
             }
 
+            #if DEBUG
+            Section("Developer") {
+                NavigationLink(value: AppRoute.folderCardPlayground) {
+                    Label("Folder Card Playground", systemImage: "paintpalette")
+                }
+            }
+            #endif
+
             Section {
                 Button(role: .destructive) {
                     isShowingDeleteConfirmation = true
@@ -71,6 +79,9 @@ struct SettingsView: View {
                 Text("Permanently delete your account and all saved data.")
             }
         }
+        // No extra margin: the grouped Form's built-in top padding already
+        // lands on `ScreenLayout.contentTopSpacing`, which Library adds
+        // explicitly to its plain list.
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.large)
         .onDisappear(perform: appSettings.normalizeSourceName)

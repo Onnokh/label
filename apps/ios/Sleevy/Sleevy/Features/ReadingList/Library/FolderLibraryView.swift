@@ -8,8 +8,7 @@ struct FolderLibraryView: View {
     @State private var sort = LibrarySort.newest
     @State private var isShowingFilters = false
     @State private var itemToMove: SavedItem?
-    @State private var headerScrollDistance: CGFloat = 0
-    @State private var headerTopInsetBaseline: CGFloat = 0
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let projection = store.libraryProjection(
@@ -136,37 +135,26 @@ struct FolderLibraryView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .scrollBounceBehavior(.always, axes: .vertical)
-        // Same mechanics as the Inbox header card: the large title stays
-        // native, the card is painted behind it, scrolls away with the
-        // content, and stretches on pull-down. Here the card is a flat wash
-        // of the folder's color, telling a folder apart from the Inbox.
-        .contentMargins(.top, max(0, headerCardHeight - headerTopInset), for: .scrollContent)
-        .background(alignment: .top) {
+        // The shared header-card mechanic (see `stretchyHeaderCard`); here
+        // the card is the folder's own corona field, telling a folder apart
+        // from the Inbox's aurora.
+        .stretchyHeaderCard(height: headerCardHeight, topInset: headerTopInset) { context in
             FolderHeaderCard(
-                tint: FolderAccentColor(rawValue: currentFolder.color ?? "")?.tint,
-                height: headerCardHeight + max(0, -headerScrollDistance),
+                folder: currentFolder,
+                height: context.height,
                 subtitle: navigationSubtitleText(
                     total: projection.destinationCount,
                     unread: projection.unreadDestinationCount
-                )
+                ),
+                isVisible: context.isVisible
             )
-            .offset(y: -max(0, headerScrollDistance))
-            .ignoresSafeArea(edges: .top)
         }
-        .onScrollGeometryChange(for: FolderHeaderScrollReading.self) { geometry in
-            FolderHeaderScrollReading(
-                offset: geometry.contentOffset.y,
-                inset: geometry.contentInsets.top
-            )
-        } action: { _, reading in
-            // See the Inbox: measure against a resting baseline so the
-            // refresh spinner's transient inset never jolts the card.
-            guard reading.inset > 0 else { return }
-
-            if reading.inset <= headerTopInsetBaseline || headerScrollDistance >= 0 {
-                headerTopInsetBaseline = reading.inset
-            }
-            headerScrollDistance = reading.offset + headerTopInsetBaseline
+        // The corona field is dark in both color schemes, so the large title
+        // and back button over it must render light in light mode too.
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        // Favicons warm as soon as items arrive, off the scroll path.
+        .task(id: projection.items) {
+            await FaviconPrefetcher.warm(items: projection.items, colorScheme: colorScheme)
         }
     }
 
@@ -184,27 +172,29 @@ struct FolderLibraryView: View {
     }
 }
 
-/// One folder in the folders grid: a large tinted folder icon, a three-dot
-/// actions menu, the name, and how many Saved Items live inside. A folder
-/// with an accent color tints the whole card; one without stays neutral.
+/// One folder in the folders stack: a slim horizontal row over the folder's
+/// corona field, name on the left, bare count on the right. The gradient
+/// carries the folder's accent colour; a folder without one wears the
+/// neutral palette. Tap opens the folder; every other action lives behind
+/// a long-press.
 struct FolderCard: View {
     let folder: Folder
     let itemCount: Int
     let onRename: @MainActor () -> Void
     let onDelete: @MainActor () -> Void
+    let onSetPublished: @MainActor (Bool) -> Void
 
     @Environment(\.pushRoute) private var pushRoute
 
-    private var accent: Color? {
-        FolderAccentColor(rawValue: folder.color ?? "")?.tint
+    private var palette: FolderCardPalette {
+        FolderAccentColor(rawValue: folder.color ?? "")?.cardPalette ?? .neutral
     }
 
     var body: some View {
         // Layered by hand, pushing through `pushRoute` instead of being a
         // NavigationLink (see the environment key for why). The clear button
-        // is the tap target, the visuals ignore touches, and only the menu
-        // floats above it.
-        ZStack(alignment: .topTrailing) {
+        // is the tap target; the visuals ignore touches.
+        ZStack {
             Button {
                 pushRoute(.folder(id: folder.id))
             } label: {
@@ -214,49 +204,50 @@ struct FolderCard: View {
             .accessibilityLabel(folder.name)
             .accessibilityValue(accessibilityCountLabel)
 
-            VStack(alignment: .leading, spacing: 5) {
-                FolderGlyph(
-                    emoji: folder.emoji,
-                    tint: accent ?? Color(uiColor: .systemGray)
-                )
-                .frame(width: 54, height: 48)
-
-                Spacer(minLength: 14)
-
+            HStack {
                 Text(folder.name)
-                    .font(.system(size: 23, weight: .bold))
-                    .foregroundStyle(accent ?? Color.primary)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(.white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
 
-                Text(countLabel)
-                    .font(.system(size: 13, weight: .semibold))
-                    .kerning(0.5)
-                    .foregroundStyle(accent?.opacity(0.55) ?? Color.secondary)
+                Spacer()
+
+                HStack(spacing: 8) {
+                    if folder.isPublished {
+                        Image(systemName: "person.crop.circle")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.7))
+
+                        Rectangle()
+                            .fill(.white.opacity(0.25))
+                            .frame(width: 1, height: 12)
+                    }
+
+                    Text("\(itemCount)")
+                        .font(.system(size: 16, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(.white.opacity(0.7))
+                }
             }
-            .padding(18)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(.horizontal, 18)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
-
-            Menu {
-                actions
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 17, weight: .semibold))
-                    .rotationEffect(.degrees(90))
-                    .foregroundStyle(accent?.opacity(0.75) ?? Color.secondary)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-            }
-            .accessibilityLabel("Folder Actions")
-            .padding(6)
         }
-        .aspectRatio(1.15, contentMode: .fit)
+        .aspectRatio(5.0, contentMode: .fit)
         .background(
-            accent?.opacity(0.12) ?? Color(uiColor: .secondarySystemBackground),
-            in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+            FolderCardGradient(
+                palette: palette,
+                shape: FolderCardGradient.shape(for: folder.id),
+                seed: FolderCardGradient.seed(for: folder.id)
+            )
+            .allowsHitTesting(false)
         )
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        // Without this the long-press lift snapshots the row's square
+        // bounds; with it the lifted card keeps its rounded shape.
+        .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 20, style: .continuous))
         .contextMenu {
             actions
         }
@@ -265,7 +256,19 @@ struct FolderCard: View {
     @ViewBuilder
     private var actions: some View {
         Button(action: onRename) {
-            Label("Rename", systemImage: "pencil")
+            Label("Edit", systemImage: "pencil")
+        }
+
+        // The label states what the action does next, so the stored state
+        // stays legible even while Profile Visibility is private and the
+        // card shows no marker.
+        Button {
+            onSetPublished(!folder.isPublished)
+        } label: {
+            Label(
+                folder.isPublished ? "Remove from Profile" : "Publish to Profile",
+                systemImage: "person.crop.circle"
+            )
         }
 
         Button(role: .destructive, action: onDelete) {
@@ -273,73 +276,9 @@ struct FolderCard: View {
         }
     }
 
-    private var countLabel: String {
-        itemCount == 1 ? "1 SAVE" : "\(itemCount) SAVES"
-    }
-
     private var accessibilityCountLabel: String {
-        itemCount == 1 ? "1 saved item" : "\(itemCount) saved items"
-    }
-}
-
-/// The two-column layout every folders grid shares.
-enum FolderGrid {
-    static let spacing: CGFloat = 12
-    static let columns = [
-        GridItem(.flexible(), spacing: spacing),
-        GridItem(.flexible(), spacing: spacing),
-    ]
-}
-
-struct AllFoldersView: View {
-    var store: ReadingListStore
-    @State private var folderEditor: FolderEditor?
-    @State private var folderToDelete: Folder?
-
-    var body: some View {
-        let projection = store.libraryProjection(
-            for: .completeLibrary,
-            filter: LibraryFilter(),
-            sort: .newest,
-            facetOrder: .name
-        )
-
-        List {
-            LazyVGrid(columns: FolderGrid.columns, spacing: FolderGrid.spacing) {
-                ForEach(store.folders) { folder in
-                    FolderCard(
-                        folder: folder,
-                        itemCount: projection.folderCounts[folder.id, default: 0]
-                    ) {
-                        folderEditor = .rename(folder)
-                    } onDelete: {
-                        folderToDelete = folder
-                    }
-                }
-            }
-            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-        }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(Color(uiColor: .systemBackground))
-        .navigationTitle("Folders")
-        .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    folderEditor = .create
-                } label: {
-                    Image(systemName: "folder.badge.plus")
-                }
-                .accessibilityLabel("New Folder")
-            }
-        }
-        .folderActions(store: store, editor: $folderEditor, folderToDelete: $folderToDelete)
-        .refreshable {
-            await store.refresh()
-        }
+        let count = itemCount == 1 ? "1 saved item" : "\(itemCount) saved items"
+        return folder.isPublished ? "\(count), on your public profile" : count
     }
 }
 
@@ -440,155 +379,43 @@ struct MoveToFolderSheet: View {
     }
 }
 
-/// What the header card needs from the scroll geometry.
-private struct FolderHeaderScrollReading: Equatable {
-    var offset: CGFloat
-    var inset: CGFloat
-}
-
 /// The card behind a folder's large title — the Inbox header card's sibling,
-/// with a flat wash of the folder's accent color instead of the aurora
-/// (neutral for a folder without one). The counts render inside the card:
+/// with the folder's own corona field instead of the aurora (neutral for a
+/// folder without one). The counts render inside the card:
 /// `navigationSubtitle` on a pushed screen collapses the large title to
 /// inline, so the system subtitle is not an option here.
 private struct FolderHeaderCard: View {
-    let tint: Color?
+    let folder: Folder
     let height: CGFloat
     let subtitle: String?
+    var isVisible = true
 
     var body: some View {
-        Rectangle()
-            .fill(tint?.opacity(0.2) ?? Color(uiColor: .secondarySystemBackground))
-            .frame(height: height)
-            .frame(maxWidth: .infinity)
-            .overlay(alignment: .bottomLeading) {
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.leading, 20)
-                        .padding(.bottom, 14)
-                }
-            }
-            .clipShape(.rect(
-                bottomLeadingRadius: 28,
-                bottomTrailingRadius: 28,
-                style: .continuous
-            ))
-    }
-}
-
-/// The folder silhouette the cards use: a tabbed body with rounded corners.
-/// `folder.fill` is too wide and flat for the card's hero position, so the
-/// glyph is drawn by hand and given depth with a darker extruded lip.
-private struct FolderGlyphShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        let tabWidth = rect.width * 0.45
-        let tabHeight = rect.height * 0.20
-        let slant = rect.width * 0.10
-        let bodyRadius = min(rect.width, rect.height) * 0.18
-        let tabRadius = bodyRadius * 0.55
-
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.midY))
-        path.addArc(
-            tangent1End: CGPoint(x: rect.minX, y: rect.minY),
-            tangent2End: CGPoint(x: rect.minX + tabWidth, y: rect.minY),
-            radius: tabRadius
+        FolderCardGradient(
+            palette: FolderAccentColor(rawValue: folder.color ?? "")?.cardPalette ?? .neutral,
+            shape: FolderCardGradient.shape(for: folder.id),
+            seed: FolderCardGradient.seed(for: folder.id),
+            // The one card on screen: the same frozen fan the folder's row
+            // wears, drifting slowly like the Inbox aurora — with every ray
+            // ending above the card's bottom edge on this tall canvas.
+            animated: isVisible,
+            bottomFade: 1
         )
-        path.addArc(
-            tangent1End: CGPoint(x: rect.minX + tabWidth, y: rect.minY),
-            tangent2End: CGPoint(x: rect.minX + tabWidth + slant, y: rect.minY + tabHeight),
-            radius: tabRadius
-        )
-        path.addArc(
-            tangent1End: CGPoint(x: rect.minX + tabWidth + slant, y: rect.minY + tabHeight),
-            tangent2End: CGPoint(x: rect.maxX, y: rect.minY + tabHeight),
-            radius: tabRadius
-        )
-        path.addArc(
-            tangent1End: CGPoint(x: rect.maxX, y: rect.minY + tabHeight),
-            tangent2End: CGPoint(x: rect.maxX, y: rect.maxY),
-            radius: tabRadius
-        )
-        path.addArc(
-            tangent1End: CGPoint(x: rect.maxX, y: rect.maxY),
-            tangent2End: CGPoint(x: rect.minX, y: rect.maxY),
-            radius: bodyRadius
-        )
-        path.addArc(
-            tangent1End: CGPoint(x: rect.minX, y: rect.maxY),
-            tangent2End: CGPoint(x: rect.minX, y: rect.minY),
-            radius: bodyRadius
-        )
-        path.closeSubpath()
-        return path
-    }
-}
-
-struct FolderGlyph: View {
-    let emoji: String?
-    let tint: Color
-
-    var body: some View {
-        GeometryReader { proxy in
-            let size = proxy.size
-            let lip = size.height * 0.10
-            let glyph = CGRect(x: 0, y: 0, width: size.width, height: size.height - lip)
-
-            ZStack(alignment: .topLeading) {
-                FolderGlyphShape()
-                    .path(in: glyph.offsetBy(dx: 0, dy: lip))
-                    .fill(tint)
-                    .brightness(-0.22)
-
-                FolderGlyphShape()
-                    .path(in: glyph)
-                    .fill(tint)
-                    .overlay {
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.45), Color.white.opacity(0.02)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                        .blendMode(.softLight)
-                        .clipShape(FolderGlyphShape().path(in: glyph))
-                    }
-
-                if let emoji {
-                    Text(emoji)
-                        .font(.system(size: glyph.height * 0.42))
-                        .frame(width: glyph.width, height: glyph.height * 0.8)
-                        .offset(y: glyph.height * 0.2)
-                }
+        .frame(height: height)
+        .frame(maxWidth: .infinity)
+        .overlay(alignment: .bottomLeading) {
+            if let subtitle {
+                Text(subtitle)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .padding(.leading, 20)
+                    .padding(.bottom, 14)
             }
         }
-        .accessibilityHidden(true)
-    }
-}
-
-struct FolderIcon: View {
-    let emoji: String?
-    let color: FolderAccentColor?
-    var fallbackTint: Color = .accentColor
-
-    var body: some View {
-        GeometryReader { proxy in
-            let size = min(proxy.size.width, proxy.size.height)
-
-            ZStack {
-                Image(systemName: "folder.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .foregroundStyle((color?.tint ?? fallbackTint).gradient)
-
-                if let emoji {
-                    Text(emoji)
-                        .font(.system(size: size * 0.35))
-                        .offset(y: size * 0.09)
-                }
-            }
-        }
-        .accessibilityHidden(true)
+        .clipShape(.rect(
+            bottomLeadingRadius: 28,
+            bottomTrailingRadius: 28,
+            style: .continuous
+        ))
     }
 }

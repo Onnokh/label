@@ -21,25 +21,7 @@ extension SavedItem {
     }
 
     var createdDateLabel: String {
-        let interval = max(0, Date().timeIntervalSince(lastSavedAt))
-        let minutes = Int(interval / 60)
-
-        if minutes < 1 {
-            return "now"
-        }
-
-        if minutes < 60 {
-            return "\(minutes)m"
-        }
-
-        let hours = Int(interval / 3_600)
-        if hours < 24 {
-            return "\(hours)h"
-        }
-
-        return Calendar.current.isDate(lastSavedAt, equalTo: Date(), toGranularity: .year)
-            ? Self.sameYearDateFormatter.string(from: lastSavedAt)
-            : Self.crossYearDateFormatter.string(from: lastSavedAt)
+        lastSavedAt.compactRecencyLabel
     }
 
     var googleFaviconURL: URL? {
@@ -73,20 +55,6 @@ extension SavedItem {
         String(displayDomain.prefix(1)).uppercased()
     }
 
-    private static let sameYearDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.setLocalizedDateFormatFromTemplate("MMM d")
-        return formatter
-    }()
-
-    private static let crossYearDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.setLocalizedDateFormatFromTemplate("MMM d yyyy")
-        return formatter
-    }()
-
     private static func safeRemoteURL(_ value: String?) -> URL? {
         guard
             let value,
@@ -110,6 +78,46 @@ extension PendingSavedItem {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.setLocalizedDateFormatFromTemplate("d MMM")
+        return formatter
+    }()
+}
+
+extension Date {
+    /// The list rows' shared recency label: "now", then minutes, then hours,
+    /// then "Aug 12" (with the year once it crosses one).
+    var compactRecencyLabel: String {
+        let interval = max(0, Date().timeIntervalSince(self))
+        let minutes = Int(interval / 60)
+
+        if minutes < 1 {
+            return "now"
+        }
+
+        if minutes < 60 {
+            return "\(minutes)m"
+        }
+
+        let hours = Int(interval / 3_600)
+        if hours < 24 {
+            return "\(hours)h"
+        }
+
+        return Calendar.current.isDate(self, equalTo: Date(), toGranularity: .year)
+            ? Self.sameYearDateFormatter.string(from: self)
+            : Self.crossYearDateFormatter.string(from: self)
+    }
+
+    private static let sameYearDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.setLocalizedDateFormatFromTemplate("MMM d")
+        return formatter
+    }()
+
+    private static let crossYearDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.setLocalizedDateFormatFromTemplate("MMM d yyyy")
         return formatter
     }()
 }

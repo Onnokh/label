@@ -115,8 +115,11 @@ static float aurora_curtain(
     float knots = smoothstep(0.28, 0.75, density);
     float wash = density * 0.18;
 
-    // Each ray has its own length.
-    float rayLength = 0.75 + 0.55 * aurora_fbm(float2(xw * 0.5 + 7.3, time * 0.030));
+    // Each ray has its own length, spread wide on purpose: short rays die
+    // out in the card's upper half and only the longest reach the floor
+    // below, so the curtain's lower edge is ragged instead of a shared
+    // fade line where every ray sinks to black together.
+    float rayLength = 0.42 + 0.85 * aurora_fbm(float2(xw * 0.5 + 7.3, time * 0.030));
 
     // Full brightness at the top edge itself, then a long soft tail down.
     float tail = 1.0 - clamp(uv.y / rayLength, 0.0, 1.0);

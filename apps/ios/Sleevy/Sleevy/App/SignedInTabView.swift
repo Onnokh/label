@@ -9,6 +9,7 @@ struct SignedInTabView: View {
     let session: AppSession
     @State private var store: ReadingListStore
     @State private var profileLoader = PublicProfileLoader()
+    @State private var profileStore: ProfileStore
     @State private var selectedTab: AppTab = .sleevy
     @State private var sleevyPath: [AppRoute] = []
     @State private var libraryPath: [AppRoute] = []
@@ -17,6 +18,7 @@ struct SignedInTabView: View {
     init(session: AppSession, tokenStore: SessionTokenStore) {
         self.session = session
         _store = State(wrappedValue: ReadingListStore(session: session, tokenStore: tokenStore))
+        _profileStore = State(wrappedValue: ProfileStore.live(tokenStore: tokenStore))
     }
 
     var body: some View {
@@ -59,6 +61,12 @@ struct SignedInTabView: View {
             }
         }
         .environment(profileLoader)
+        .environment(profileStore)
+        .task {
+            // Folder cards suppress their published marker while the profile
+            // is private, so the record must be known outside the profile page.
+            await profileStore.load()
+        }
         .onAppear {
             store.onAuthenticationInvalid = { message in
                 authStore.invalidateSession(message: message)

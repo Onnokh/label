@@ -62,6 +62,11 @@ struct HTTPReadingListAdapter: ReadingListNetworkPort {
         catch { throw Self.fault(from: error) }
     }
 
+    func setFolderPublished(id: String, isPublished: Bool) async throws(SyncFault) -> Folder {
+        do { return try await api.setFolderPublished(id: id, isPublished: isPublished) }
+        catch { throw Self.fault(from: error) }
+    }
+
     func deleteFolder(id: String) async throws(SyncFault) {
         do { try await api.deleteFolder(id: id) } catch { throw Self.fault(from: error) }
     }

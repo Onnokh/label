@@ -4,11 +4,27 @@ import WebKit
 
 struct SavedItemFavicon: View {
     @Environment(\.colorScheme) private var colorScheme
-    let item: SavedItem
+
+    private enum Source {
+        case item(SavedItem)
+        case remote(URL?, monogram: String)
+    }
+
+    private let source: Source
+
+    init(item: SavedItem) {
+        source = .item(item)
+    }
+
+    /// For rows built from other DTOs (the public profile page), which carry
+    /// a plain favicon URL instead of a SavedItem.
+    init(faviconURL: URL?, monogram: String) {
+        source = .remote(faviconURL, monogram: monogram)
+    }
 
     var body: some View {
         Group {
-            if let faviconURL = item.preferredFaviconURL(colorScheme: colorScheme) {
+            if let faviconURL {
                 if faviconURL.isSVG {
                     SVGRemoteImage(url: faviconURL, colorScheme: colorScheme) {
                         faviconFallback
@@ -30,10 +46,57 @@ struct SavedItemFavicon: View {
         .padding(.vertical, 4)
     }
 
+    private var faviconURL: URL? {
+        switch source {
+        case .item(let item): item.preferredFaviconURL(colorScheme: colorScheme)
+        case .remote(let url, _): url
+        }
+    }
+
+    private var monogram: String {
+        switch source {
+        case .item(let item): item.monogram
+        case .remote(_, let monogram): monogram
+        }
+    }
+
     private var faviconFallback: some View {
-        Text(item.monogram)
+        Text(monogram)
             .font(.system(size: 16, weight: .semibold, design: .rounded))
             .foregroundStyle(.secondary)
+    }
+}
+
+/// Warms the favicon pipeline ahead of the rows appearing: the bytes land
+/// in the caches and SVGs are pre-rendered, so the first scroll through a
+/// list never pays a network fetch — or worse, a WKWebView snapshot — per
+/// row. Screens call this when their items arrive, not when rows appear.
+@MainActor
+enum FaviconPrefetcher {
+    private static var warmedKeys = Set<String>()
+
+    static func warm(items: [SavedItem], colorScheme: ColorScheme) async {
+        await warm(
+            urls: items.map { $0.preferredFaviconURL(colorScheme: colorScheme) },
+            colorScheme: colorScheme
+        )
+    }
+
+    static func warm(urls: [URL?], colorScheme: ColorScheme) async {
+        for url in urls {
+            guard let url else { continue }
+
+            let key = "\(url.absoluteString)|\(colorScheme.cacheKey)"
+            guard warmedKeys.insert(key).inserted else { continue }
+
+            // One at a time on purpose: warming is a background nicety and
+            // must never contend with what the user is doing right now.
+            if url.isSVG {
+                await SVGSnapshotLoader().load(url: url, size: 30, colorScheme: colorScheme)
+            } else {
+                await RemoteRasterImageLoader().load(url)
+            }
+        }
     }
 }
 

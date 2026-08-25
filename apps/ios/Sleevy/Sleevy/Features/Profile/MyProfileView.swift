@@ -162,28 +162,26 @@ struct MyProfileView: View {
     private static let avatarAllowance: CGFloat = 24
 
     @Environment(PublicProfileLoader.self) private var loader
+    @Environment(ProfileStore.self) private var profileStore
     @Environment(AuthStore.self) private var authStore
+    @Environment(\.colorScheme) private var colorScheme
     let session: AppSession
-    @State private var headerScrollDistance: CGFloat = 0
-    @State private var headerTopInsetBaseline: CGFloat = 0
+    @State private var isPublicizing = false
+    @State private var isChangingHandle = false
+    @State private var isTurningOff = false
+    @State private var visibilityError: String?
 
     var body: some View {
         GeometryReader { geometry in
-            switch loader.phase {
+            switch profileStore.phase {
             case .loading:
                 ProgressView("Loading your profile...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case .missingHandle:
+            case .failed:
                 ContentUnavailableView(
-                    "No Profile Yet",
-                    systemImage: "person.crop.circle.badge.questionmark",
-                    description: Text("Your profile handle has not loaded yet. Pull to retry.")
-                )
-            case .unavailable:
-                ContentUnavailableView(
-                    "Profile is Private",
-                    systemImage: "lock",
-                    description: Text("Only public profiles have a page. You can make yours public on the web.")
+                    "Could Not Load Your Profile",
+                    systemImage: "person.crop.circle.badge.exclamationmark",
+                    description: Text("Could not load your public profile. Pull to retry.")
                 )
             case .loaded:
                 profileList(headerTopInset: geometry.safeAreaInsets.top)
@@ -195,10 +193,63 @@ struct MyProfileView: View {
         // the floating back button overlays it.
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if profileStore.profile != nil {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        // A private page has no address a visitor can reach,
+                        // so there is nothing to share until it is public.
+                        if profileStore.isPublic, let handle = profileStore.profile?.handle {
+                            ShareLink(item: HandleRules.publicProfileURL(handle: handle)) {
+                                Label("Share Profile", systemImage: "square.and.arrow.up")
+                            }
+                        }
+
+                        Button {
+                            isChangingHandle = true
+                        } label: {
+                            Label("Change Handle", systemImage: "at")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .accessibilityLabel("Profile Options")
+                }
+            }
+        }
+        .sheet(isPresented: $isPublicizing) {
+            PublicizeProfileSheet(profileStore: profileStore) {
+                await loader.load()
+            }
+        }
+        .sheet(isPresented: $isChangingHandle) {
+            ChangeHandleSheet(profileStore: profileStore)
+        }
+        .alert(
+            "Could Not Update Your Profile",
+            isPresented: Binding(
+                get: { visibilityError != nil },
+                set: { if !$0 { visibilityError = nil } }
+            ),
+            presenting: visibilityError
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { message in
+            Text(message)
+        }
         .task {
-            await loader.load()
+            await load()
         }
         .refreshable {
+            await load()
+        }
+    }
+
+    /// The authed profile record decides the page's shape; the public content
+    /// only exists (and is only fetched) while Profile Visibility is public.
+    private func load() async {
+        await profileStore.load()
+        if profileStore.isPublic {
             await loader.load()
         }
     }
@@ -211,12 +262,12 @@ struct MyProfileView: View {
         return List {
             Section {
                 VStack(spacing: 4) {
-                    if let handle = loader.handle {
+                    if let handle = profileStore.profile?.handle {
                         Text("@\(handle)")
                             .font(.system(size: 24, weight: .bold))
                     }
 
-                    if let count = loader.profile?.publicSavedItemCount {
+                    if profileStore.isPublic, let count = loader.profile?.publicSavedItemCount {
                         Text("\(count) Sleeved")
                             .font(.system(size: 15, weight: .medium))
                             .foregroundStyle(.secondary)
@@ -227,14 +278,90 @@ struct MyProfileView: View {
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
 
-                // Placeholders until following ships.
-                HStack(spacing: 12) {
-                    ProfileActionButton(title: "Follow", role: .prominent) {}
-                    ProfileActionButton(title: "Message", role: .neutral) {}
+                Button(action: handleVisibilityTap) {
+                    Text(visibilityButtonTitle)
+                        .font(.system(size: 15, weight: .semibold))
+                        .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(isTurningOff)
                 .listRowInsets(EdgeInsets(top: 4, leading: 24, bottom: 16, trailing: 24))
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
+            }
+
+            if profileStore.isPublic {
+                publicContent
+            } else {
+                Section {
+                    privateStateView
+                        .listRowInsets(EdgeInsets(top: 0, leading: 24, bottom: 0, trailing: 24))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .scrollBounceBehavior(.always, axes: .vertical)
+        // The shared header-card mechanic (see `stretchyHeaderCard`); the
+        // extra margin also clears the avatar's bottom half hanging under
+        // the card.
+        .stretchyHeaderCard(
+            height: headerCardHeight,
+            topInset: headerTopInset,
+            extraTopMargin: profileAvatarSize / 2 + 14
+        ) { context in
+            ProfileHeroCard(height: context.height, isVisible: context.isVisible) {
+                ProfileAvatar(
+                    name: session.displayName,
+                    imageURL: session.provider == .google ? authStore.googleUserProfile?.imageURL : nil
+                )
+            }
+        }
+        // The arc field is dark in both color schemes, so the back button
+        // and menu over it must render light in light mode too.
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        // Favicons warm as soon as items arrive, off the scroll path.
+        .task(id: loader.items) {
+            await FaviconPrefetcher.warm(
+                urls: loader.items.map { $0.faviconUrl.flatMap(URL.init(string:)) },
+                colorScheme: colorScheme
+            )
+        }
+    }
+
+    /// The published Saved Items, or the transitional states around them —
+    /// only rendered while Profile Visibility is public.
+    @ViewBuilder
+    private var publicContent: some View {
+        switch loader.phase {
+        case .loading, .missingHandle:
+            ProgressView()
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+        case .unavailable:
+            Text("Could not load your page. Pull to retry.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+        case .loaded:
+            if loader.items.isEmpty {
+                Text("Nothing here yet. Publish a folder from its menu, and everything in it shows on your page.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 24, bottom: 0, trailing: 24))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
 
             ForEach(monthSections, id: \.title) { section in
@@ -263,45 +390,51 @@ struct MyProfileView: View {
                     .listRowSeparator(.hidden)
             }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .scrollBounceBehavior(.always, axes: .vertical)
-        // Same mechanics as the Inbox and folder header cards: the card
-        // paints from the top edge, scrolls away with the content, and
-        // stretches on pull-down. The content margin also clears the
-        // avatar's bottom half.
-        .contentMargins(
-            .top,
-            max(0, headerCardHeight - headerTopInset) + profileAvatarSize / 2 + 14,
-            for: .scrollContent
-        )
-        .background(alignment: .top) {
-            ProfileHeroCard(
-                height: headerCardHeight + max(0, -headerScrollDistance),
-                isVisible: headerScrollDistance < headerCardHeight
-            ) {
-                ProfileAvatar(
-                    name: session.displayName,
-                    imageURL: session.provider == .google ? authStore.googleUserProfile?.imageURL : nil
-                )
-            }
-            .offset(y: -max(0, headerScrollDistance))
-            .ignoresSafeArea(edges: .top)
-        }
-        .onScrollGeometryChange(for: ProfileHeaderScrollReading.self) { geometry in
-            ProfileHeaderScrollReading(
-                offset: geometry.contentOffset.y,
-                inset: geometry.contentInsets.top
-            )
-        } action: { _, reading in
-            // See the Inbox: measure against a resting baseline so the
-            // refresh spinner's transient inset never jolts the card.
-            guard reading.inset > 0 else { return }
+    }
 
-            if reading.inset <= headerTopInsetBaseline || headerScrollDistance >= 0 {
-                headerTopInsetBaseline = reading.inset
+    private var privateStateView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "lock")
+                .font(.system(size: 26, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            Text(
+                profileStore.profile == nil
+                    ? "Choose a handle to hold your page address. Your handle is yours from that moment, and your profile stays private until you make it public yourself."
+                    : "Private. Nobody can reach this address, and your handle stays reserved for you."
+            )
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 28)
+    }
+
+    private var visibilityButtonTitle: String {
+        if isTurningOff { return "Turning Off…" }
+        return profileStore.isPublic ? "Make Private" : "Make Public"
+    }
+
+    private func handleVisibilityTap() {
+        if profileStore.isPublic {
+            makePrivate()
+        } else {
+            isPublicizing = true
+        }
+    }
+
+    /// Turning the page off is never gated, mirroring the web: one tap hides
+    /// it, and the handle stays reserved.
+    private func makePrivate() {
+        Task {
+            isTurningOff = true
+            defer { isTurningOff = false }
+            do {
+                try await profileStore.setVisibility(.private)
+            } catch {
+                visibilityError = error.localizedDescription
             }
-            headerScrollDistance = reading.offset + headerTopInsetBaseline
         }
     }
 
@@ -334,67 +467,39 @@ struct MyProfileView: View {
 
 // MARK: - Header pieces
 
-private struct ProfileHeaderScrollReading: Equatable {
-    var offset: CGFloat
-    var inset: CGFloat
-}
-
 /// The avatar's diameter; the header card ends at its vertical center.
 private let profileAvatarSize: CGFloat = 96
 
 /// The card at the top of the profile — the Inbox header card's sibling,
 /// full-bleed from the top and side edges with rounded bottom corners.
-/// Where the Inbox gets the aurora, the profile gets the calm drift field.
-/// The avatar overlays the card's bottom edge, half in and half out, and
-/// rides along when a pull-down stretches the card.
+/// Where the Inbox gets the aurora, the profile gets the arc: a slow bow
+/// of periwinkle light from the folder cards' shader family. The avatar
+/// overlays the card's bottom edge, half in and half out, and rides along
+/// when a pull-down stretches the card.
 private struct ProfileHeroCard<Avatar: View>: View {
     let height: CGFloat
     let isVisible: Bool
     @ViewBuilder let avatar: Avatar
 
     var body: some View {
-        DriftBackground(isVisible: isVisible)
-            .frame(height: height)
-            .frame(maxWidth: .infinity)
-            .clipShape(.rect(
-                bottomLeadingRadius: 28,
-                bottomTrailingRadius: 28,
-                style: .continuous
-            ))
-            // After the clip, so the hanging half is not cut off.
-            .overlay(alignment: .bottom) {
-                avatar.offset(y: profileAvatarSize / 2)
-            }
-    }
-}
-
-/// One of the capsule actions under the identity: a filled prominent one in
-/// the drift field's periwinkle, or a neutral grey one.
-private struct ProfileActionButton: View {
-    enum Role {
-        case prominent
-        case neutral
-    }
-
-    let title: String
-    let role: Role
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(role == .prominent ? .white : .primary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 13)
-                .background(
-                    role == .prominent
-                        ? Color(red: 82 / 255, green: 91 / 255, blue: 169 / 255)
-                        : Color(uiColor: .secondarySystemFill),
-                    in: Capsule()
-                )
+        FolderCardGradient(
+            palette: .blue,
+            shape: 0.5,
+            seed: 26,
+            animated: isVisible,
+            style: .arc
+        )
+        .frame(height: height)
+        .frame(maxWidth: .infinity)
+        .clipShape(.rect(
+            bottomLeadingRadius: 28,
+            bottomTrailingRadius: 28,
+            style: .continuous
+        ))
+        // After the clip, so the hanging half is not cut off.
+        .overlay(alignment: .bottom) {
+            avatar.offset(y: profileAvatarSize / 2)
         }
-        .buttonStyle(.plain)
     }
 }
 
@@ -437,6 +542,9 @@ private struct ProfileAvatar: View {
 
 // MARK: - Item row
 
+/// The Inbox row's twin: same favicon, title, host, and recency label, so
+/// the profile page reads like the rest of the app. Only the actions differ —
+/// a public item just opens, copies, or shares.
 private struct PublicSavedItemRow: View {
     let item: PublicSavedItem
 
@@ -446,52 +554,32 @@ private struct PublicSavedItemRow: View {
             UIApplication.shared.open(url)
         } label: {
             HStack(alignment: .top, spacing: 12) {
-                PublicSavedItemFavicon(host: item.host, faviconUrl: item.faviconUrl)
+                SavedItemFavicon(
+                    faviconURL: item.faviconUrl.flatMap(URL.init(string:)),
+                    monogram: String(displayHost.prefix(1)).uppercased()
+                )
 
-                VStack(alignment: .leading, spacing: 5) {
-                    if let authorName = item.authorName {
-                        Text(authorLine(authorName))
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-
+                VStack(alignment: .leading, spacing: 6) {
                     Text(item.title ?? item.originalUrl)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.primary)
-                        .lineLimit(2)
+                        .lineLimit(1)
                         .multilineTextAlignment(.leading)
 
-                    if let summary = item.previewSummary {
-                        Text(summary)
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
-                    }
-
-                    HStack(spacing: 6) {
-                        Text(item.host)
-                        Text("·")
-                        Text(item.savedAt.formatted(.dateTime.month(.abbreviated).day()))
-                    }
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.tertiary)
+                    Text(displayHost)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                if let imageUrl = item.imageUrl.flatMap(URL.init(string:)) {
-                    AsyncImage(url: imageUrl) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Color(uiColor: .secondarySystemFill)
-                    }
-                    .frame(width: 56, height: 56)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                }
+                Text(item.savedAt.compactRecencyLabel)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .padding(.top, 2)
             }
             .contentShape(Rectangle())
-            .padding(.vertical, 12)
+            .padding(.vertical, 14)
         }
         .buttonStyle(.plain)
         .contextMenu {
@@ -509,43 +597,11 @@ private struct PublicSavedItemRow: View {
         }
     }
 
-    private func authorLine(_ name: String) -> String {
-        guard let handle = item.authorHandle else { return name }
-        // Providers differ on whether the handle already carries the "@".
-        let bare = handle.hasPrefix("@") ? String(handle.dropFirst()) : handle
-        return "\(name) @\(bare)"
-    }
-}
-
-private struct PublicSavedItemFavicon: View {
-    let host: String
-    let faviconUrl: String?
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .fill(Color(uiColor: .secondarySystemFill))
-
-            if let url = faviconUrl.flatMap(URL.init(string:)) {
-                AsyncImage(url: url) { image in
-                    image.resizable().scaledToFit()
-                        .frame(width: 20, height: 20)
-                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-                } placeholder: {
-                    monogram
-                }
-            } else {
-                monogram
-            }
-        }
-        .frame(width: 42, height: 42)
-        .padding(.vertical, 2)
-        .accessibilityHidden(true)
-    }
-
-    private var monogram: some View {
-        Text(String(host.prefix(1)).uppercased())
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(.secondary)
+    private var displayHost: String {
+        item.host.replacingOccurrences(
+            of: #"^www\."#,
+            with: "",
+            options: .regularExpression
+        )
     }
 }

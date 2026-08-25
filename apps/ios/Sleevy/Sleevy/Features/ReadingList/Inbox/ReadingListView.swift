@@ -10,8 +10,7 @@ struct ReadingListView: View {
     @State private var captureErrorMessage: String?
     @State private var isReadingListScrolled = false
     @State private var capturePlacement: CapturePlacement = .inlineRow
-    @State private var headerScrollDistance: CGFloat = 0
-    @State private var headerTopInsetBaseline: CGFloat = 0
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let snapshot = store.snapshot(for: .inbox)
@@ -20,7 +19,10 @@ struct ReadingListView: View {
             readingList(
                 snapshot: snapshot,
                 emptyStateHeight: geometry.size.height,
-                headerCardHeight: geometry.size.width * 9 / 16,
+                // Just deep enough to hold the large title and subtitle with
+                // breathing room — the first row should sit a normal distance
+                // below the title, not below a 16:9 hero.
+                headerCardHeight: geometry.size.width * 0.40,
                 headerTopInset: geometry.safeAreaInsets.top
             )
         }
@@ -145,17 +147,8 @@ struct ReadingListView: View {
                 .listRowSeparator(item.id == snapshot.items.first?.id ? .hidden : .automatic, edges: .top)
             }
         }
-        // The large title stays native; the card is only painted behind it. The
-        // extra margin moves the first row below the card, since the navigation
-        // region alone is shorter than 16:9.
-        .contentMargins(.top, max(0, headerCardHeight - headerTopInset), for: .scrollContent)
-        .background(alignment: .top) {
-            InboxHeaderCard(
-                height: headerCardHeight + max(0, -headerScrollDistance),
-                isVisible: headerScrollDistance < headerCardHeight
-            )
-            .offset(y: -max(0, headerScrollDistance))
-            .ignoresSafeArea(edges: .top)
+        .stretchyHeaderCard(height: headerCardHeight, topInset: headerTopInset) { context in
+            InboxHeaderCard(height: context.height, isVisible: context.isVisible)
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             if isCaptureCapsuleOpen && capturePlacement == .pinnedInset {
@@ -172,27 +165,11 @@ struct ReadingListView: View {
         } action: { _, isScrolled in
             isReadingListScrolled = isScrolled
         }
-        .onScrollGeometryChange(for: HeaderScrollReading.self) { geometry in
-            HeaderScrollReading(
-                offset: geometry.contentOffset.y,
-                inset: geometry.contentInsets.top
-            )
-        } action: { _, reading in
-            // Zero at rest, positive once the user scrolls, negative on
-            // pull-to-refresh. Drives the header card only.
-            //
-            // The native refresh spinner grows the top inset when it appears
-            // and hands the space back when it hides. Following the live
-            // inset makes the card snap ~19pt at both moments, so the card
-            // measures against a resting baseline instead. A larger inset is
-            // adopted only while the list rests -- the spinner's inset never
-            // qualifies, since it only shows mid-pull.
-            guard reading.inset > 0 else { return }
-
-            if reading.inset <= headerTopInsetBaseline || headerScrollDistance >= 0 {
-                headerTopInsetBaseline = reading.inset
-            }
-            headerScrollDistance = reading.offset + headerTopInsetBaseline
+        // Favicons warm as soon as items arrive, off the scroll path, so
+        // the first scroll through the list never pays a network fetch or
+        // an SVG render per row.
+        .task(id: snapshot.items) {
+            await FaviconPrefetcher.warm(items: snapshot.items, colorScheme: colorScheme)
         }
         .animation(.snappy(duration: 0.24), value: isCaptureCapsuleOpen)
         .animation(.snappy(duration: 0.24), value: store.pendingSavedItems)
@@ -314,13 +291,7 @@ private enum CapturePlacement {
     case pinnedInset
 }
 
-/// What the header card needs from the scroll geometry.
-private struct HeaderScrollReading: Equatable {
-    var offset: CGFloat
-    var inset: CGFloat
-}
-
-/// The 16:9 brand card behind the Inbox large title. It spans the physical
+/// The brand card behind the Inbox large title. It spans the physical
 /// top, leading, and trailing edges, scrolls away with the content, and
 /// stretches on pull-down so the top edge never opens a seam.
 private struct InboxHeaderCard: View {
