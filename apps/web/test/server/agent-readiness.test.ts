@@ -202,19 +202,58 @@ describe("agent-ready web routing", () => {
     )
   })
 
-  test("redirects legacy web-origin MCP discovery to the canonical Server Card", () => {
-    for (const path of [
+  test("redirects the legacy extensionless Server Card alias", () => {
+    const response = discoveryRedirect(
       "/.well-known/mcp-server-card",
-      "/.well-known/mcp/server-card.json",
-    ]) {
-      const response = discoveryRedirect(path, "https://api.sleevy.app/")
+      "https://api.sleevy.app/",
+    )
 
-      expect(response?.status).toBe(308)
-      expect(response?.headers.get("location")).toBe(
-        "https://api.sleevy.app/mcp/server-card",
-      )
-      expect(response?.headers.get("access-control-allow-origin")).toBe("*")
+    expect(response?.status).toBe(308)
+    expect(response?.headers.get("location")).toBe(
+      "https://api.sleevy.app/mcp/server-card",
+    )
+    expect(response?.headers.get("access-control-allow-origin")).toBe("*")
+  })
+
+  test("serves the well-known Server Card as a document rather than a redirect", async () => {
+    // A client reading a well-known path should get the card. Redirecting it to
+    // another origin costs a round trip and loses any reader that will not
+    // follow a cross-origin hop for a discovery document.
+    expect(
+      discoveryRedirect("/.well-known/mcp/server-card.json", "https://api.sleevy.app/"),
+    ).toBeNull()
+
+    const card = await Bun.file(
+      `${import.meta.dir}/../../public/.well-known/mcp/server-card.json`,
+    ).json()
+
+    // The fields a directory scanner reads before opening a transport.
+    expect(card.name).toBe("app.sleevy/mcp")
+    expect(card.version).toBe("1.0.0")
+    expect(card.description.length).toBeGreaterThan(0)
+    expect(card.serverUrl).toBe("https://api.sleevy.app/mcp")
+    expect(card.tools.length).toBeGreaterThan(0)
+
+    for (const tool of card.tools) {
+      expect(typeof tool.name).toBe("string")
+      expect(tool.description.length).toBeGreaterThan(0)
+      expect(tool.requiredScopes.length).toBeGreaterThan(0)
     }
+  })
+
+  test("keeps the published Server Card in step with the API's own", async () => {
+    // Both are built by `bun run generate:discovery` from one definition, so a
+    // tool added to the catalogue cannot reach one card and miss the other.
+    const [published, live] = await Promise.all([
+      Bun.file(`${import.meta.dir}/../../public/.well-known/mcp/server-card.json`).json(),
+      import("../../../api/src/modules/mcp/ServerCard.js").then(({ mcpServerCard }) =>
+        mcpServerCard({
+          apiBaseUrl: "https://api.sleevy.app",
+          webUrl: "https://sleevy.app",
+        })),
+    ])
+
+    expect(published).toEqual(JSON.parse(JSON.stringify(live)))
   })
 
   test("publishes a valid AI Catalog entry for every agent-facing resource", async () => {

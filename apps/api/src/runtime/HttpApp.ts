@@ -1,4 +1,3 @@
-import { SUPPORTED_PROTOCOL_VERSIONS } from "@modelcontextprotocol/sdk/types.js"
 import { Effect, Layer } from "effect"
 import { HttpEffect, HttpMiddleware, HttpRouter, HttpServer } from "effect/unstable/http"
 
@@ -29,7 +28,8 @@ import {
   withPublicRateLimit,
 } from "./ApiRequestMiddleware.js"
 import { OAUTH_PROTOCOL_SCOPES, V1_SCOPES } from "../modules/auth/Scopes.js"
-import { MCP_SCOPES, MCP_TOOL_CATALOG } from "../modules/mcp/McpTools.js"
+import { MCP_SCOPES } from "../modules/mcp/McpTools.js"
+import { mcpServerCard, MCP_SERVER_CARD_CONTENT_TYPE } from "../modules/mcp/ServerCard.js"
 import { withVersionHeaders } from "./ApiVersioning.js"
 import { AppConfig } from "./Config.js"
 import { makeMcpWebHandler } from "./McpApp.js"
@@ -157,44 +157,10 @@ const mcpServerCardResponse = (request: Request, input: {
   readonly apiBaseUrl: string
   readonly webUrl: string
 }) => {
-  const serverUrl = `${input.apiBaseUrl}/mcp`
-  const description =
-    "Save links to your Sleevy library and manage your saved items and folders."
-
-  const body = JSON.stringify({
-    $schema: "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json",
-    name: "app.sleevy/mcp",
-    version: "1.0.0",
-    title: "Sleevy",
-    description,
-    websiteUrl: input.webUrl,
-    documentationUrl: `${input.webUrl}/docs/mcp`,
-    // `remotes` is the Server Card shape; `serverUrl` and `tools` are the flat
-    // fields most client previews and directory scanners read. Both describe
-    // the same endpoint and the same tool set.
-    serverUrl,
-    transport: "streamable-http",
-    remotes: [
-      {
-        type: "streamable-http",
-        url: serverUrl,
-        supportedProtocolVersions: SUPPORTED_PROTOCOL_VERSIONS,
-      },
-    ],
-    // A card is fetched before a transport is opened, so it lists every tool
-    // the server can expose. Which of them a given session actually sees
-    // depends on the scopes that session was granted, named here per tool.
-    tools: MCP_TOOL_CATALOG.map((tool) => ({
-      name: tool.name,
-      title: tool.title,
-      description: tool.description,
-      requiredScopes: [...tool.scopes],
-      annotations: { ...tool.annotations },
-    })),
-  })
+  const body = JSON.stringify(mcpServerCard(input))
   const etag = entityTagFor(body)
   const headers = new Headers({
-    "content-type": "application/mcp-server-card+json; charset=utf-8",
+    "content-type": MCP_SERVER_CARD_CONTENT_TYPE,
     "cache-control": "public, max-age=3600",
     "access-control-allow-origin": "*",
     "access-control-allow-methods": "GET",
