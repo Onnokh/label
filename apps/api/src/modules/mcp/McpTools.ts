@@ -37,6 +37,26 @@ export const MCP_SCOPES = [
  * renders the same array, so a client previewing the card before it connects
  * sees exactly the tools it will get once it has the scopes.
  */
+/**
+ * What a client is told about the server during the initialize handshake.
+ *
+ * A tool list says what can be called; this says when calling it is the right
+ * move, and when it is not. An agent that reads only the tool names will
+ * cheerfully use a read-later queue as a web crawler, so the boundary is stated
+ * here rather than left to be inferred.
+ */
+const SERVER_INSTRUCTIONS = `Sleevy is one person's read-later queue. Use it to save an HTTP or HTTPS link for later, to see what they have already saved, to mark something read or unread, and to organize saved items into folders.
+
+Do not use Sleevy as a web crawler, a page-content archive, a general notes database, or a source of facts about pages that have not been saved. It stores and organizes links; it does not replace the publisher of the linked page.
+
+Working with it:
+- Reuse the saved-item and folder IDs Sleevy returns. Never guess one; list first if you do not have it.
+- Ask the person before delete_saved_item or remove_folder. Deletion is permanent, and a bulk cleanup is still worth confirming item by item. Removing a folder keeps the saved items in it; deleting a saved item does not.
+- A freshly saved link comes back before its title, image, and tags are fetched. If the person wants the title, save it and read the item back a moment later.
+- list_saved_items is paged. Follow nextCursor until it comes back null, and pass the cursor back exactly as given.
+- Ask for the narrowest scopes that do the job. A session only sees the tools its scopes cover.
+- initialize and tools/list need no credential, so you may read this list before asking the person to authorize anything. Every tool call does need one.`
+
 const DEFAULT_PAGE_SIZE = 50
 const MAX_PAGE_SIZE = 100
 
@@ -372,7 +392,10 @@ export class McpTools extends Context.Service<McpTools>()(
         request: Request,
         register: (server: McpServer) => void,
       ): Promise<Response> => {
-        const server = new McpServer({ name: "app.sleevy/mcp", version: "1.0.0" })
+        const server = new McpServer(
+          { name: "app.sleevy/mcp", version: "1.0.0", title: "Sleevy" },
+          { instructions: SERVER_INSTRUCTIONS },
+        )
         register(server)
 
         const transport = new WebStandardStreamableHTTPServerTransport({

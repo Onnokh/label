@@ -1,63 +1,26 @@
 {
   "$schema": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
-  "name": "Sleevy",
-  "description": "A native-first read-later service. Save any URL to a personal reading queue and manage the saved items and folders in it, from an agent, a script, or any of the Sleevy clients.",
-  "homepage": "https://sleevy.app",
-  "documentation": "https://sleevy.app/docs",
-  "contact": "support@sleevy.app",
-  "authentication": {
-    "type": "oauth2",
-    "documentation": "https://sleevy.app/auth.md",
-    "protectedResourceMetadata": "https://api.sleevy.app/.well-known/oauth-protected-resource",
-    "selfService": true
-  },
-  "endpoints": {
-    "mcp": "https://api.sleevy.app/mcp",
-    "rest": "https://api.sleevy.app",
-    "openapi": "https://sleevy.app/openapi.json"
-  },
   "skills": [
     {
-      "name": "save_link",
-      "description": "Save an HTTP or HTTPS link to the person's Sleevy read-later queue. Returns the Saved Item, which is created if the URL is new and updated if it was already saved.",
-      "scopes": ["saved-items:capture"],
-      "endpoint": "https://api.sleevy.app/v1/captures"
+      "name": "sleevy-organize-folders",
+      "type": "skill-md",
+      "description": "Organize the user's Sleevy queue into folders, move saved items between them, and remove items or folders. Use when the user wants to tidy their reading list. Deletion is permanent, so always confirm first.",
+      "url": "/.well-known/agent-skills/sleevy-organize-folders/SKILL.md",
+      "digest": "sha256:7c2daac8082898b32a071b6c631a392709373a618482f84545aad99636c35ce8"
     },
     {
-      "name": "save_links_batch",
-      "description": "Save up to 50 links in one request. Each entry reports its own outcome, so one bad URL does not stop the rest from being saved.",
-      "scopes": ["saved-items:capture"],
-      "endpoint": "https://api.sleevy.app/v1/captures/batch"
+      "name": "sleevy-read-queue",
+      "type": "skill-md",
+      "description": "Read and search the user's Sleevy reading queue, and mark items read or unread. Use when the user asks what is in their reading list, wants to find something they saved, or wants to mark something off.",
+      "url": "/.well-known/agent-skills/sleevy-read-queue/SKILL.md",
+      "digest": "sha256:06a5450a6683e6157b5326b8c0c1e6c5ecbf331d9b0a0d0aceb553415b8ddf90"
     },
     {
-      "name": "list_saved_items",
-      "description": "List the person's Saved Items, newest first, filtered by folder and paged with an opaque cursor.",
-      "scopes": ["saved-items:read"],
-      "endpoint": "https://api.sleevy.app/v1/saved-items"
-    },
-    {
-      "name": "set_saved_item_read_state",
-      "description": "Mark a Saved Item read or unread, or record that the person opened it.",
-      "scopes": ["saved-items:write"],
-      "endpoint": "https://api.sleevy.app/v1/saved-items/{id}/read-state"
-    },
-    {
-      "name": "set_saved_item_folder",
-      "description": "Move a Saved Item into a Folder, or take it out of the one it is in.",
-      "scopes": ["saved-items:write"],
-      "endpoint": "https://api.sleevy.app/v1/saved-items/{id}/folder"
-    },
-    {
-      "name": "delete_saved_item",
-      "description": "Permanently delete a Saved Item. Cannot be undone, so an agent should confirm with the person first.",
-      "scopes": ["saved-items:delete"],
-      "endpoint": "https://api.sleevy.app/v1/saved-items/{id}"
-    },
-    {
-      "name": "manage_folders",
-      "description": "List, create, rename, recolour, publish, and delete the person's Folders. Deleting a Folder keeps the Saved Items inside it.",
-      "scopes": ["folders:read", "folders:write", "folders:delete"],
-      "endpoint": "https://api.sleevy.app/v1/folders"
+      "name": "sleevy-save-links",
+      "type": "skill-md",
+      "description": "Save one link or many to the user's Sleevy read-later queue. Use when the user asks to save, bookmark, or \"read later\" a URL, or hands over a list of links to file away. Not for fetching or archiving page content.",
+      "url": "/.well-known/agent-skills/sleevy-save-links/SKILL.md",
+      "digest": "sha256:b4ea6fcefef642cae319a53eaecc5143eb5fd19bd974d6609dd75d27caddcdbe"
     }
   ]
 }
