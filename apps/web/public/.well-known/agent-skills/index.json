@@ -1,5 +1,5 @@
 {
-  "$schema": "https://agent-skills.org/schema/v1/index.json",
+  "$schema": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
   "name": "Sleevy",
   "description": "A native-first read-later service. Save any URL to a personal reading queue and manage the saved items and folders in it, from an agent, a script, or any of the Sleevy clients.",
   "homepage": "https://sleevy.app",

@@ -1016,24 +1016,95 @@ describe("HttpApp", () => {
     }),
   )
 
-  it.effect("requires credentials before MCP initialization", () =>
+  // Describing the server takes no credential. A client decides whether
+  // connecting is worth sending a person to a consent screen by reading this,
+  // so demanding the credential first put the decision after the cost.
+  it.effect("lets an unauthenticated client initialize and read the tool list", () =>
+    Effect.gen(function* () {
+      const initialize = yield* mcpRequest({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2025-06-18",
+          capabilities: {},
+          clientInfo: { name: "test", version: "1.0.0" },
+        },
+      }).pipe(Effect.provide(routeLayer()))
+
+      expect(initialize.status).toBe(200)
+      expect(JSON.parse(yield* text(initialize))).toMatchObject({
+        jsonrpc: "2.0",
+        id: 1,
+        result: { serverInfo: { name: "app.sleevy/mcp", version: "1.0.0" } },
+      })
+
+      const list = yield* mcpRequest({
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/list",
+      }).pipe(Effect.provide(routeLayer()))
+
+      expect(list.status).toBe(200)
+      const listed = JSON.parse(yield* text(list)) as {
+        readonly result: { readonly tools: ReadonlyArray<{ readonly name: string }> }
+      }
+
+      // Every tool is described, not just the ones some scope would unlock:
+      // the preview is of the whole server.
+      expect(listed.result.tools.map((tool) => tool.name).sort()).toEqual(
+        MCP_TOOL_CATALOG.map((tool) => tool.name).sort(),
+      )
+    }),
+  )
+
+  it.effect("still requires credentials to call an MCP tool", () =>
     Effect.gen(function* () {
       const response = yield* mcpRequest({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "initialize",
-          params: {
-            protocolVersion: "2025-06-18",
-            capabilities: {},
-            clientInfo: { name: "test", version: "1.0.0" },
-          },
-        }).pipe(Effect.provide(routeLayer()))
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "list_saved_items", arguments: {} },
+      }).pipe(Effect.provide(routeLayer()))
 
       expect(response.status).toBe(401)
       expect(response.headers.get("www-authenticate")).toBe(
         'Bearer resource_metadata="http://localhost/.well-known/oauth-protected-resource/mcp"',
       )
     }),
+  )
+
+  it.effect("refuses a batch that hides a tool call beside a listing", () =>
+    Effect.gen(function* () {
+      // A batch is allowed only if every message in it is, so `tools/call`
+      // cannot ride along beside an `initialize`.
+      const response = yield* mcpRequest([
+        { jsonrpc: "2.0", id: 1, method: "tools/list" },
+        {
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/call",
+          params: { name: "delete_saved_item", arguments: { savedItemId: "x" } },
+        },
+      ]).pipe(Effect.provide(routeLayer()))
+
+      expect(response.status).toBe(401)
+    }),
+  )
+
+  it.effect("refuses an unauthenticated body it cannot parse", () =>
+    Effect.gen(function* () {
+      const handler = yield* makeApiWebHandler
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/mcp", {
+          method: "POST",
+          headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+          body: "not json",
+        })))
+
+      // An unreadable request gets the 401, not the benefit of the doubt.
+      expect(response.status).toBe(401)
+    }).pipe(Effect.provide(routeLayer())),
   )
 
   it.effect("initializes MCP with a scoped API key", () =>

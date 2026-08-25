@@ -37,6 +37,30 @@ The first time your agent connects, Sleevy opens an OAuth sign-in and consent fl
 
 The tools available to an agent are determined by the permissions granted during OAuth consent. Reconnect Sleevy to review or change those permissions.
 
+### Looking before you connect
+
+Describing the server takes no credential. A client may complete `initialize`
+and read `tools/list` against `https://api.sleevy.app/mcp` without signing in,
+and it gets the full tool list back — every tool, not only the ones some scope
+would unlock — so it can decide whether connecting is worth sending you to a
+consent screen at all.
+
+```bash
+curl -s https://api.sleevy.app/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+Calling a tool is a different matter. Every `tools/call` needs a credential and
+the scope that covers it, and an unauthenticated one is refused with `401` and a
+`WWW-Authenticate` header pointing at the protected-resource metadata. A batch
+is allowed only if every message in it is, so a `tools/call` cannot ride along
+beside an `initialize`.
+
+The same list is also available without opening a connection at all, as the
+[MCP Server Card](https://sleevy.app/.well-known/mcp/server-card.json).
+
 ## Connect manually
 
 If your MCP client has a manual connection screen, use this server URL:
