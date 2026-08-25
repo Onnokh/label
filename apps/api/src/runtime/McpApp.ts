@@ -31,6 +31,53 @@ const unauthorized = (baseUrl: string) =>
     },
   })
 
+/**
+ * The JSON-RPC methods an unauthenticated caller may use.
+ *
+ * These describe the server; none of them touch an account. Letting a client
+ * complete `initialize` and read `tools/list` without a credential is how it
+ * decides whether connecting is worth sending a person to a consent screen at
+ * all — and it is what MCP clients and directory scanners expect. Everything
+ * that reads or changes a person's data, `tools/call` above all, still needs a
+ * credential.
+ */
+const UNAUTHENTICATED_METHODS = new Set([
+  "initialize",
+  "notifications/initialized",
+  "notifications/cancelled",
+  "ping",
+  "tools/list",
+  "resources/list",
+  "resources/templates/list",
+  "prompts/list",
+])
+
+/**
+ * Whether every message in this body is one an unauthenticated caller may send.
+ *
+ * A batch is allowed only if all of its messages are, so a `tools/call` cannot
+ * ride along beside an `initialize`. A body that cannot be parsed is not
+ * allowed: an unreadable request gets the 401, not the benefit of the doubt.
+ */
+const isUnauthenticatedRequest = (body: string): boolean => {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(body)
+  } catch {
+    return false
+  }
+
+  const messages = Array.isArray(parsed) ? parsed : [parsed]
+  if (messages.length === 0) return false
+
+  return messages.every((message) =>
+    typeof message === "object" &&
+    message !== null &&
+    typeof (message as { readonly method?: unknown }).method === "string" &&
+    UNAUTHENTICATED_METHODS.has((message as { readonly method: string }).method),
+  )
+}
+
 export const makeMcpWebHandler = Effect.gen(function* () {
   const config = yield* AppConfig
   const { auth } = yield* BetterAuth
@@ -39,7 +86,22 @@ export const makeMcpWebHandler = Effect.gen(function* () {
 
   return async (request: Request): Promise<Response> => {
     const credential = bearerCredential(request.headers.get("authorization"))
-    if (!credential) return unauthorized(config.auth.baseUrl)
+
+    if (!credential) {
+      // The body has to be read to know which method was asked for, and it can
+      // only be read once, so the request is rebuilt around the text for
+      // whichever handler ends up serving it.
+      const body = request.method === "POST" ? await request.text() : ""
+      if (request.method !== "POST" || !isUnauthenticatedRequest(body)) {
+        return unauthorized(config.auth.baseUrl)
+      }
+
+      return mcpTools.catalogHandler(new Request(request.url, {
+        method: "POST",
+        headers: request.headers,
+        body,
+      }))
+    }
 
     let userId: UserId | undefined
     let scopes: ReadonlySet<Scope> | undefined
