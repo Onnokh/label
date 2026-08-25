@@ -115,6 +115,20 @@ const fontFamilies = {
   ko: "Apple SD Gothic Neo",
   "zh-Hans": "Hiragino Sans GB",
   "zh-Hant": "Hiragino Sans GB",
+  "ar-SA": "Geeza Pro",
+  he: "SF Hebrew",
+  "bn-BD": "Kohinoor Bangla",
+  "gu-IN": "Gujarati Sangam MN",
+  hi: "Kohinoor Devanagari",
+  "kn-IN": "SF Kannada",
+  "ml-IN": "Malayalam MN",
+  "mr-IN": "Kohinoor Devanagari",
+  "or-IN": "Noto Sans Oriya",
+  "pa-IN": "Gurmukhi MN",
+  "ta-IN": "SF Tamil",
+  "te-IN": "Telugu Sangam MN",
+  th: "Thonburi",
+  "ur-PK": "Geeza Pro",
 };
 const trackingRatio = -0.04;
 const textSafeArea = 0.88;
@@ -150,9 +164,10 @@ async function renderOverlay(artboard, locale, output) {
   const args = ["-size", `${artboard.width}x${artboard.height}`, "xc:none"];
   const specs = [];
   const family = fontFamilyForLocale(locale);
+  const localeTranslations = translations[locale] ?? translations.en;
 
   for (const spec of artboard.texts) {
-    const value = translations[locale]?.[spec.key];
+    const value = localeTranslations?.[spec.key];
     if (value == null) throw new Error(`Missing ${locale}.${spec.key}`);
     const lines = value.split("\n");
     const kerning = spec.fontSize * trackingRatio;
@@ -203,7 +218,7 @@ if (!temp) throw new Error("Could not create a temporary render directory.");
 
 try {
   for (const locale of locales) {
-    if (!translations[locale]) throw new Error(`No translations configured for locale: ${locale}`);
+    if (!translations[locale] && !translations.en) throw new Error(`No translations configured for locale: ${locale}`);
     for (const [device, deviceArtboards] of Object.entries(artboards)) {
       const outputDir = join(root, device, locale);
       await mkdir(outputDir, { recursive: true });
