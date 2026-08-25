@@ -544,6 +544,7 @@ _Avoid_: Deep link, route argument, UI test step
 - The **Web Companion** presents user-created **Folders** as visible Library navigation destinations suitable for drag-and-drop targets and shows unfiled Saved Items on `/library`.
 - The **Web Companion** represents Folder navigation with **Web Folder Routes**, leaving query state available for sorting or filtering within a Folder View.
 - The **Web Companion** creates Folders from the Library sidebar and exposes rename and delete through a Folder contextual menu.
+- The **Web Companion** shows its Library sidebar as a standing column on a wide viewport and as a **Sidebar Sheet** — an off-canvas panel opened from a floating menu button — on a narrow one, with the same rows in both.
 - V1 has one **Account** per Google email.
 - Any Google email may create an **Account** in v1.
 - An **Account** owns a private collection of **Saved Items**.

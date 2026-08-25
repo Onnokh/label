@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router"
 import { ChevronRight, Inbox, Keyboard, Library, Hash, MoreVertical, Settings, SquarePlus } from "lucide-react"
 
 import { useKeyboardNav } from "../../contexts/keyboard-nav-context"
+import { useSidebarSheet } from "../app-layout/sidebar-sheet"
 import { useMoveItemsToSource, useSavedItems, type Topic } from "../../sleevy/saved-items"
 import { SAVED_ITEM_DRAG_TYPE, useMoveSavedItemToFolder } from "../../sleevy/folders"
 import { ContextMenu, type ContextMenuItem } from "../ui/context-menu/context-menu"
@@ -99,6 +100,11 @@ function SidebarSection({ heading, items, activeValue, onSelect, collapsible = f
   collapsible?: boolean
 }) {
   const [open, setOpen] = useState(() => storedSectionOpen(heading))
+  // Acting on a row is the end of the reader's errand in the sidebar. In a
+  // sheet the row's own result is behind it, so the sheet has to go. Selecting
+  // a filter cannot be left to the route change alone: narrowing the Library
+  // from the Library keeps the same path.
+  const { close } = useSidebarSheet()
 
   if (items.length === 0) return null
 
@@ -132,6 +138,7 @@ function SidebarSection({ heading, items, activeValue, onSelect, collapsible = f
                 className={styles.item}
                 activeOptions={item.exact ? { exact: true } : undefined}
                 activeProps={{ className: `${styles.item} ${styles.active}` }}
+                onClick={close}
               >
                 {content}
               </Link>
@@ -139,7 +146,11 @@ function SidebarSection({ heading, items, activeValue, onSelect, collapsible = f
               <button
                 type="button"
                 className={className}
-                onClick={item.onClick ?? (() => onSelect?.(activeValue === item.key ? null : item.key))}
+                onClick={() => {
+                  if (item.onClick) item.onClick()
+                  else onSelect?.(activeValue === item.key ? null : item.key)
+                  close()
+                }}
               >
                 {content}
               </button>
