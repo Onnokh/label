@@ -676,6 +676,70 @@ describe("HttpApp", () => {
     }),
   )
 
+  it.effect("declares OAuth scopes and least-privilege operation grants in OpenAPI", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/openapi.json").pipe(
+        Effect.provide(routeLayer()),
+      )
+
+      const body = yield* json<{
+        readonly components: {
+          readonly securitySchemes: Record<string, {
+            readonly type: string
+            readonly flows?: {
+              readonly authorizationCode?: {
+                readonly authorizationUrl: string
+                readonly tokenUrl: string
+                readonly scopes: Record<string, string>
+              }
+            }
+          }>
+        }
+        readonly paths: Record<
+          string,
+          Record<string, { readonly security?: ReadonlyArray<Record<string, string[]>> }>
+        >
+      }>(response)
+
+      const oauth = body.components.securitySchemes.oauth2
+      expect(oauth?.type).toBe("oauth2")
+      expect(oauth?.flows?.authorizationCode?.authorizationUrl).toBe(
+        "https://api.sleevy.app/api/auth/oauth2/authorize",
+      )
+      expect(oauth?.flows?.authorizationCode?.tokenUrl).toBe(
+        "https://api.sleevy.app/api/auth/oauth2/token",
+      )
+      expect(Object.keys(oauth?.flows?.authorizationCode?.scopes ?? {})).toEqual([
+        "saved-items:capture",
+        "saved-items:read",
+        "saved-items:write",
+        "saved-items:delete",
+        "folders:read",
+        "folders:write",
+        "folders:delete",
+        "account:read",
+      ])
+      expect(body.paths["/v1/captures"]?.post?.security).toContainEqual({
+        oauth2: ["saved-items:capture"],
+      })
+      expect(body.paths["/v1/saved-items"]?.get?.security).toContainEqual({
+        oauth2: ["saved-items:read"],
+      })
+      expect(body.paths["/v1/saved-items/{id}"]?.delete?.security).toEqual(
+        expect.arrayContaining([
+          { oauth2: ["saved-items:write"] },
+          { oauth2: ["saved-items:delete"] },
+        ]),
+      )
+      expect(body.paths["/v1/folders/{id}"]?.delete?.security).toContainEqual({
+        oauth2: ["folders:delete"],
+      })
+      expect(body.paths["/v1/profile"]?.get?.security).not.toContainEqual({
+        oauth2: expect.anything(),
+      })
+    }),
+  )
+
   it.effect("describes the public profile routes without a security requirement", () =>
     Effect.gen(function* () {
       const response = yield* request("/openapi.json").pipe(
@@ -755,6 +819,40 @@ describe("HttpApp", () => {
           "folders:delete",
           "account:read",
         ],
+      })
+    }),
+  )
+
+  it.effect("redirects root OAuth discovery to the canonical path-based issuer metadata", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/.well-known/oauth-authorization-server").pipe(
+        Effect.provide(routeLayer()),
+      )
+
+      expect(response.status).toBe(308)
+      expect(response.headers.get("location")).toBe(
+        "http://localhost/.well-known/oauth-authorization-server/api/auth",
+      )
+      expect(response.headers.get("access-control-allow-origin")).toBe("*")
+    }),
+  )
+
+  it.effect("returns a structured JSON recovery error for unknown API routes", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/v1/does-not-exist").pipe(
+        Effect.provide(routeLayer()),
+      )
+
+      expect(response.status).toBe(404)
+      expect(response.headers.get("content-type")).toContain("application/json")
+      expect(response.headers.get("cache-control")).toBe("no-store")
+      expect(yield* json(response)).toEqual({
+        _tag: "RouteNotFound",
+        code: "route_not_found",
+        message: "No API route matches this request.",
+        resolution: "Check https://sleevy.app/openapi.json for supported paths, methods, request fields, and authentication requirements.",
+        method: "GET",
+        path: "/v1/does-not-exist",
       })
     }),
   )

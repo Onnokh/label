@@ -85,6 +85,55 @@ export const withCors = async (
   })
 }
 
+const errorDetailsByStatus: Record<number, {
+  readonly tag: string
+  readonly code: string
+  readonly message: string
+}> = {
+  400: { tag: "BadRequest", code: "bad_request", message: "The request is invalid." },
+  401: { tag: "Unauthorized", code: "unauthorized", message: "Authentication is required." },
+  403: { tag: "Forbidden", code: "forbidden", message: "The credential cannot perform this action." },
+  404: { tag: "RouteNotFound", code: "route_not_found", message: "No API route matches this request." },
+  405: { tag: "MethodNotAllowed", code: "method_not_allowed", message: "This API route does not support the request method." },
+  406: { tag: "NotAcceptable", code: "not_acceptable", message: "The requested response representation is unavailable." },
+  415: { tag: "UnsupportedMediaType", code: "unsupported_media_type", message: "The request content type is unsupported." },
+  429: { tag: "RateLimitExceeded", code: "rate_limit_exceeded", message: "The request rate limit was exceeded." },
+  500: { tag: "InternalServerError", code: "internal_error", message: "The API could not complete the request." },
+}
+
+export const withJsonErrorFallback = (
+  request: Request,
+  response: Response,
+): Response => {
+  if (response.status < 400) return response
+  if ((response.headers.get("content-type") ?? "").toLowerCase().includes("json")) {
+    return response
+  }
+
+  const details = errorDetailsByStatus[response.status] ?? {
+    tag: "HttpError",
+    code: "http_error",
+    message: `The API returned HTTP ${response.status}.`,
+  }
+  const url = new URL(request.url)
+  const headers = new Headers(response.headers)
+  headers.set("content-type", "application/json; charset=utf-8")
+  headers.set("cache-control", "no-store")
+
+  return new Response(JSON.stringify({
+    _tag: details.tag,
+    code: details.code,
+    message: details.message,
+    resolution: "Check https://sleevy.app/openapi.json for supported paths, methods, request fields, and authentication requirements.",
+    method: request.method,
+    path: url.pathname,
+  }), {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
 export const makeApiWebHandler = Effect.gen(function* () {
   const config = yield* AppConfig
   const context = yield* Effect.context<
@@ -107,6 +156,17 @@ export const makeApiWebHandler = Effect.gen(function* () {
       pathname.startsWith(`${AUTH_BASE_PATH}/`) ||
       pathname === "/.well-known/oauth-authorization-server/api/auth" ||
       pathname === "/api/auth/.well-known/oauth-authorization-server"
+
+    if (pathname === "/.well-known/oauth-authorization-server") {
+      return new Response(null, {
+        status: 308,
+        headers: {
+          "access-control-allow-origin": "*",
+          "cache-control": "public, max-age=300",
+          location: `${config.auth.baseUrl}/.well-known/oauth-authorization-server${AUTH_BASE_PATH}`,
+        },
+      })
+    }
 
     if (
       pathname === "/.well-known/oauth-protected-resource" ||
@@ -168,12 +228,13 @@ export const makeApiWebHandler = Effect.gen(function* () {
     // The public group carries no API Key, so it takes the per-IP budget
     // instead of the API Key Rate Limit.
     if (pathname.startsWith(PUBLIC_API_PREFIX)) {
-      return withCors(request, config.auth.trustedOrigins, (request) =>
+      const response = await withCors(request, config.auth.trustedOrigins, (request) =>
         withPublicRateLimit(request, publicRateLimiter, config.render.token, apiFetch),
       )
+      return withJsonErrorFallback(request, response)
     }
 
-    return withCors(
+    const response = await withCors(
       request,
       config.auth.trustedOrigins,
       isAuthRequest
@@ -181,5 +242,6 @@ export const makeApiWebHandler = Effect.gen(function* () {
         : (request) =>
             withApiKeyRateLimit(request, auth, rateLimiter, bearerRateLimiter, apiFetch),
     )
+    return isAuthRequest ? response : withJsonErrorFallback(request, response)
   }) satisfies ApiWebHandler
 })

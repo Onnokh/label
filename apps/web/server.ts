@@ -1,8 +1,13 @@
 import handler from "./dist/server/server.js"
+import {
+  oauthDiscoveryRedirect,
+  withAgentReadyRouting,
+} from "./server/agent-readiness"
 
 const port = Number(process.env.PORT ?? 3000)
 const staticRoots = [`${import.meta.dir}/dist/client`, `${import.meta.dir}/dist`]
 const indexNowKey = process.env.INDEXNOW_KEY
+const apiBaseUrl = process.env.API_BASE_URL ?? "https://api.sleevy.app"
 const hasValidIndexNowKey = /^[A-Za-z0-9-]{8,128}$/.test(indexNowKey ?? "")
 const contentTypes: Record<string, string> = {
   avif: "image/avif",
@@ -11,6 +16,7 @@ const contentTypes: Record<string, string> = {
   jfif: "image/jpeg",
   js: "text/javascript; charset=utf-8",
   json: "application/json; charset=utf-8",
+  md: "text/markdown; charset=utf-8",
   png: "image/png",
   svg: "image/svg+xml",
   webp: "image/webp",
@@ -164,6 +170,9 @@ Bun.serve({
       return Response.json({ ok: true })
     }
 
+    const discoveryResponse = oauthDiscoveryRedirect(url.pathname, apiBaseUrl)
+    if (discoveryResponse) return discoveryResponse
+
     // IndexNow verifies site ownership by fetching a public text file whose
     // filename and contents both equal the configured key. Keep the key in
     // deployment configuration so it can be rotated without a rebuild.
@@ -176,13 +185,18 @@ Bun.serve({
       })
     }
 
-    const staticResponse = await serveStatic(url)
+    const response = await withAgentReadyRouting(req, async (routeRequest) => {
+      const routeUrl = new URL(routeRequest.url)
+      const staticResponse = await serveStatic(routeUrl)
+      if (staticResponse) return staticResponse
 
-    if (staticResponse) {
-      return withCompression(req, staticResponse)
-    }
+      return withRobotsTag(
+        routeUrl,
+        await withDeferredHydration(routeRequest, await handler.fetch(routeRequest)),
+      )
+    })
 
-    return withCompression(req, withRobotsTag(url, await withDeferredHydration(req, await handler.fetch(req))))
+    return withCompression(req, response)
   },
 })
 

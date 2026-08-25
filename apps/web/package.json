@@ -9,6 +9,7 @@
     "build:docs": "curl -sf ${API_BASE_URL:-http://localhost:4001}/openapi.json -o public/openapi.json",
     "start": "bun server.ts",
     "preview": "vite preview",
+    "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
