@@ -32,7 +32,7 @@ export function SignIn() {
         <BlueMeshGradient variant="login" />
         <div className={styles.grain} aria-hidden="true" />
         <a href="/" className={styles.brand}>
-          <img src="/logo-mark.svg" alt="" height={28} />
+          <img src="/logo-mark.svg" alt="" width={22} height={28} />
           <span>Sleevy</span>
         </a>
         <p className={styles.tagline}>
