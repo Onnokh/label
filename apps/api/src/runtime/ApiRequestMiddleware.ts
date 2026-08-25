@@ -1,5 +1,6 @@
 import { Effect } from "effect"
 
+import type { AnonymousRateLimiterShape } from "../modules/rate-limit/AnonymousRateLimiter.js"
 import type { ApiKeyRateLimiterShape } from "../modules/rate-limit/ApiKeyRateLimiter.js"
 import type { BearerRateLimiterShape } from "../modules/rate-limit/BearerRateLimiter.js"
 import { webClientIp } from "../modules/rate-limit/ClientIp.js"
@@ -39,6 +40,10 @@ export type RequestAuth = {
 
 export const exposedApiResponseHeaders = [
   "set-auth-token",
+  "api-version",
+  "deprecation",
+  "sunset",
+  "idempotent-replay",
   "ratelimit-limit",
   "ratelimit-remaining",
   "ratelimit-reset",
@@ -163,11 +168,17 @@ export const withApiKeyRateLimit = async (
   auth: RequestAuth,
   rateLimiter: ApiKeyRateLimiterShape,
   bearerRateLimiter: BearerRateLimiterShape,
+  anonymousRateLimiter: AnonymousRateLimiterShape,
   handle: (request: Request) => Promise<Response>,
 ) => {
   const bearer = extractBearer(request)
   if (!bearer) {
-    return handle(request)
+    // A request with no credential still gets a budget, bucketed on the client
+    // address. It also means the RateLimit headers appear on a response an
+    // agent can actually reach — /health and /openapi.json — so a client can
+    // learn the convention before it holds a credential.
+    const limit = await Effect.runPromise(anonymousRateLimiter.check(webClientIp(request)))
+    return applyRateLimit(limit, "Rate limit exceeded.", request, handle)
   }
 
   const isApiKeyShaped = !isSignedSessionToken(bearer) && bearer.length >= API_KEY_LENGTH

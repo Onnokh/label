@@ -71,6 +71,26 @@ _Avoid_: Create bookmark endpoint, import endpoint
 The response outcome from the Capture Endpoint, indicating whether a Saved Item was created or updated.
 _Avoid_: Duplicate flag, import status
 
+**Batch Capture**:
+One REST API request carrying up to fifty URLs, applied one at a time rather than as a transaction, where each entry reports its own Capture Result and a failing entry leaves the others saved.
+_Avoid_: Bulk import, transactional batch, atomic capture
+
+**Idempotency Key**:
+A caller-supplied value on a write request that lets the API replay the first response instead of repeating the work, so a retry after a timeout cannot create a duplicate.
+_Avoid_: Request ID, deduplication token, correlation ID
+
+**Page Cursor**:
+An opaque keyset token naming the row a page of Saved Items ended on, passed back to ask for the next page. Only meaningful against the sort and folder filter it was produced under.
+_Avoid_: Offset, page number, index
+
+**Agent Auth Block**:
+The `agent_auth` object added to the authorization server metadata, naming where an agent registers, claims, and revokes a credential, and pointing at the prose walkthrough at /auth.md.
+_Avoid_: OAuth metadata, discovery document, well-known file
+
+**Deprecation Window**:
+The period of at least six months between announcing that an operation is being retired and the date it stops answering, stated on every response the operation serves through the Deprecation and Sunset headers.
+_Avoid_: Breaking change notice, sunset policy page, changelog entry
+
 **Open Action**:
 The REST API action that records a Saved Item as opened and therefore read.
 _Avoid_: Manual read toggle, generic patch

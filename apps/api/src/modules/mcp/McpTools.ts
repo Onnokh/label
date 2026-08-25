@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js"
-import { Context, Effect, Layer, Option, Schema } from "effect"
+import { Context, Effect, Layer, Option } from "effect"
 import { z } from "zod"
 
 import type { FolderId, SavedItemWithLink, UserId } from "../../domain/SavedItem.js"
@@ -10,7 +10,11 @@ import type { Scope } from "../auth/Scopes.js"
 import { CaptureService } from "../capture/CaptureService.js"
 import { EnrichmentWorkflow } from "../enrichment/EnrichmentWorkflow.js"
 import { FolderRepository } from "../folders/FolderRepository.js"
-import { SavedItemRepository } from "../saved-items/SavedItemRepository.js"
+import {
+  decodeSavedItemsCursor,
+  encodeSavedItemsCursor,
+  SavedItemRepository,
+} from "../saved-items/SavedItemRepository.js"
 import type { SavedItemsPageCursor } from "../saved-items/SavedItemRepository.js"
 import { AppConfig } from "../../runtime/Config.js"
 
@@ -23,6 +27,86 @@ export const MCP_SCOPES = [
   "folders:write",
   "folders:delete",
 ] as const satisfies readonly Scope[]
+
+/**
+ * The descriptive half of every MCP tool: the text a client shows, the scope
+ * that unlocks it, and its behaviour hints.
+ *
+ * This is the single source of truth for the tool list. `registerTools` spreads
+ * these entries into the live server, and the unauthenticated MCP Server Card
+ * renders the same array, so a client previewing the card before it connects
+ * sees exactly the tools it will get once it has the scopes.
+ */
+export const MCP_TOOL_CATALOG = [
+  {
+    name: "list_saved_items",
+    title: "List saved items",
+    description:
+      "List the authenticated user's saved items, newest first. Results are paginated; call again with nextCursor until it is null.",
+    scopes: ["saved-items:read"],
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: "save_link",
+    title: "Save link",
+    description: "Save an HTTP or HTTPS link to the authenticated user's Sleevy library.",
+    scopes: ["saved-items:capture"],
+    annotations: { destructiveHint: false, openWorldHint: true },
+  },
+  {
+    name: "set_saved_item_read_state",
+    title: "Set saved item read state",
+    description: "Mark one of the authenticated user's saved items as read or unread.",
+    scopes: ["saved-items:write"],
+    annotations: { destructiveHint: false },
+  },
+  {
+    name: "set_saved_item_folder",
+    title: "Set saved item folder",
+    description: "Move a saved item to a folder, or remove it from its folder.",
+    scopes: ["saved-items:write"],
+    annotations: { destructiveHint: false },
+  },
+  {
+    name: "delete_saved_item",
+    title: "Delete saved item",
+    description: "Permanently delete one of the authenticated user's saved items.",
+    scopes: ["saved-items:write", "saved-items:delete"],
+    annotations: { destructiveHint: true },
+  },
+  {
+    name: "list_folders",
+    title: "List folders",
+    description: "List the authenticated user's folders.",
+    scopes: ["folders:read"],
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: "add_folder",
+    title: "Add folder",
+    description: "Create a folder in the authenticated user's Sleevy library.",
+    scopes: ["folders:write"],
+    annotations: { destructiveHint: false },
+  },
+  {
+    name: "remove_folder",
+    title: "Remove folder",
+    description: "Permanently remove one of the authenticated user's folders.",
+    scopes: ["folders:delete"],
+    annotations: { destructiveHint: true },
+  },
+] as const satisfies ReadonlyArray<{
+  readonly name: string
+  readonly title: string
+  readonly description: string
+  readonly scopes: readonly Scope[]
+  readonly annotations: Record<string, boolean>
+}>
+
+const describe = (name: (typeof MCP_TOOL_CATALOG)[number]["name"]) => {
+  const entry = MCP_TOOL_CATALOG.find((tool) => tool.name === name)!
+  return { title: entry.title, description: entry.description, annotations: { ...entry.annotations } }
+}
 
 const asText = (value: unknown) => JSON.stringify(value, null, 2)
 
@@ -66,19 +150,6 @@ const savedItemToSummary = ({
 const DEFAULT_PAGE_SIZE = 50
 const MAX_PAGE_SIZE = 100
 
-const SavedItemsCursor = Schema.StringFromBase64Url.pipe(
-  Schema.decodeTo(
-    Schema.fromJsonString(
-      Schema.Struct({
-        lastSavedAt: Schema.DateFromString.check(Schema.isDateValid()),
-        id: SavedItemId,
-      }),
-    ),
-  ),
-)
-
-export const encodeSavedItemsCursor = Schema.encodeSync(SavedItemsCursor)
-export const decodeSavedItemsCursor = Schema.decodeUnknownOption(SavedItemsCursor)
 
 const savedItemSummarySchema = z.object({
   id: z.string(),
@@ -196,23 +267,19 @@ export class McpTools extends Context.Service<McpTools>()(
       const registerTools = (server: McpServer, userId: UserId, scopes: ReadonlySet<Scope>) => {
         if (scopes.has("saved-items:read")) {
           server.registerTool("list_saved_items", {
-            title: "List saved items",
-            description: "List the authenticated user's saved items, newest first. Results are paginated; call again with nextCursor until it is null.",
+            ...describe("list_saved_items"),
             inputSchema: z.strictObject({
               limit: z.number().int().min(1).max(MAX_PAGE_SIZE).optional(),
               cursor: z.string().min(1).optional(),
             }),
             outputSchema: savedItemsPageOutputSchema,
-            annotations: { readOnlyHint: true },
           }, async ({ limit, cursor }) => runPromise(listSavedItems(userId, limit, cursor)))
         }
 
         if (scopes.has("saved-items:capture")) {
           server.registerTool("save_link", {
-            title: "Save link",
-            description: "Save an HTTP or HTTPS link to the authenticated user's Sleevy library.",
+            ...describe("save_link"),
             inputSchema: z.strictObject({ url: z.string().url() }),
-            annotations: { destructiveHint: false, openWorldHint: true },
           }, async ({ url }) => {
             try {
               return await runPromise(saveLink(userId, url))
@@ -224,59 +291,47 @@ export class McpTools extends Context.Service<McpTools>()(
 
         if (scopes.has("saved-items:write")) {
           server.registerTool("set_saved_item_read_state", {
-            title: "Set saved item read state",
-            description: "Mark one of the authenticated user's saved items as read or unread.",
+            ...describe("set_saved_item_read_state"),
             inputSchema: z.strictObject({ savedItemId: z.string().min(1), isRead: z.boolean() }),
-            annotations: { destructiveHint: false },
           }, async ({ savedItemId, isRead }) =>
             runPromise(setSavedItemReadState(userId, savedItemId as SavedItemId, isRead)))
 
           server.registerTool("set_saved_item_folder", {
-            title: "Set saved item folder",
-            description: "Move a saved item to a folder, or remove it from its folder.",
+            ...describe("set_saved_item_folder"),
             inputSchema: z.strictObject({ savedItemId: z.string().min(1), folderId: z.string().min(1).nullable() }),
-            annotations: { destructiveHint: false },
           }, async ({ savedItemId, folderId }) =>
             runPromise(setSavedItemFolder(userId, savedItemId as SavedItemId, folderId as FolderId | null)))
         }
 
         if (scopes.has("saved-items:write") || scopes.has("saved-items:delete")) {
           server.registerTool("delete_saved_item", {
-            title: "Delete saved item",
-            description: "Permanently delete one of the authenticated user's saved items.",
+            ...describe("delete_saved_item"),
             inputSchema: z.strictObject({ savedItemId: z.string().min(1) }),
-            annotations: { destructiveHint: true },
           }, async ({ savedItemId }) =>
             runPromise(deleteSavedItem(userId, savedItemId as SavedItemId)))
         }
 
         if (scopes.has("folders:read")) {
           server.registerTool("list_folders", {
-            title: "List folders",
-            description: "List the authenticated user's folders.",
-            annotations: { readOnlyHint: true },
+            ...describe("list_folders"),
           }, async () => runPromise(listFolders(userId)))
         }
 
         if (scopes.has("folders:write")) {
           server.registerTool("add_folder", {
-            title: "Add folder",
-            description: "Create a folder in the authenticated user's Sleevy library.",
+            ...describe("add_folder"),
             inputSchema: z.strictObject({
               name: z.string().min(1).max(80),
               emoji: z.string().optional(),
               color: z.string().optional(),
             }),
-            annotations: { destructiveHint: false },
           }, async ({ name, emoji, color }) => runPromise(addFolder(userId, name, emoji, color)))
         }
 
         if (scopes.has("folders:delete")) {
           server.registerTool("remove_folder", {
-            title: "Remove folder",
-            description: "Permanently remove one of the authenticated user's folders.",
+            ...describe("remove_folder"),
             inputSchema: z.strictObject({ folderId: z.string().min(1) }),
-            annotations: { destructiveHint: true },
           }, async ({ folderId }) => runPromise(removeFolder(userId, folderId as FolderId)))
         }
       }

@@ -1,0 +1,143 @@
+---
+title: Retries, batches, and paging
+description: Save many links at once, page through a queue, and make a retry safe.
+icon: Repeat
+---
+
+Three things an unattended client needs that an interactive one can do without:
+a retry that cannot duplicate work, a way to send many URLs at once, and a way
+to walk a list that does not fit in one response.
+
+## Make a retry safe
+
+A client that times out does not know whether the request arrived. Retrying it
+blind can save the same link twice or create a second folder.
+
+Send an `Idempotency-Key` on any `POST`, `PUT`, or `PATCH`:
+
+```js
+const idempotencyKey = crypto.randomUUID()
+
+const save = () =>
+  fetch("https://api.sleevy.app/v1/captures", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.SLEEVY_API_KEY}`,
+      "Content-Type": "application/json",
+      "Idempotency-Key": idempotencyKey,
+    },
+    body: JSON.stringify({ url }),
+  })
+
+let response = await save()
+if (!response.ok && response.status >= 500) {
+  response = await save() // same key — replays the first answer, runs nothing twice
+}
+```
+
+Sleevy records the first successful response against the key and replays it,
+byte for byte, for every later request that repeats it. A replayed response
+carries:
+
+```http
+Idempotent-Replay: true
+```
+
+Rules worth knowing:
+
+- **Keep the key for 24 hours.** After that it is forgotten and a repeat runs
+  again.
+- **A key is scoped to your credential, the method, and the path.** The same key
+  sent to a different operation is a different request.
+- **Reuse a key only for a retry**, never for a new write. Use a UUID or a ULID.
+- **Only successes are recorded.** A `4xx` or `5xx` releases the key, so a
+  corrected retry is free to run.
+- **A key still in flight returns `409`** with code `idempotency_key_in_flight`.
+  Wait and retry with the same key; you will get the original answer.
+
+Idempotency is opt-in. A request without the header behaves exactly as it always
+has.
+
+## Save many links at once
+
+Sending fifty URLs one at a time is fifty round trips and fifty rate-limit
+slots. `POST /v1/captures/batch` takes up to 50 in one request:
+
+```js
+const response = await fetch("https://api.sleevy.app/v1/captures/batch", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${process.env.SLEEVY_API_KEY}`,
+    "Content-Type": "application/json",
+    "Idempotency-Key": crypto.randomUUID(),
+  },
+  body: JSON.stringify({
+    captures: [
+      { url: "https://example.com/one" },
+      { url: "https://example.com/two", folderId },
+    ],
+  }),
+})
+
+const { results, created, updated, failed } = await response.json()
+```
+
+A batch is **not** a transaction. Entries are applied one at a time, and one bad
+URL does not cost you the rest:
+
+```json
+{
+  "results": [
+    { "index": 0, "url": "https://example.com/one", "outcome": "created", "savedItem": { "...": "..." } },
+    { "index": 1, "url": "nonsense", "outcome": "failed", "code": "invalid_url", "message": "Capture URL must be a valid HTTP or HTTPS URL." }
+  ],
+  "created": 1,
+  "updated": 0,
+  "failed": 1
+}
+```
+
+The response is `200` whenever the batch itself was accepted, even if every
+entry failed — so check `failed` and each `outcome`, not just the status code.
+Results come back in request order and carry their `index`, so you can line them
+up with what you sent without matching on URL.
+
+## Page through the queue
+
+`GET /v1/saved-items` returns the whole list by default. Send a `limit` to get a
+page instead, then follow `nextCursor` until it comes back `null`:
+
+```js
+async function* savedItems() {
+  let cursor
+
+  while (true) {
+    const query = new URLSearchParams({ limit: "50" })
+    if (cursor) query.set("cursor", cursor)
+
+    const response = await fetch(
+      `https://api.sleevy.app/v1/saved-items?${query}`,
+      { headers: { Authorization: `Bearer ${process.env.SLEEVY_API_KEY}` } },
+    )
+    const { savedItems, nextCursor } = await response.json()
+
+    yield* savedItems
+    if (!nextCursor) return
+    cursor = nextCursor
+  }
+}
+```
+
+Paging is keyset-based, not offset-based: the cursor names the row the last page
+ended on, so an item saved while you are paging cannot shift the window and make
+you skip or repeat a row.
+
+- **The cursor is opaque.** Pass it back exactly as you got it. Do not parse or
+  construct one.
+- **A cursor belongs to its query.** It is only meaningful against the same
+  `sort` and `folder` it was produced under.
+- **`limit` is capped at 100** and clamped rather than refused.
+- **An unreadable cursor restarts the list** rather than failing the request.
+
+The MCP `list_saved_items` tool pages the same way and returns the same
+`nextCursor`.

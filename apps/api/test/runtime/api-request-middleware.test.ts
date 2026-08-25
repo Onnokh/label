@@ -5,6 +5,7 @@ import {
   type RequestAuth,
   withApiKeyRateLimit,
 } from "../../src/runtime/ApiRequestMiddleware.js"
+import type { AnonymousRateLimiterShape } from "../../src/modules/rate-limit/AnonymousRateLimiter.js"
 import type { ApiKeyRateLimiterShape } from "../../src/modules/rate-limit/ApiKeyRateLimiter.js"
 import type { BearerRateLimiterShape } from "../../src/modules/rate-limit/BearerRateLimiter.js"
 
@@ -60,6 +61,22 @@ const makeBearerRateLimiter = (input: {
     }),
 })
 
+const makeAnonymousRateLimiter = (input: {
+  readonly allowed: boolean
+  readonly onCheck?: ((clientIp: string) => void) | undefined
+} = { allowed: true }): AnonymousRateLimiterShape => ({
+  check: (clientIp) =>
+    Effect.sync(() => {
+      input.onCheck?.(clientIp)
+      return {
+        allowed: input.allowed,
+        limit: 120,
+        remaining: input.allowed ? 119 : 0,
+        resetSeconds: 42,
+      }
+    }),
+})
+
 const okHandler = async () =>
   new Response(JSON.stringify({ ok: true }), {
     status: 200,
@@ -67,21 +84,28 @@ const okHandler = async () =>
   })
 
 describe("withApiKeyRateLimit", () => {
-  test("passes through requests without bearer credentials", async () => {
+  // An unauthenticated request takes the per-address budget rather than passing
+  // through free. It also means the RateLimit headers are observable on a
+  // response an agent can reach before it holds any credential.
+  test("bucket requests without bearer credentials on the client address", async () => {
     let verified = false
     let checked = false
+    let anonymousChecked: string | undefined
 
     const response = await withApiKeyRateLimit(
       new Request("https://api.test/v1/saved-items"),
       makeAuth({ onVerify: () => { verified = true } }),
       makeRateLimiter({ allowed: true, onCheck: () => { checked = true } }),
       makeBearerRateLimiter({ allowed: true, onCheck: () => { checked = true } }),
+      makeAnonymousRateLimiter({ allowed: true, onCheck: (ip) => { anonymousChecked = ip } }),
       okHandler,
     )
 
     expect(response.status).toBe(200)
     expect(verified).toBe(false)
     expect(checked).toBe(false)
+    expect(anonymousChecked).toBeDefined()
+    expect(response.headers.get("ratelimit-limit")).toBe("120")
   })
 
   test("rate limits signed session bearer tokens without API key verification", async () => {
@@ -95,6 +119,7 @@ describe("withApiKeyRateLimit", () => {
       makeAuth({ onVerify: () => { verified = true } }),
       makeRateLimiter({ allowed: true }),
       makeBearerRateLimiter({ allowed: true, onCheck: (bearer) => { bearerChecked = bearer } }),
+      makeAnonymousRateLimiter(),
       okHandler,
     )
 
@@ -112,6 +137,7 @@ describe("withApiKeyRateLimit", () => {
       makeAuth({ apiKeyId: "api-key-42" }),
       makeRateLimiter({ allowed: true }),
       makeBearerRateLimiter(),
+      makeAnonymousRateLimiter(),
       okHandler,
     )
 
@@ -133,6 +159,7 @@ describe("withApiKeyRateLimit", () => {
       makeAuth({ valid: false }),
       makeRateLimiter({ allowed: true, onCheck: () => { apiKeyChecked = true } }),
       makeBearerRateLimiter({ allowed: true, onCheck: () => { bearerChecked = true } }),
+      makeAnonymousRateLimiter(),
       okHandler,
     )
 
@@ -150,6 +177,7 @@ describe("withApiKeyRateLimit", () => {
       makeAuth({ apiKeyId: "api-key-42" }),
       makeRateLimiter({ allowed: false }),
       makeBearerRateLimiter(),
+      makeAnonymousRateLimiter(),
       okHandler,
     )
 
@@ -169,6 +197,7 @@ describe("withApiKeyRateLimit", () => {
       makeAuth(),
       makeRateLimiter({ allowed: true }),
       makeBearerRateLimiter({ allowed: false }),
+      makeAnonymousRateLimiter(),
       okHandler,
     )
 

@@ -1,9 +1,13 @@
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 
 import type { FolderId, SavedItemId } from "../domain/SavedItem.js"
 import { FolderRepository } from "../modules/folders/FolderRepository.js"
-import { SavedItemRepository } from "../modules/saved-items/SavedItemRepository.js"
+import {
+  decodeSavedItemsCursor,
+  encodeSavedItemsCursor,
+  SavedItemRepository,
+} from "../modules/saved-items/SavedItemRepository.js"
 import { Analytics } from "../modules/analytics/Analytics.js"
 import {
   CurrentUser,
@@ -14,6 +18,10 @@ import {
   sleevyApi,
 } from "./ApiContract.js"
 import { gated, gatedAny } from "./AuthMiddleware.js"
+
+// The largest page the list endpoint will serve, matching the MCP tool's cap so
+// the two surfaces cannot disagree about how much one call may return.
+const MAX_PAGE_SIZE = 100
 
 const setSavedItemReadState = (id: SavedItemId, isRead: boolean) =>
   Effect.gen(function* () {
@@ -56,8 +64,33 @@ export const savedItemsGroupLive = HttpApiBuilder.group(sleevyApi, "saved-items"
           if (folder._tag === "None") return yield* missingFolder(query.folder)
           folderId = query.folder as FolderId
         }
-        const items = yield* repo.listByUser(userId, query.sort ?? "newest", folderId).pipe(Effect.orDie)
-        return new SavedItemsResponse({ savedItems: items.map(savedItemToDto) })
+        const sort = query.sort ?? "newest"
+
+        // No `limit` means the caller wants the whole list, which is what every
+        // client asked for before paging existed. Only an explicit `limit` opts
+        // into a page, so adding this could not change an existing caller's
+        // answer.
+        if (query.limit === undefined) {
+          const items = yield* repo.listByUser(userId, sort, folderId).pipe(Effect.orDie)
+          return new SavedItemsResponse({ savedItems: items.map(savedItemToDto), nextCursor: null })
+        }
+
+        const limit = Math.min(Math.max(Math.trunc(query.limit), 1), MAX_PAGE_SIZE)
+        // An unreadable cursor is treated as no cursor: it can only come from a
+        // caller that built one itself or kept one across a shape change, and
+        // restarting the list beats refusing it.
+        const cursor = query.cursor === undefined
+          ? undefined
+          : Option.getOrUndefined(decodeSavedItemsCursor(query.cursor))
+
+        const page = yield* repo
+          .listPageByUser(userId, limit, cursor, sort, folderId)
+          .pipe(Effect.orDie)
+
+        return new SavedItemsResponse({
+          savedItems: page.items.map(savedItemToDto),
+          nextCursor: page.nextCursor === null ? null : encodeSavedItemsCursor(page.nextCursor),
+        })
       }),
     ))
     .handle("markOpened", gated("saved-items:write", ({ params }) =>

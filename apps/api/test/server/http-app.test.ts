@@ -1,5 +1,5 @@
 import { SUPPORTED_PROTOCOL_VERSIONS } from "@modelcontextprotocol/sdk/types.js"
-import { captureChannels, type PublicSavedItemsResponse } from "@sleevy/contract"
+import { BATCH_CAPTURE_LIMIT, captureChannels, type PublicSavedItemsResponse } from "@sleevy/contract"
 import { describe, expect } from "bun:test"
 import { Effect, Layer, Option } from "effect"
 
@@ -14,9 +14,10 @@ import { AuthHandler } from "../../src/modules/auth/AuthHandler.js"
 import { BetterAuth } from "../../src/modules/auth/BetterAuth.js"
 import { Analytics } from "../../src/modules/analytics/Analytics.js"
 import { CaptureService } from "../../src/modules/capture/CaptureService.js"
+import { InvalidUrl } from "../../src/modules/capture/CaptureError.js"
 import { EnrichmentWorkflow } from "../../src/modules/enrichment/EnrichmentWorkflow.js"
 import { FolderRepository } from "../../src/modules/folders/FolderRepository.js"
-import { McpTools } from "../../src/modules/mcp/McpTools.js"
+import { McpTools, MCP_TOOL_CATALOG } from "../../src/modules/mcp/McpTools.js"
 import { RESERVED_HANDLES } from "../../src/modules/profiles/Handle.js"
 import { ProfileRepository } from "../../src/modules/profiles/ProfileRepository.js"
 import {
@@ -28,7 +29,9 @@ import {
   INDEXABLE_PROFILES_PAGE_SIZE,
   isIndexable,
 } from "../../src/modules/profiles/SearchIndexing.js"
+import { AnonymousRateLimiter } from "../../src/modules/rate-limit/AnonymousRateLimiter.js"
 import { ApiKeyRateLimiter } from "../../src/modules/rate-limit/ApiKeyRateLimiter.js"
+import { IdempotencyStore } from "../../src/modules/idempotency/IdempotencyStore.js"
 import { BearerRateLimiter } from "../../src/modules/rate-limit/BearerRateLimiter.js"
 import { ConnectAuthorizeRateLimiter } from "../../src/modules/rate-limit/ConnectAuthorizeRateLimiter.js"
 import { ConnectExchangeRateLimiter } from "../../src/modules/rate-limit/ConnectExchangeRateLimiter.js"
@@ -39,6 +42,7 @@ import {
 import { SavedItemRepository } from "../../src/modules/saved-items/SavedItemRepository.js"
 import { savedItemsTable } from "../../src/modules/persistence/schema.js"
 import { AppConfig } from "../../src/runtime/Config.js"
+import { idempotencyRedisKey } from "../../src/modules/idempotency/IdempotentWrites.js"
 import { makeApiWebHandler } from "../../src/runtime/HttpApp.js"
 import { it } from "../lib/effect.js"
 
@@ -96,13 +100,30 @@ const configLayer = Layer.succeed(AppConfig, AppConfig.of({
   },
 }))
 
+// One process-wide map standing in for the Redis the IdempotencyStore uses, so
+// a test can send the same Idempotency-Key twice and see the second answered
+// from the record rather than re-executed.
+const idempotencyRecords = new Map<string, "in-flight" | {
+  readonly status: number
+  readonly headers: Readonly<Record<string, string>>
+  readonly body: string
+}>()
+
 const routeLayer = (input: {
   readonly sessionUserId?: UserId | undefined
   readonly apiKeyValid?: boolean | undefined
   readonly apiKeyAllowed?: boolean | undefined
   readonly bearerAllowed?: boolean | undefined
+  readonly anonymousAllowed?: boolean | undefined
+  readonly idempotencyUnavailable?: boolean | undefined
   readonly apiKeyPermissions?: Record<string, string[]> | undefined
   readonly savedItemsPage?: boolean | undefined
+  readonly onListPage?: ((input: {
+    readonly limit: number
+    readonly cursorId?: string | undefined
+    readonly sort?: string | undefined
+    readonly folderId?: string | null | undefined
+  }) => void) | undefined
   readonly claimedHandle?: {
     readonly userId: UserId
     readonly handle: string
@@ -204,7 +225,17 @@ const routeLayer = (input: {
     configLayer,
     Layer.succeed(Analytics, Analytics.of({ track: () => Effect.void })),
     Layer.succeed(AuthHandler, AuthHandler.of({
-      handle: async () => new Response("auth route", { status: 200 }),
+      handle: async (request: Request) =>
+        new URL(request.url).pathname.endsWith("/.well-known/oauth-authorization-server") ||
+        new URL(request.url).pathname.startsWith("/.well-known/oauth-authorization-server/")
+          ? Response.json({
+              issuer: "http://localhost/api/auth",
+              authorization_endpoint: "http://localhost/api/auth/oauth2/authorize",
+              token_endpoint: "http://localhost/api/auth/oauth2/token",
+              registration_endpoint: "http://localhost/api/auth/oauth2/register",
+              revocation_endpoint: "http://localhost/api/auth/oauth2/revoke",
+            })
+          : new Response("auth route", { status: 200 }),
     })),
     Layer.succeed(BetterAuth, BetterAuth.of({
       auth: {
@@ -235,7 +266,13 @@ const routeLayer = (input: {
     } as never)),
     Layer.succeed(CaptureService, CaptureService.of({
       save: (captureInput) =>
-        Effect.sync(() => {
+        Effect.gen(function* () {
+          // The real service refuses anything that is not an HTTP(S) URL, so the
+          // stub does too: a batch test needs one entry that genuinely fails.
+          if (!/^https?:\/\//.test(captureInput.url)) {
+            return yield* new InvalidUrl({ url: captureInput.url })
+          }
+
           input.onCapture?.({
             userId: captureInput.userId,
             url: captureInput.url,
@@ -414,15 +451,22 @@ const routeLayer = (input: {
             ? []
             : [],
         ),
-      listPageByUser: (_userId: UserId, _limit: number, cursor?: { readonly id: string }) =>
-        Effect.succeed(
-          input.savedItemsPage && !cursor
+      listPageByUser: (
+        _userId: UserId,
+        limit: number,
+        cursor?: { readonly id: string } | undefined,
+        sort?: string | undefined,
+        folderId?: string | null | undefined,
+      ) =>
+        Effect.sync(() => {
+          input.onListPage?.({ limit, cursorId: cursor?.id, sort, folderId })
+          return input.savedItemsPage && !cursor
             ? {
                 items: [makeSavedItem(userId)],
                 nextCursor: { lastSavedAt: now, id: savedItemId },
               }
-            : { items: [], nextCursor: null },
-        ),
+            : { items: [], nextCursor: null }
+        }),
       setReadState: () => Effect.succeed(Option.none()),
       deleteByUserAndId: () => ({
         execute: () => Promise.resolve({}),
@@ -468,6 +512,39 @@ const routeLayer = (input: {
           limit: 120,
           remaining: input.bearerAllowed === false ? 0 : 119,
           resetSeconds: 42,
+        }),
+    })),
+    Layer.succeed(AnonymousRateLimiter, AnonymousRateLimiter.of({
+      check: () =>
+        Effect.succeed({
+          allowed: input.anonymousAllowed ?? true,
+          limit: 120,
+          remaining: input.anonymousAllowed === false ? 0 : 119,
+          resetSeconds: 42,
+        }),
+    })),
+    // An in-memory stand-in for the Redis-backed store, so the replay and
+    // in-flight branches are exercised without a Redis to reach.
+    Layer.succeed(IdempotencyStore, IdempotencyStore.of({
+      claim: (key: string) =>
+        Effect.sync(() => {
+          if (input.idempotencyUnavailable) return { _tag: "Unavailable" as const }
+          const existing = idempotencyRecords.get(key)
+          if (existing === undefined) {
+            idempotencyRecords.set(key, "in-flight")
+            return { _tag: "Claimed" as const }
+          }
+          return existing === "in-flight"
+            ? { _tag: "InFlight" as const }
+            : { _tag: "Replay" as const, response: existing }
+        }),
+      record: (key: string, response) =>
+        Effect.sync(() => {
+          idempotencyRecords.set(key, response)
+        }),
+      release: (key: string) =>
+        Effect.sync(() => {
+          idempotencyRecords.delete(key)
         }),
     })),
   )
@@ -894,6 +971,19 @@ describe("HttpApp", () => {
         ])
         // Auth is discovered via oauth-protected-resource, not the card.
         expect(card.authentication).toBeUndefined()
+
+        // A card is read before a transport is opened, so it also carries the
+        // flat fields a directory scanner reads and the full tool list.
+        expect(card.serverUrl).toBe("http://localhost/mcp")
+        expect(card.transport).toBe("streamable-http")
+        expect(card.tools.map((tool: { readonly name: string }) => tool.name)).toEqual(
+          MCP_TOOL_CATALOG.map((tool) => tool.name),
+        )
+        for (const tool of card.tools) {
+          expect(typeof tool.description).toBe("string")
+          expect(tool.description.length).toBeGreaterThan(0)
+          expect(tool.requiredScopes.length).toBeGreaterThan(0)
+        }
       }
 
       const initial = yield* request("/mcp/server-card").pipe(Effect.provide(routeLayer()))
@@ -1266,7 +1356,7 @@ describe("HttpApp", () => {
       )
 
       expect(response.status).toBe(200)
-      expect(yield* json(response)).toEqual({ savedItems: [] })
+      expect(yield* json(response)).toEqual({ savedItems: [], nextCursor: null })
     }),
   )
 
@@ -2479,4 +2569,308 @@ describe("HttpApp", () => {
       })
     }),
   )
+
+  it.effect("advertises the auth.md agent_auth block on the authorization-server metadata", () =>
+    Effect.gen(function* () {
+      for (const path of [
+        "/.well-known/oauth-authorization-server/api/auth",
+        "/api/auth/.well-known/oauth-authorization-server",
+      ]) {
+        const response = yield* request(path).pipe(Effect.provide(routeLayer()))
+
+        expect(response.status).toBe(200)
+        const metadata = JSON.parse(yield* text(response))
+
+        // The block is merged in, so what Better Auth publishes still arrives.
+        expect(metadata.issuer).toBe("http://localhost/api/auth")
+        expect(metadata.token_endpoint).toBe("http://localhost/api/auth/oauth2/token")
+
+        const agentAuth = metadata.agent_auth
+        expect(agentAuth.skill).toBe("https://web.sleevy.test/auth.md")
+        expect(agentAuth.register_uri).toBe("http://localhost/api/auth/oauth2/register")
+        expect(agentAuth.claim_uri).toBe("http://localhost/api/auth/oauth2/token")
+        expect(agentAuth.revocation_uri).toBe("http://localhost/api/auth/oauth2/revoke")
+        // Only what Sleevy really accepts: registration is unauthenticated and a
+        // person authorizes it. No assertion type is advertised.
+        expect(agentAuth.identity_types_supported).toEqual(["anonymous"])
+        expect(agentAuth.identity_assertion).toBeUndefined()
+        expect(agentAuth.anonymous.credential_types_supported).toEqual([
+          "access_token",
+          "api_key",
+        ])
+      }
+    }))
+
+  it.effect("leaves a non-JSON authorization-server response untouched", () =>
+    Effect.gen(function* () {
+      // Any other auth route still passes through as it was.
+      const response = yield* request("/api/auth/session").pipe(Effect.provide(routeLayer()))
+
+      expect(response.status).toBe(200)
+      expect(yield* text(response)).toBe("auth route")
+    }))
+
+  it.effect("replays a write carrying a repeated Idempotency-Key", () =>
+    Effect.gen(function* () {
+      idempotencyRecords.clear()
+      const captured: string[] = []
+      const layer = routeLayer({
+        apiKeyPermissions: { "saved-items": ["capture"] },
+        onCapture: ({ url }) => captured.push(url),
+      })
+
+      const send = () =>
+        request("/v1/captures", {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${apiKey}`,
+            "content-type": "application/json",
+            "idempotency-key": "capture-key-1",
+          },
+          body: JSON.stringify({ url: "https://example.com/articles/route-test" }),
+        }).pipe(Effect.provide(layer))
+
+      const first = yield* send()
+      const firstBody = yield* text(first)
+      expect(first.status).toBeLessThan(300)
+      expect(first.headers.get("idempotent-replay")).toBeNull()
+      expect(captured.length).toBe(1)
+
+      const second = yield* send()
+
+      // The same answer, and the capture did not run a second time.
+      expect(second.status).toBe(first.status)
+      expect(yield* text(second)).toBe(firstBody)
+      expect(second.headers.get("idempotent-replay")).toBe("true")
+      expect(captured.length).toBe(1)
+    }))
+
+  it.effect("refuses a write whose Idempotency-Key is still in flight", () =>
+    Effect.gen(function* () {
+      idempotencyRecords.clear()
+      idempotencyRecords.set(
+        idempotencyRedisKey({
+          credential: apiKey,
+          method: "POST",
+          path: "/v1/captures",
+          key: "capture-key-2",
+        }),
+        "in-flight",
+      )
+
+      const response = yield* request("/v1/captures", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+          "idempotency-key": "capture-key-2",
+        },
+        body: JSON.stringify({ url: "https://example.com/articles/route-test" }),
+      }).pipe(Effect.provide(routeLayer({ apiKeyPermissions: { "saved-items": ["capture"] } })))
+
+      expect(response.status).toBe(409)
+      expect(JSON.parse(yield* text(response)).code).toBe("idempotency_key_in_flight")
+    }))
+
+  it.effect("runs the write normally when no Idempotency-Key is sent", () =>
+    Effect.gen(function* () {
+      idempotencyRecords.clear()
+      const captured: string[] = []
+      const layer = routeLayer({
+        apiKeyPermissions: { "saved-items": ["capture"] },
+        onCapture: ({ url }) => captured.push(url),
+      })
+
+      const send = () =>
+        request("/v1/captures", {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${apiKey}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ url: "https://example.com/articles/route-test" }),
+        }).pipe(Effect.provide(layer))
+
+      yield* send()
+      yield* send()
+
+      // Idempotency is opt-in: without the header both writes run.
+      expect(captured.length).toBe(2)
+      expect(idempotencyRecords.size).toBe(0)
+    }))
+
+  it.effect("reports the rate limit on an unauthenticated response", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/health").pipe(Effect.provide(routeLayer()))
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get("ratelimit-limit")).toBe("120")
+      expect(response.headers.get("ratelimit-remaining")).toBe("119")
+      expect(response.headers.get("ratelimit-reset")).toBe("42")
+    }))
+
+  it.effect("declares Idempotency-Key on every authenticated write in the OpenAPI document", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/openapi.json").pipe(Effect.provide(routeLayer()))
+      const spec = JSON.parse(yield* text(response)) as {
+        readonly paths: Record<string, Record<string, {
+          readonly security?: ReadonlyArray<unknown>
+          readonly parameters?: ReadonlyArray<{ readonly name: string; readonly in: string }>
+          readonly summary?: string
+          readonly description?: string
+        }>>
+      }
+
+      let authenticatedWrites = 0
+      for (const pathItem of Object.values(spec.paths)) {
+        for (const method of ["post", "put", "patch"] as const) {
+          const operation = pathItem[method]
+          if (!operation || operation.security?.length === 0) continue
+          authenticatedWrites += 1
+          expect(
+            operation.parameters?.some(
+              (parameter) => parameter.name === "Idempotency-Key" && parameter.in === "header",
+            ),
+          ).toBe(true)
+        }
+      }
+      expect(authenticatedWrites).toBeGreaterThan(0)
+
+      // Every operation describes itself, so an agent reading the spec does not
+      // have to infer intent from the path.
+      for (const pathItem of Object.values(spec.paths)) {
+        for (const operation of Object.values(pathItem)) {
+          expect(operation.summary?.length ?? 0).toBeGreaterThan(0)
+          expect(operation.description?.length ?? 0).toBeGreaterThan(0)
+        }
+      }
+    }))
+
+
+  it.effect("pages the saved-items list only when a limit is asked for", () =>
+    Effect.gen(function* () {
+      const calls: Array<{ readonly limit: number; readonly cursorId?: string | undefined }> = []
+      const layer = routeLayer({
+        apiKeyPermissions: { "saved-items": ["read"] },
+        savedItemsPage: true,
+        onListPage: ({ limit, cursorId }) => calls.push({ limit, cursorId }),
+      })
+      const listRequest = (query: string) =>
+        request(`/v1/saved-items${query}`, {
+          headers: { authorization: `Bearer ${apiKey}` },
+        }).pipe(Effect.provide(layer))
+
+      // No limit: the whole list, and the paged path is never entered.
+      const page = (response: Response) =>
+        Effect.map(json(response), (body) => body as {
+          readonly savedItems: ReadonlyArray<unknown>
+          readonly nextCursor: string | null
+        })
+
+      const unpaged = yield* listRequest("")
+      expect(unpaged.status).toBe(200)
+      expect((yield* page(unpaged)).nextCursor).toBeNull()
+      expect(calls.length).toBe(0)
+
+      const first = yield* listRequest("?limit=1")
+      expect(first.status).toBe(200)
+      const firstBody = yield* page(first)
+      expect(firstBody.savedItems.length).toBe(1)
+      expect(typeof firstBody.nextCursor).toBe("string")
+      expect(calls).toEqual([{ limit: 1, cursorId: undefined }])
+
+      // The cursor is opaque to the caller and decodes back to the row it named.
+      const second = yield* listRequest(
+        `?limit=1&cursor=${encodeURIComponent(firstBody.nextCursor ?? "")}`,
+      )
+      expect(second.status).toBe(200)
+      expect((yield* page(second)).nextCursor).toBeNull()
+      expect(calls[1]).toEqual({ limit: 1, cursorId: savedItemId })
+    }))
+
+  it.effect("caps the page size and restarts on an unreadable cursor", () =>
+    Effect.gen(function* () {
+      const calls: Array<{ readonly limit: number; readonly cursorId?: string | undefined }> = []
+      const layer = routeLayer({
+        apiKeyPermissions: { "saved-items": ["read"] },
+        onListPage: ({ limit, cursorId }) => calls.push({ limit, cursorId }),
+      })
+
+      const response = yield* request("/v1/saved-items?limit=5000&cursor=not-a-cursor", {
+        headers: { authorization: `Bearer ${apiKey}` },
+      }).pipe(Effect.provide(layer))
+
+      expect(response.status).toBe(200)
+      expect(calls).toEqual([{ limit: 100, cursorId: undefined }])
+    }))
+
+
+  it.effect("saves a batch entry by entry and reports each outcome on its own", () =>
+    Effect.gen(function* () {
+      const captured: string[] = []
+      const layer = routeLayer({
+        apiKeyPermissions: { "saved-items": ["capture"] },
+        onCapture: ({ url }) => captured.push(url),
+      })
+
+      const response = yield* request("/v1/captures/batch", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          captures: [
+            { url: "https://example.com/one" },
+            // The capture stub rejects anything that is not an HTTP(S) URL, the
+            // way the real service does.
+            { url: "not-a-url" },
+            { url: "https://example.com/two" },
+          ],
+        }),
+      }).pipe(Effect.provide(layer))
+
+      expect(response.status).toBe(200)
+      const body = (yield* json(response)) as {
+        readonly results: ReadonlyArray<{
+          readonly index: number
+          readonly url: string
+          readonly outcome: string
+          readonly code?: string
+        }>
+        readonly created: number
+        readonly failed: number
+      }
+
+      // The bad entry failed on its own; the two good ones were still saved.
+      expect(body.results.map((result) => result.outcome)).toEqual([
+        "created",
+        "failed",
+        "created",
+      ])
+      expect(body.results.map((result) => result.index)).toEqual([0, 1, 2])
+      expect(body.results[1].code).toBe("invalid_url")
+      expect(body.created).toBe(2)
+      expect(body.failed).toBe(1)
+      expect(captured).toEqual(["https://example.com/one", "https://example.com/two"])
+    }))
+
+  it.effect("refuses a batch larger than the documented limit", () =>
+    Effect.gen(function* () {
+      const response = yield* request("/v1/captures/batch", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          captures: Array.from({ length: BATCH_CAPTURE_LIMIT + 1 }, (_unused, index) => ({
+            url: `https://example.com/${index}`,
+          })),
+        }),
+      }).pipe(Effect.provide(routeLayer({ apiKeyPermissions: { "saved-items": ["capture"] } })))
+
+      expect(response.status).toBe(400)
+    }))
+
 })

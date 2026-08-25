@@ -1,0 +1,87 @@
+---
+title: Versioning and deprecation
+description: How the Sleevy API changes, and how you find out before it does.
+icon: GitBranchPlus
+---
+
+The Sleevy REST API is versioned in the URL. Every resource route lives under
+`/v1`, and the version that answered a request is stated on the response:
+
+```http
+API-Version: 1.0.0
+```
+
+## What can change inside v1
+
+`v1` grows, it does not shift underfoot. Inside a version Sleevy may:
+
+- add a new endpoint;
+- add a new optional request field or query parameter;
+- add a new field to a response body; and
+- add a new value to a list that is documented as open-ended.
+
+Write your client so those are non-events: ignore response fields you do not
+recognize, and do not fail on an unexpected enum value. Everything Sleevy adds
+is additive precisely so a client written this way keeps working.
+
+## What will not change inside v1
+
+Within `v1`, Sleevy will not remove an endpoint, remove a response field, rename
+anything, tighten a validation rule, or change the meaning of a value you are
+already receiving. A change of that kind is a `v2`.
+
+## How a deprecation is announced
+
+When an operation is scheduled for removal, it says so on every response it
+serves, so a client finds out from traffic it is already making rather than from
+a changelog it has to remember to read:
+
+```http
+API-Version: 1.0.0
+Deprecation: @1793491200
+Sunset: Wed, 01 Jul 2026 00:00:00 GMT
+Link: <https://sleevy.app/docs/versioning>; rel="deprecation"; type="text/html"
+Link: <https://api.sleevy.app/v1/saved-items/{id}/read-state>; rel="successor-version"
+```
+
+- `Deprecation` ([RFC 9745](https://www.rfc-editor.org/rfc/rfc9745.html)) is when
+  the retirement was announced.
+- `Sunset` ([RFC 8594](https://www.rfc-editor.org/rfc/rfc8594.html)) is the date
+  the operation stops answering.
+- The `successor-version` link is what to call instead.
+
+The operation is also marked `deprecated: true` in the
+[OpenAPI document](https://sleevy.app/openapi.json), so a generated client picks
+it up at build time.
+
+## The promise
+
+**At least six months** pass between the `Deprecation` date and the `Sunset`
+date. Nothing is removed without that window, and the window is never shortened
+once announced.
+
+**Nothing is deprecated today.** Every operation in `v1` is current.
+
+If a security problem forces a faster change, Sleevy will say so explicitly on
+this page rather than quietly compressing the window.
+
+## Watching for it
+
+The cheapest check is to log the `Deprecation` header whenever it appears:
+
+```js
+const response = await fetch("https://api.sleevy.app/v1/saved-items", {
+  headers: { Authorization: `Bearer ${process.env.SLEEVY_API_KEY}` },
+})
+
+if (response.headers.get("Deprecation")) {
+  console.warn(
+    "Sleevy endpoint deprecated, sunset",
+    response.headers.get("Sunset"),
+  )
+}
+```
+
+An agent should treat a `Sunset` date as a reason to re-read the
+[OpenAPI document](https://sleevy.app/openapi.json) and move to the successor,
+not as a reason to stop making the call.
