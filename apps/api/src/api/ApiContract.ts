@@ -58,7 +58,12 @@ import {
   type SavedItemWithLink,
   type UserId,
 } from "../domain/SavedItem.js"
-import { AuthContext, V1_SCOPES } from "../modules/auth/Scopes.js"
+import {
+  AuthContext,
+  type Scope,
+  V1_SCOPE_DESCRIPTIONS,
+  V1_SCOPES,
+} from "../modules/auth/Scopes.js"
 import { CONNECT_CLIENT_IDS } from "../modules/connect/ConnectClients.js"
 import type { PublicSavedItem } from "../modules/profiles/PublicProfileRepository.js"
 
@@ -470,6 +475,56 @@ const connectExchangeGroup = HttpApiGroup.make("connect-exchange")
     }),
   )
 
+const oauthScopesByOperationId: Record<string, ReadonlyArray<ReadonlyArray<Scope>>> = {
+  "captures.capture": [["saved-items:capture"]],
+  "saved-items.list": [["saved-items:read"]],
+  "saved-items.markOpened": [["saved-items:write"]],
+  "saved-items.markRead": [["saved-items:write"]],
+  "saved-items.markUnread": [["saved-items:write"]],
+  "saved-items.setReadState": [["saved-items:write"]],
+  "saved-items.setFolder": [["saved-items:write"]],
+  "saved-items.setSource": [["saved-items:write"]],
+  "saved-items.remove": [["saved-items:write"], ["saved-items:delete"]],
+  "folders.list": [["folders:read"]],
+  "folders.create": [["folders:write"]],
+  "folders.update": [["folders:write"]],
+  "folders.remove": [["folders:delete"]],
+}
+
+const addOAuthToOpenApi = (spec: Record<string, any>) => {
+  const securitySchemes = spec.components?.securitySchemes as Record<string, any>
+  if (securitySchemes.bearer) {
+    securitySchemes.bearer.description =
+      "Personal API Key or App Session bearer token."
+  }
+  securitySchemes.oauth2 = {
+    type: "oauth2",
+    description: "OAuth 2.0 Authorization Code flow with PKCE for delegated access.",
+    flows: {
+      authorizationCode: {
+        authorizationUrl: "https://api.sleevy.app/api/auth/oauth2/authorize",
+        tokenUrl: "https://api.sleevy.app/api/auth/oauth2/token",
+        refreshUrl: "https://api.sleevy.app/api/auth/oauth2/token",
+        scopes: V1_SCOPE_DESCRIPTIONS,
+      },
+    },
+  }
+
+  for (const pathItem of Object.values(spec.paths ?? {}) as ReadonlyArray<Record<string, any>>) {
+    for (const operation of Object.values(pathItem) as ReadonlyArray<Record<string, any>>) {
+      if (!operation || typeof operation.operationId !== "string") continue
+      const scopeAlternatives = oauthScopesByOperationId[operation.operationId]
+      if (!scopeAlternatives) continue
+      operation.security = [
+        ...(operation.security ?? []),
+        ...scopeAlternatives.map((scopes) => ({ oauth2: [...scopes] })),
+      ]
+    }
+  }
+
+  return spec
+}
+
 export const sleevyApi = HttpApi.make("SleevyApi")
   .annotate(OpenApi.Title, "Sleevy API")
   .annotate(OpenApi.Description, "REST API for saving, listing, and managing your read-later queue.")
@@ -478,6 +533,7 @@ export const sleevyApi = HttpApi.make("SleevyApi")
     url: "https://api.sleevy.app",
     description: "Sleevy production API",
   }])
+  .annotate(OpenApi.Transform, addOAuthToOpenApi)
   .add(healthGroup)
   .add(capturesGroup)
   .add(savedItemsGroup)

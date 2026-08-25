@@ -13,6 +13,17 @@ export const V1_SCOPES = [
 
 export type Scope = (typeof V1_SCOPES)[number]
 
+export const V1_SCOPE_DESCRIPTIONS = {
+  "saved-items:capture": "Save a URL to the Account's read-later queue.",
+  "saved-items:read": "List and read the Account's Saved Items.",
+  "saved-items:write": "Update Saved Items, including read state, Source, and Folder assignment.",
+  "saved-items:delete": "Delete Saved Items from the Account.",
+  "folders:read": "List the Account's Folders.",
+  "folders:write": "Create and update Folders.",
+  "folders:delete": "Delete Folders while keeping their Saved Items.",
+  "account:read": "Read the identity of the authenticated Account.",
+} satisfies Record<Scope, string>
+
 // Standard OAuth2/OIDC protocol scopes the provider must advertise, kept
 // separate from the domain scopes above. `offline_access` is the spec-defined
 // scope that makes the token endpoint issue a refresh token — without it in the
