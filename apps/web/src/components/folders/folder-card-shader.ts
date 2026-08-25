@@ -75,6 +75,12 @@ type RenderOptions = {
   readonly theme: "light" | "dark"
   readonly cssWidth: number
   readonly cssHeight: number
+  /// Seconds of drift through the fixed composition. Omitted, the card is
+  /// still — which is what the Library rows want.
+  readonly motion?: number
+  /// Set on a tall card, where a ray running its full reach would meet the
+  /// bottom edge instead of fading out above it.
+  readonly bottomFade?: boolean
 }
 
 type Uniforms = {
@@ -85,6 +91,8 @@ type Uniforms = {
   readonly highlight: WebGLUniformLocation
   readonly aspect: WebGLUniformLocation
   readonly lightMode: WebGLUniformLocation
+  readonly motion: WebGLUniformLocation
+  readonly bottomFade: WebGLUniformLocation
 }
 
 const vertexShaderSource = `#version 300 es
@@ -118,6 +126,13 @@ uniform vec3 mid;
 uniform vec3 highlight;
 uniform float aspect;
 uniform float lightMode;
+// A real clock, zero on the static rows. The seed places the composition and
+// must never advance, or the zenith hashes would teleport the fan every
+// frame; motion only drifts the light through that fixed composition.
+uniform float motion;
+// Tall cards taper each ray out before the bottom edge instead of running the
+// full reach into it. Zero for a row, one for the folder header.
+uniform float bottomFade;
 
 const vec3 luminanceWeights = vec3(0.213, 0.715, 0.072);
 
@@ -163,7 +178,7 @@ void fcard_over(vec3 ink, float coverage, inout vec3 premul, inout float alpha) 
 }
 
 vec3 fcard_tint(vec2 point) {
-  float hueMix = fcard_fbm(vec2(point.x * 2.2 + 4.7, seed * 0.012));
+  float hueMix = fcard_fbm(vec2(point.x * 2.2 + 4.7, (seed + motion) * 0.012));
   vec3 tint = mix(deep, mid, smoothstep(0.20, 0.58, hueMix));
   return mix(tint, highlight, smoothstep(0.55, 0.85, hueMix) * 0.60);
 }
@@ -182,10 +197,15 @@ void main() {
   point.x *= aspect / 2.2;
   float radius = length(point);
   float angle = atan(point.y, point.x);
-  float density = fcard_fbm(vec2(angle * rayFrequency, radius * 1.2));
+  float density = fcard_fbm(vec2(angle * rayFrequency + motion * 0.02, radius * 1.2 - motion * 0.015));
   float rays = smoothstep(0.26, 0.72, density);
-  float rayDetail = smoothstep(0.45, 0.85, fcard_fbm(vec2(angle * 9.5 + 3.7, radius * 1.6)));
-  float reach = pow(clamp(1.0 - (radius - 0.30) / 2.0, 0.0, 1.0), 1.7);
+  float rayDetail = smoothstep(0.45, 0.85, fcard_fbm(vec2(angle * 9.5 + 3.7, radius * 1.6 + motion * 0.01)));
+  // Each ray on a tall card gets its own shorter reach, so the fan tapers out
+  // through its normal falloff and simply runs out of light before the bottom
+  // edge — no cut, and no shared line where every ray dies together. A row
+  // keeps the long reach: its whole height is the fan's heart.
+  float rayReach = mix(2.0, mix(0.80, 1.20, fcard_fbm(vec2(angle * 6.0 + 2.9, 4.2))), bottomFade);
+  float reach = pow(clamp(1.0 - (radius - 0.30) / rayReach, 0.0, 1.0), 1.7);
   float beam = rays * reach;
 
   if (lightMode > 0.5) {
@@ -194,13 +214,17 @@ void main() {
     // whole card, rays in the palette's mid tone, and the deepest tone kept
     // for the zenith. Reaching wider than the dark card stops the far end of
     // the card from fading out to blank white.
-    float wide = pow(clamp(1.0 - (radius - 0.30) / 2.6, 0.0, 1.0), 1.1);
+    float wide = pow(clamp(1.0 - (radius - 0.30) / mix(2.6, rayReach * 1.3, bottomFade), 0.0, 1.0), 1.1);
     float beamWide = rays * wide;
     float wash = (density * 0.5 + rayDetail * 0.5) * reach;
 
     vec3 premul = vec3(0.0);
     float alpha = 0.0;
-    fcard_over(fcard_rich(mix(highlight, mid, 0.35)), 0.22, premul, alpha);
+    // The flat wash is what keeps a slim light row from fading out to blank
+    // paper at its far end. On a tall card it would instead cover the whole
+    // height and hand the card a hard bottom edge, so there it follows the
+    // fan's own reach and runs out with it.
+    fcard_over(fcard_rich(mix(highlight, mid, 0.35)), 0.22 * mix(1.0, wide, bottomFade), premul, alpha);
     fcard_over(fcard_rich(mix(tint, mid, 0.50)), beamWide * 0.70, premul, alpha);
     fcard_over(fcard_rich(mid), wash * 0.40, premul, alpha);
     fcard_over(fcard_rich(mix(deep, mid, 0.40)), pow(beam, 2.4) * 0.50, premul, alpha);
@@ -267,6 +291,8 @@ class FolderCardRenderer {
     gl.uniform3fv(this.uniforms.highlight, field.palette.highlight)
     gl.uniform1f(this.uniforms.aspect, width / Math.max(height, 1))
     gl.uniform1f(this.uniforms.lightMode, options.theme === "light" ? 1 : 0)
+    gl.uniform1f(this.uniforms.motion, options.motion ?? 0)
+    gl.uniform1f(this.uniforms.bottomFade, options.bottomFade ? 1 : 0)
     gl.drawArrays(gl.TRIANGLES, 0, 3)
     return gl.getError() === gl.NO_ERROR
   }
@@ -300,6 +326,8 @@ class FolderCardRenderer {
       highlight: uniform("highlight"),
       aspect: uniform("aspect"),
       lightMode: uniform("lightMode"),
+      motion: uniform("motion"),
+      bottomFade: uniform("bottomFade"),
     }
     if (Object.values(uniforms).some((location) => location === null)) {
       reportShaderError("Folder card shader is missing a uniform.")

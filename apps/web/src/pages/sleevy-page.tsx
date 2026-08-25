@@ -1,6 +1,8 @@
-import { useCallback, useEffect } from "react"
+import { useCallback, useEffect, useRef } from "react"
 
 import { type SavedItem, useDeleteItem, useMarkAsRead, useSavedItems, useSetReadState } from "../sleevy/saved-items"
+import { AuroraBackground } from "../components/aurora/aurora-background"
+import { PageTitleBar } from "../components/ui/page-title-bar/page-title-bar"
 import { SavedCard } from "../components/saved-card/saved-card"
 import { SavedListSkeleton } from "../components/saved-card/saved-card-skeleton"
 import { useKeyboardNav } from "../contexts/keyboard-nav-context"
@@ -12,6 +14,7 @@ export function SleevyPage() {
   const markAsReadMutation = useMarkAsRead()
   const setReadStateMutation = useSetReadState()
   const { selectedIndex, setSelectedIndex, setListLength, setItemActions, pendingDelete } = useKeyboardNav()
+  const titleRef = useRef<HTMLHeadingElement>(null)
 
   const items = (savedItemsQuery.data?.savedItems ?? []).filter((item) => !item.isRead)
 
@@ -33,9 +36,12 @@ export function SleevyPage() {
 
   return (
     <>
-      <div className="page-header">
+      <PageTitleBar title="Inbox" watch={titleRef} />
+
+      <div className="page-header page-header-card">
+        <AuroraBackground className="page-header-card-shader" />
         <div className="page-heading">
-          <h1 className="page-title">Inbox</h1>
+          <h1 className="page-title" ref={titleRef}>Inbox</h1>
           {savedItemsQuery.data ? <p className="page-subtitle">{items.length} unread</p> : null}
         </div>
       </div>
