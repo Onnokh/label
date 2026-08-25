@@ -1,0 +1,7 @@
+{
+  "name": "Sleevy - Gestion de liens",
+  "subtitle": "Enregistrez. Lisez plus tard.",
+  "privacyPolicyUrl": "https://sleevy.app/privacy",
+  "privacyChoicesUrl": "https://sleevy.app/privacy",
+  "privacyPolicyText": "Simple par conception.\n\nSleevy enregistre les liens que vous choisissez de conserver, les enrichit pour les retrouver plus facilement et synchronise votre liste de lecture sur les appareils que vous utilisez.\n\nCOMPTE\nNom, adresse e-mail, fournisseur de connexion, sessions et clés API.\n\nBIBLIOTHÈQUE\nLiens enregistrés, état de lecture, tags, source et horodatages.\n\nENRICHISSEMENT\nMétadonnées des liens, résumés et tags suggérés.\n\nSERVICES\nSleevy fait appel à des prestataires pour l’hébergement, le stockage, la connexion Google et Apple, les analyses, la récupération des métadonnées de pages et l’enrichissement par IA. Ces prestataires traitent les informations uniquement pour fournir Sleevy.\n\nSUPPRESSION\nVous pouvez supprimer les éléments enregistrés individuellement. Vous pouvez aussi supprimer votre compte dans Réglages, ce qui supprime votre compte et les éléments enregistrés qui lui sont associés.\n\nPour toute question sur la confidentialité, demande de données ou aide à la suppression : consultez https://sleevy.app/privacy."
+}

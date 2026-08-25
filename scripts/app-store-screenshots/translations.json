@@ -32,5 +32,39 @@
     "raycast": "Raycast",
     "phone": "Op je telefoon",
     "nativeShare": "Native Share"
+  },
+  "fr": {
+    "oneTap": "Enregistrez d’un geste.\nLisez partout.",
+    "organize": "Organisez-vous.",
+    "folders": "Dossiers, tags et filtres",
+    "saveNow": "Enregistrez maintenant.",
+    "readReady": "Lisez quand vous êtes prêt.",
+    "oneHandle": "Un geste, une page.",
+    "publish": "Publiez un dossier, partagez le lien.",
+    "workflow": "Dans votre flux de travail",
+    "alreadyThere": "Déjà là.",
+    "browser": "Dans votre navigateur",
+    "chrome": "Google Chrome",
+    "launcher": "Dans votre lanceur",
+    "raycast": "Raycast",
+    "phone": "Sur votre téléphone",
+    "nativeShare": "Partage natif"
+  },
+  "de": {
+    "oneTap": "Mit einem Tipp speichern.\nÜberall lesen.",
+    "organize": "Organisieren Sie sich.",
+    "folders": "Ordner, Tags und Filter",
+    "saveNow": "Jetzt speichern.",
+    "readReady": "Lesen, wann Sie bereit sind.",
+    "oneHandle": "Ein Tipp, eine Seite.",
+    "publish": "Ordner veröffentlichen, Link teilen.",
+    "workflow": "In Ihrem Workflow",
+    "alreadyThere": "Schon da.",
+    "browser": "Im Browser",
+    "chrome": "Google Chrome",
+    "launcher": "Im Launcher",
+    "raycast": "Raycast",
+    "phone": "Auf dem Smartphone",
+    "nativeShare": "Native Freigabe"
   }
 }
