@@ -121,136 +121,6 @@
   background-color: var(--content);
 }
 
-.settings-page-redesign {
-  --settings-line: rgba(23, 23, 23, 0.1);
-  --settings-inset-highlight: rgba(255, 255, 255, 0.8);
-  --settings-surface: rgba(255, 255, 255, 0.72);
-  --settings-glass: rgba(255, 255, 255, 0.62);
-  --settings-header-background:
-    linear-gradient(rgba(23, 23, 23, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(23, 23, 23, 0.025) 1px, transparent 1px),
-    #fbfaf7;
-  --settings-header-background-size: 4rem 4rem, 4rem 4rem, auto;
-  --settings-header-shadow: inset 0 1px 1px 0 var(--settings-inset-highlight), 0 12px 32px rgba(20, 20, 20, 0.08);
-  max-width: 68rem;
-  color: var(--text);
-}
-
-[data-theme="dark"] .settings-page-redesign {
-  --settings-line: rgba(255, 255, 255, 0.06);
-  --settings-inset-highlight: rgba(255, 255, 255, 0.15);
-  --settings-surface: var(--surface);
-  --settings-glass: rgba(13, 14, 16, 0.72);
-  --settings-header-background: var(--settings-surface);
-  --settings-header-background-size: auto;
-  --settings-header-shadow: inset 0 1px 1px 0 var(--settings-inset-highlight), 0 8px 24px rgba(0, 0, 0, 0.4);
-}
-
-.settings-page-redesign .page-title {
-  font-size: clamp(2.5rem, 5vw, 4.5rem);
-  font-weight: 700;
-  letter-spacing: -0.055em;
-}
-
-.settings-page-redesign .page-description { color: var(--muted); }
-.settings-page-redesign .section-title {
-  color: var(--text);
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  text-transform: none;
-}
-
-.settings-page-redesign .section-description { color: var(--faint); }
-.settings-page-redesign .settings-list,
-.settings-page-redesign .settings-empty {
-  border-color: var(--settings-line);
-  background: color-mix(in srgb, var(--settings-surface) 70%, transparent);
-}
-
-.settings-page-redesign .page-header {
-  position: relative;
-  min-height: 13rem;
-  align-items: flex-end;
-  padding: 3rem;
-  border: 1px solid var(--settings-line);
-  border-radius: 0.75rem;
-  background: var(--settings-header-background);
-  background-size: var(--settings-header-background-size);
-  box-shadow: var(--settings-header-shadow);
-  overflow: hidden;
-}
-
-.settings-page-redesign .page-header > :not(canvas) {
-  position: relative;
-  z-index: 1;
-}
-
-.settings-page-redesign .page-header > canvas { display: none; }
-[data-theme="dark"] .settings-page-redesign .page-header > canvas { display: block; }
-
-/* The light theme lets the page show through its glassy panels; in dark the
-   sections are the raised surface itself, so they take it undiluted. */
-[data-theme="dark"] .settings-page-redesign .settings-list,
-[data-theme="dark"] .settings-page-redesign .settings-empty {
-  background: var(--surface);
-}
-
-.settings-header-account {
-  width: min(21rem, 42%);
-  border: 1px solid var(--settings-line);
-  border-radius: 0.75rem;
-  background: var(--settings-glass);
-  box-shadow: inset 0 1px 1px 0 var(--settings-inset-highlight);
-  backdrop-filter: blur(20px);
-  overflow: hidden;
-}
-
-.settings-header-account { padding: 0.375rem; }
-
-.settings-page-redesign .page-sections {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  border: 0;
-}
-
-.settings-page-redesign .settings-group {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--settings-line);
-  border-radius: 0.75rem;
-  background: var(--settings-surface);
-  box-shadow: inset 0 1px 1px 0 var(--settings-inset-highlight);
-  overflow: hidden;
-}
-
-.settings-page-redesign .settings-group-access { grid-column: 1 / -1; }
-.settings-page-redesign .settings-group-preferences {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: 1fr;
-}
-.settings-page-redesign .settings-section {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 1.5rem;
-  min-height: 12rem;
-  padding: 1.5rem;
-  border: 0;
-}
-
-.settings-page-redesign :is(.settings-group-preferences, .settings-group-access) .settings-section {
-  display: grid;
-  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
-  min-height: 0;
-}
-
-.settings-page-redesign :is(.settings-group-preferences, .settings-group-access) .settings-section > :not(.section-header) {
-  grid-column: 2;
-}
-
 .settings-delete-account {
   display: flex;
   justify-content: center;
@@ -262,10 +132,19 @@
 
 .page-header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1.5rem;
+}
+
+/* A flush header drops its title to the same line a brand card's title sits
+   on. The card bleeds a content inset upwards and stands 11rem tall with that
+   same inset inside it, so its text bottom lands 7rem below the top of the
+   content. Library home and Settings have no card to stand in, so they
+   reserve that height themselves and hang the heading off the bottom of it. */
+.page-header:not(.page-header-card) {
+  min-height: calc(11rem - var(--content-padding) * 2);
 }
 
 /* A screen's brand header card: the Inbox wears the aurora, a folder wears
@@ -368,54 +247,73 @@
   white-space: nowrap;
 }
 
-.page-description {
-  max-width: 34rem;
-  margin: 0.5rem 0 0;
-  color: var(--muted);
-  font-size: 0.9375rem;
-  line-height: 1.5;
-}
-
+/* Settings reads as a column of cards, the way the Library home reads as a
+   grid of Folder cards above its rows. It is the query container for those
+   cards: what decides whether a card can hold two columns is its own width,
+   not the window's. The 360px sidebar means the content column runs out of
+   room long before a viewport breakpoint would fire. */
 .page-sections {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
-  gap: 0;
-  border-top: 1px solid var(--border);
+  gap: 0.75rem;
 }
 
+/* A settings card, cut to the Folder card's radius so the two screens read as
+   one app. The label column stays narrow and every control inside caps itself
+   at 47rem, so the card can span the content column like a Library row does. */
 .settings-section {
   display: grid;
   grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr);
   align-items: start;
   gap: 2rem;
-  padding: 1.5rem 0;
-  border-bottom: 1px solid var(--border);
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background: var(--surface);
 }
 
 .settings-section > :not(.section-header) {
   grid-column: 2;
+  min-width: 0;
 }
 
+/* Too narrow for a label column beside its controls: stack them. The track is
+   minmax(0, …) rather than 1fr because an API Key's value has nowhere to wrap,
+   and a plain 1fr grows to that value's min-content width instead of holding
+   the card's own. */
+@container (max-width: 34rem) {
+  .settings-section {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .settings-section > :not(.section-header) {
+    grid-column: 1;
+  }
+}
+
+/* The card's label column: title over description. It reads as a heading
+   rather than the uppercase micro-label a dense form would use, because on a
+   card the title carries the same weight a Folder card's name does. */
 .section-header {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
   margin: 0;
 }
 
 .section-title {
   margin: 0;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--faint);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .section-description {
   margin: 0.375rem 0 0;
-  color: var(--muted);
+  color: var(--faint);
   font-size: 0.8125rem;
   line-height: 1.4;
 }
@@ -508,22 +406,18 @@
   }
 
   .settings-section {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-    padding: 0.875rem 0;
-  }
-
-  .settings-section > :not(.section-header) {
-    grid-column: 1;
-  }
-
-  .section-header {
-    flex-direction: column;
+    padding: 1.125rem;
   }
 
   .page-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  /* Both variants stack and put the title at the top here, so a flush header
+     reserving the card's height would only open a gap under its own title. */
+  .page-header:not(.page-header-card) {
+    min-height: 0;
   }
 
   .page-header-card {
@@ -536,12 +430,4 @@
     max-width: none;
     margin-left: 0;
   }
-
-  .settings-page-redesign .page-sections { grid-template-columns: 1fr; }
-  .settings-page-redesign .settings-group-access { grid-column: auto; }
-  .settings-page-redesign .settings-group-preferences { grid-column: auto; grid-template-columns: 1fr; }
-  .settings-page-redesign :is(.settings-group-preferences, .settings-group-access) .settings-section { grid-template-columns: 1fr; }
-  .settings-page-redesign :is(.settings-group-preferences, .settings-group-access) .settings-section > :not(.section-header) { grid-column: 1; }
-  .settings-page-redesign .page-header { align-items: stretch; }
-  .settings-header-account { width: 100%; }
 }
