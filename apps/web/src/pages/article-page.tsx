@@ -1,3 +1,4 @@
+import { ProductHuntCard } from "../components/marketing/product-hunt-card/product-hunt-card"
 import { StructuredData } from "../components/marketing/structured-data"
 
 import styles from "./article-page.module.scss"
@@ -180,6 +181,8 @@ export function ArticlePage({ schema, eyebrow, title, description, updatedAt, ca
             ))}
           </section>
         )}
+
+        <ProductHuntCard />
 
         <section className={styles.closing}>
           <h2>{closing?.title ?? "Keep the good links. Lose the open tabs."}</h2>
