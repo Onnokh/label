@@ -15,7 +15,7 @@ export function BrowserSection() {
           srcSet="/web-companion-1209.webp 1x, /web-companion-2418.webp 2x"
           alt="Sleevy web app showing the inbox with saved links"
           width={1209}
-          height={647}
+          height={754}
           loading="lazy"
         />
       </div>
