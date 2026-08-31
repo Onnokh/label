@@ -80,6 +80,15 @@
   }
 }
 
+.col a.smallLink {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.875rem;
+
+  &:hover {
+    color: rgba(255, 255, 255, 0.85);
+  }
+}
+
 .colTitle {
   font-weight: 700;
   /* Figma: title-to-links gap is 1.3rem vs the 2rem link rhythm */

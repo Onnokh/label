@@ -32,6 +32,14 @@ export function MarketingFooter() {
           <Link to="/articles">Articles</Link>
           <Link to="/docs/$" params={{ _splat: "" }}>Sleevy API documentation</Link>
           <a href="https://github.com/Onnokh/sleevy" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a
+            className={styles.smallLink}
+            href="https://indiehunt.io/project/sleevy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Featured on IndieHunt
+          </a>
           <Link to="/support">Support</Link>
           <Link to="/privacy">Privacy</Link>
         </nav>
