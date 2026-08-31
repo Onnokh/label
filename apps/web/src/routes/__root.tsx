@@ -14,8 +14,8 @@ export const Route = createRootRoute({
       // so both are stated site-wide rather than only where a page overrides
       // them. A route with a better image sets its own og:image after these.
       { property: "og:type", content: "website" },
-      { property: "og:image", content: "https://sleevy.app/app-630.webp" },
-      { property: "og:image:alt", content: "The Sleevy reading queue on iPhone" },
+      { property: "og:image", content: "https://sleevy.app/og-image.png" },
+      { property: "og:image:alt", content: "Sleevy read-later app on iPhone" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "theme-color", content: "#1e2d65" },
     ],
