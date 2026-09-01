@@ -1,6 +1,6 @@
 import { createContext, use, useMemo, useState, type DragEvent, type ReactNode } from "react"
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { ChevronRight, Globe2, Hash, Inbox, Keyboard, Library, MoreVertical, Settings, SquarePlus } from "lucide-react"
+import { ChevronRight, Globe2, Hash, Inbox, Library, MoreVertical, Settings, SquarePlus } from "lucide-react"
 
 import { useKeyboardNav } from "../../contexts/keyboard-nav-context"
 import { useProfile } from "../../sleevy/profile"
@@ -211,7 +211,7 @@ function SidebarSection({ heading, items, activeValue, onSelect, collapsible = f
 
 export function SidebarActions() {
   const { profile } = useProfile()
-  const { openCaptureDialog, setHelpOpen } = useKeyboardNav()
+  const { openCaptureDialog } = useKeyboardNav()
   const profileAction = profile?.visibility === "public" && profile.handle
     ? {
         key: "public-profile",
@@ -235,18 +235,12 @@ export function SidebarActions() {
           icon: <SquarePlus size={14} />,
           onClick: () => openCaptureDialog(),
         },
+        profileAction,
         {
           key: "settings",
           label: "Settings",
           icon: <Settings size={14} />,
           to: "/settings",
-        },
-        profileAction,
-        {
-          key: "shortcuts",
-          label: "Keyboard shortcuts",
-          icon: <Keyboard size={14} />,
-          onClick: () => setHelpOpen(true),
         },
       ]}
     />
