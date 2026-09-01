@@ -85,6 +85,7 @@ type SidebarItem = {
   readonly icon?: ReactNode
   readonly to?: string
   readonly exact?: boolean
+  readonly active?: boolean
   readonly onClick?: () => void
   readonly onDrop?: (event: DragEvent<HTMLLIElement>) => void
   readonly menu?: readonly ContextMenuItem[]
@@ -138,7 +139,7 @@ function SidebarSection({ heading, items, activeValue, onSelect, collapsible = f
                 to={item.to}
                 className={styles.item}
                 activeOptions={item.exact ? { exact: true } : undefined}
-                activeProps={{ className: `${styles.item} ${styles.active}` }}
+                activeProps={item.active === false ? undefined : { className: `${styles.item} ${styles.active}` }}
                 onClick={close}
               >
                 {content}
@@ -224,6 +225,7 @@ export function SidebarActions() {
         label: "Claim handle",
         icon: <Globe2 size={14} />,
         to: "/settings",
+        active: false,
       }
 
   return (
