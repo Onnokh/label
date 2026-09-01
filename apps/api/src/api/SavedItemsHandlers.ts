@@ -3,6 +3,8 @@ import { HttpApiBuilder } from "effect/unstable/httpapi"
 
 import type { FolderId, SavedItemId } from "../domain/SavedItem.js"
 import { FolderRepository } from "../modules/folders/FolderRepository.js"
+import { ProfileRepository } from "../modules/profiles/ProfileRepository.js"
+import { PublicProfileCachePurger } from "../modules/profiles/PublicProfileCachePurger.js"
 import {
   decodeSavedItemsCursor,
   encodeSavedItemsCursor,
@@ -125,6 +127,8 @@ export const savedItemsGroupLive = HttpApiBuilder.group(sleevyApi, "saved-items"
       Effect.gen(function* () {
         const repo = yield* SavedItemRepository
         const folders = yield* FolderRepository
+        const profiles = yield* ProfileRepository
+        const cachePurger = yield* PublicProfileCachePurger
         const analytics = yield* Analytics
         const userId = yield* CurrentUser
         const folderId = payload.folderId as FolderId | null
@@ -140,6 +144,10 @@ export const savedItemsGroupLive = HttpApiBuilder.group(sleevyApi, "saved-items"
             message: "Saved Item was not found.",
             savedItemId: params.id,
           })
+        }
+        const profile = yield* profiles.findByUser(userId).pipe(Effect.orDie)
+        if (profile._tag === "Some" && profile.value.visibility === "public") {
+          yield* cachePurger.purge(profile.value.handle)
         }
         yield* analytics
           .track({

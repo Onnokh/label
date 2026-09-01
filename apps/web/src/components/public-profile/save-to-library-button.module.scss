@@ -44,6 +44,10 @@
   color: rgb(252 165 165);
 }
 
+.remove {
+  color: rgb(255 255 255 / 68%);
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

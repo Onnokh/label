@@ -30,6 +30,10 @@ type AppConfigShape = {
     readonly cloudflareAccountId: string;
     readonly cloudflareApiToken: string;
   };
+  readonly cache: {
+    readonly cloudflareZoneId: string;
+    readonly cloudflarePurgeApiToken: string;
+  };
   readonly ai: {
     readonly enabled: boolean;
     readonly provider: string | undefined;
@@ -108,6 +112,14 @@ export class AppConfig extends Context.Service<AppConfig, AppConfigShape>()(
         "CLOUDFLARE_API_TOKEN",
       ).pipe(Config.withDefault(""));
 
+      const cloudflareZoneId = yield* Config.string(
+        "CLOUDFLARE_ZONE_ID",
+      ).pipe(Config.withDefault(""));
+
+      const cloudflarePurgeApiToken = yield* Config.string(
+        "CLOUDFLARE_CACHE_PURGE_API_TOKEN",
+      ).pipe(Config.withDefault(""));
+
       const aiProvider = yield* Config.option(Config.string("AI_PROVIDER"));
       const aiModel = yield* Config.option(Config.string("AI_MODEL"));
       const aiApiKey = yield* Config.option(Config.string("OPENAI_API_KEY"));
@@ -178,6 +190,10 @@ export class AppConfig extends Context.Service<AppConfig, AppConfigShape>()(
           browserTimeoutMs,
           cloudflareAccountId,
           cloudflareApiToken,
+        },
+        cache: {
+          cloudflareZoneId,
+          cloudflarePurgeApiToken,
         },
         ai: {
           enabled: aiEnabled,

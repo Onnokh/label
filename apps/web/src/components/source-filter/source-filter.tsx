@@ -1,8 +1,9 @@
 import { createContext, use, useMemo, useState, type DragEvent, type ReactNode } from "react"
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { ChevronRight, Inbox, Keyboard, Library, Hash, MoreVertical, Settings, SquarePlus } from "lucide-react"
+import { ChevronRight, Globe2, Hash, Inbox, Library, MoreVertical, Settings, SquarePlus } from "lucide-react"
 
 import { useKeyboardNav } from "../../contexts/keyboard-nav-context"
+import { useProfile } from "../../sleevy/profile"
 import { useSidebarSheet } from "../app-layout/sidebar-sheet"
 import { useMoveItemsToSource, useSavedItems, type Topic } from "../../sleevy/saved-items"
 import { SAVED_ITEM_DRAG_TYPE, useMoveSavedItemToFolder } from "../../sleevy/folders"
@@ -84,6 +85,7 @@ type SidebarItem = {
   readonly icon?: ReactNode
   readonly to?: string
   readonly exact?: boolean
+  readonly active?: boolean
   readonly onClick?: () => void
   readonly onDrop?: (event: DragEvent<HTMLLIElement>) => void
   readonly menu?: readonly ContextMenuItem[]
@@ -137,7 +139,7 @@ function SidebarSection({ heading, items, activeValue, onSelect, collapsible = f
                 to={item.to}
                 className={styles.item}
                 activeOptions={item.exact ? { exact: true } : undefined}
-                activeProps={{ className: `${styles.item} ${styles.active}` }}
+                activeProps={item.active === false ? undefined : { className: `${styles.item} ${styles.active}` }}
                 onClick={close}
               >
                 {content}
@@ -209,8 +211,22 @@ function SidebarSection({ heading, items, activeValue, onSelect, collapsible = f
 }
 
 export function SidebarActions() {
-  const navigate = useNavigate()
-  const { openCaptureDialog, setHelpOpen } = useKeyboardNav()
+  const { profile } = useProfile()
+  const { openCaptureDialog } = useKeyboardNav()
+  const profileAction = profile?.visibility === "public" && profile.handle
+    ? {
+        key: "public-profile",
+        label: "Public profile",
+        icon: <Globe2 size={14} />,
+        to: `/u/${profile.handle}`,
+      }
+    : {
+        key: "claim-handle",
+        label: "Claim handle",
+        icon: <Globe2 size={14} />,
+        to: "/settings",
+        active: false,
+      }
 
   return (
     <SidebarSection
@@ -221,17 +237,12 @@ export function SidebarActions() {
           icon: <SquarePlus size={14} />,
           onClick: () => openCaptureDialog(),
         },
+        profileAction,
         {
           key: "settings",
           label: "Settings",
           icon: <Settings size={14} />,
           to: "/settings",
-        },
-        {
-          key: "shortcuts",
-          label: "Keyboard shortcuts",
-          icon: <Keyboard size={14} />,
-          onClick: () => setHelpOpen(true),
         },
       ]}
     />

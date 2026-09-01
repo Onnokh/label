@@ -44,7 +44,7 @@ Account administration is deliberately session-only: the v1 REST API does not ex
 ### Values decided during implementation
 
 - **Public Profile Rate Limit: 60 requests per minute per IP** for the whole `/v1/public/` prefix. The API Key budget is 20, but one page view fans out across three endpoints.
-- **Caching: `public, max-age=300` on success only.** A not-found is not cached, so claiming a Handle and publishing takes effect at once. Publishing a Folder becomes visible within five minutes.
+- **Caching:** Public Profile HTML uses `public, max-age=0, s-maxage=300, must-revalidate` and the `public-profile:<handle>` `Cache-Tag`. Owner changes to Profile Visibility, Published Folders, or Saved Item folder membership request an on-demand purge by that tag; an unconfigured Cloudflare purger falls back to the five-minute edge TTL. A not-found page is not cached, so claiming a Handle takes effect at once.
 - **Reserved Handles**: `api`, `docs`, `settings`, `inbox`, `library`, `connect`, `oauth`, `support`, `privacy`, `admin`, `u`, `user`, `sleevy`.
 - **Page size 50**, ordered by Saved Item creation time with the identifier breaking ties, so a Duplicate Save cannot reorder a published page.
 

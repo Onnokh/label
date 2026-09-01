@@ -4,6 +4,7 @@ import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { Analytics } from "../modules/analytics/Analytics.js"
 import { invalidHandleMessage, normalizeHandle } from "../modules/profiles/Handle.js"
 import { ProfileRepository } from "../modules/profiles/ProfileRepository.js"
+import { PublicProfileCachePurger } from "../modules/profiles/PublicProfileCachePurger.js"
 import {
   CurrentUser,
   HandleAvailabilityResponse,
@@ -77,6 +78,7 @@ export const profileGroupLive = HttpApiBuilder.group(sleevyApi, "profile", (hand
     .handle("renameHandle", ({ payload }) =>
       Effect.gen(function* () {
         const repo = yield* ProfileRepository
+        const cachePurger = yield* PublicProfileCachePurger
         const analytics = yield* Analytics
         const userId = yield* CurrentUser
         const owned = yield* repo.findByUser(userId).pipe(Effect.orDie)
@@ -92,6 +94,10 @@ export const profileGroupLive = HttpApiBuilder.group(sleevyApi, "profile", (hand
         const outcome = yield* repo.renameHandle(userId, handle).pipe(Effect.orDie)
         if (outcome._tag === "taken") return yield* taken()
         if (outcome._tag === "no-profile") return yield* notFound()
+        yield* cachePurger.purge(owned.value.handle)
+        if (outcome.profile.handle !== owned.value.handle) {
+          yield* cachePurger.purge(outcome.profile.handle)
+        }
         yield* analytics
           .track({ name: "handle_renamed", userId })
           .pipe(Effect.forkDetach)
@@ -101,10 +107,12 @@ export const profileGroupLive = HttpApiBuilder.group(sleevyApi, "profile", (hand
     .handle("setVisibility", ({ payload }) =>
       Effect.gen(function* () {
         const repo = yield* ProfileRepository
+        const cachePurger = yield* PublicProfileCachePurger
         const analytics = yield* Analytics
         const userId = yield* CurrentUser
         const updated = yield* repo.setVisibility(userId, payload.visibility).pipe(Effect.orDie)
         if (Option.isNone(updated)) return yield* notFound()
+        yield* cachePurger.purge(updated.value.handle)
         yield* analytics
           .track({
             name: "profile_visibility_changed",

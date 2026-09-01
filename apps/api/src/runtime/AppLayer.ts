@@ -10,6 +10,7 @@ import { FolderRepository } from "../modules/folders/FolderRepository.js";
 import { IdempotencyStore } from "../modules/idempotency/IdempotencyStore.js";
 import { McpTools } from "../modules/mcp/McpTools.js";
 import { ProfileRepository } from "../modules/profiles/ProfileRepository.js";
+import { PublicProfileCachePurger } from "../modules/profiles/PublicProfileCachePurger.js";
 import { PublicProfileRepository } from "../modules/profiles/PublicProfileRepository.js";
 import { AnonymousRateLimiter } from "../modules/rate-limit/AnonymousRateLimiter.js";
 import { ApiKeyRateLimiter } from "../modules/rate-limit/ApiKeyRateLimiter.js";
@@ -47,6 +48,7 @@ export const appLayer = Layer.mergeAll(
   IdempotencyStore.defaultLayer,
   McpTools.defaultLayer,
   ProfileRepository.defaultLayer,
+  PublicProfileCachePurger.defaultLayer,
   PublicProfileRateLimiter.defaultLayer,
   PublicProfileRepository.defaultLayer,
   SavedItemRepository.defaultLayer,
