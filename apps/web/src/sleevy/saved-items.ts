@@ -45,12 +45,17 @@ const updateSavedItemsCaches = (
   }
 }
 
-export function useSavedItems(sort: SavedItemSort = "newest", folder?: FolderSelector) {
+export function useSavedItems(
+  sort: SavedItemSort = "newest",
+  folder?: FolderSelector,
+  enabled = true,
+) {
   const params = new URLSearchParams({ sort })
   if (folder) params.set("folder", folder)
 
   return useQuery({
     queryKey: savedItemsListQueryKey(sort, folder),
+    enabled,
     queryFn: () => apiFetch<SavedItemsResponseJson>(`/v1/saved-items?${params.toString()}`),
     staleTime: 30_000,
   })

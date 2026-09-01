@@ -21,18 +21,21 @@ const canonicalFor = (handle: string, page: number) =>
 // response cacheable at the edge, which is what keeps a popular Public Profile
 // from costing one render and three API reads per visitor.
 //
-// Five minutes matches the window the API puts on the same data. A Saved Item
-// is already withheld for its first hour, so this adds nothing a reader would
-// notice: the save appears 60 to 65 minutes after capture either way.
+// Five minutes keeps public reads cheap while the API can explicitly purge a
+// profile when its owner changes visibility or folder membership.
 const PAGE_CACHE_SECONDS = 300
 
 // Only a page that resolved is cached. A not-found is left uncached on purpose,
 // so claiming a Handle and publishing takes effect at once rather than after the
 // window expires.
-const cachePublicly = async () => {
+const cachePublicly = async (handle: string) => {
   if (!import.meta.env.SSR) return
   const { setResponseHeader } = await import("@tanstack/react-start/server")
-  setResponseHeader("cache-control", `public, max-age=${PAGE_CACHE_SECONDS}`)
+  setResponseHeader(
+    "cache-control",
+    `public, max-age=0, s-maxage=${PAGE_CACHE_SECONDS}, must-revalidate`,
+  )
+  setResponseHeader("cache-tag", `public-profile:${handle}`)
 }
 
 export const Route = createFileRoute("/_marketing/u/$handle")({
@@ -57,7 +60,7 @@ export const Route = createFileRoute("/_marketing/u/$handle")({
       throw notFound()
     }
 
-    await cachePublicly()
+    await cachePublicly(profile.handle)
     return { profile, items, activity }
   },
   head: ({ loaderData, params }) => {

@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router"
 import { Fragment } from "react"
+import { useState } from "react"
 
 import { SavedItemCard } from "../components/public-profile/saved-item-card"
 import type {
@@ -211,6 +212,11 @@ export const PublicProfileNotFound = () => (
 
 export const PublicProfilePage = ({ data }: { readonly data: PublicProfileData }) => {
   const { profile, items, activity } = data
+  const [removedItemUrls, setRemovedItemUrls] = useState<ReadonlySet<string>>(new Set())
+  const visibleItems = items.savedItems.filter((item) => !removedItemUrls.has(item.originalUrl))
+  const removeFromView = (url: string) => {
+    setRemovedItemUrls((current) => new Set(current).add(url))
+  }
 
   return (
     <div className={styles.page}>
@@ -222,16 +228,20 @@ export const PublicProfilePage = ({ data }: { readonly data: PublicProfileData }
         {/* The markers in the list are what a reader sees, so the heading that
             keeps this section in the document outline is spoken, not shown. */}
         <h2 className={styles.visuallyHidden}>Sleeved links</h2>
-        {items.savedItems.length === 0
+        {visibleItems.length === 0
           ? <p className={styles.empty}>Nothing published on this page.</p>
           : (
               <ul className={styles.items}>
-                {items.savedItems.map((item, at) => (
+                {visibleItems.map((item, at) => (
                   <Fragment key={item.originalUrl}>
-                    {monthChanged(item, items.savedItems[at - 1])
+                    {monthChanged(item, visibleItems[at - 1])
                       ? <MonthMarker savedAt={item.savedAt} isFirst={at === 0} />
                       : null}
-                    <SavedItemCard item={item} />
+                    <SavedItemCard
+                      item={item}
+                      handle={profile.handle}
+                      onRemoved={() => removeFromView(item.originalUrl)}
+                    />
                   </Fragment>
                 ))}
               </ul>

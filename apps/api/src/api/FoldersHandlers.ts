@@ -3,6 +3,8 @@ import { HttpApiBuilder } from "effect/unstable/httpapi"
 
 import { FolderRepository } from "../modules/folders/FolderRepository.js"
 import { Analytics } from "../modules/analytics/Analytics.js"
+import { ProfileRepository } from "../modules/profiles/ProfileRepository.js"
+import { PublicProfileCachePurger } from "../modules/profiles/PublicProfileCachePurger.js"
 import {
   CurrentUser,
   FolderDto,
@@ -76,6 +78,8 @@ export const foldersGroupLive = HttpApiBuilder.group(sleevyApi, "folders", (hand
     .handle("update", gated("folders:write", ({ params, payload }) =>
       Effect.gen(function* () {
         const repo = yield* FolderRepository
+        const profiles = yield* ProfileRepository
+        const cachePurger = yield* PublicProfileCachePurger
         const analytics = yield* Analytics
         const userId = yield* CurrentUser
         const found = yield* repo.findByUserAndId(userId, params.id).pipe(Effect.orDie)
@@ -102,6 +106,10 @@ export const foldersGroupLive = HttpApiBuilder.group(sleevyApi, "folders", (hand
             .pipe(Effect.forkDetach)
         }
         if (payload.isPublished !== undefined) {
+          const profile = yield* profiles.findByUser(userId).pipe(Effect.orDie)
+          if (profile._tag === "Some" && profile.value.visibility === "public") {
+            yield* cachePurger.purge(profile.value.handle)
+          }
           yield* analytics
             .track({
               name: "folder_publish_changed",
@@ -116,10 +124,20 @@ export const foldersGroupLive = HttpApiBuilder.group(sleevyApi, "folders", (hand
     .handle("remove", gated("folders:delete", ({ params }) =>
       Effect.gen(function* () {
         const repo = yield* FolderRepository
+        const profiles = yield* ProfileRepository
+        const cachePurger = yield* PublicProfileCachePurger
         const analytics = yield* Analytics
         const userId = yield* CurrentUser
+        const found = yield* repo.findByUserAndId(userId, params.id).pipe(Effect.orDie)
+        if (found._tag === "None") return yield* notFound(params.id)
         const removed = yield* repo.deleteByUserAndId(userId, params.id).pipe(Effect.orDie)
         if (!removed) return yield* notFound(params.id)
+        if (found.value.isPublished) {
+          const profile = yield* profiles.findByUser(userId).pipe(Effect.orDie)
+          if (profile._tag === "Some" && profile.value.visibility === "public") {
+            yield* cachePurger.purge(profile.value.handle)
+          }
+        }
         yield* Effect.logInfo("Deleted folder")
         yield* analytics
           .track({ name: "folder_deleted", userId })

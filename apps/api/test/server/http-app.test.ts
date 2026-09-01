@@ -20,6 +20,7 @@ import { FolderRepository } from "../../src/modules/folders/FolderRepository.js"
 import { McpTools, MCP_TOOL_CATALOG } from "../../src/modules/mcp/McpTools.js"
 import { RESERVED_HANDLES } from "../../src/modules/profiles/Handle.js"
 import { ProfileRepository } from "../../src/modules/profiles/ProfileRepository.js"
+import { PublicProfileCachePurger } from "../../src/modules/profiles/PublicProfileCachePurger.js"
 import {
   type PublicSavedItem,
   PublicProfileRepository,
@@ -72,6 +73,10 @@ const configLayer = Layer.succeed(AppConfig, AppConfig.of({
     browserTimeoutMs: 5_000,
     cloudflareAccountId: "",
     cloudflareApiToken: "",
+  },
+  cache: {
+    cloudflareZoneId: "",
+    cloudflarePurgeApiToken: "",
   },
   ai: {
     enabled: false,
@@ -128,6 +133,7 @@ const routeLayer = (input: {
     readonly userId: UserId
     readonly handle: string
   } | undefined
+  readonly profileVisibility?: "private" | "public" | undefined
   readonly onCapture?: ((input: {
     readonly userId: UserId
     readonly url: string
@@ -160,6 +166,7 @@ const routeLayer = (input: {
   }> | undefined
   readonly publicRateLimitAllowed?: boolean | undefined
   readonly onPublicRateLimit?: ((key: string) => void) | undefined
+  readonly onCachePurge?: ((handle: string) => void) | undefined
 } = {}) => {
   // The connect limiters deny every request, so a connect request stops at the
   // limiter and reports the key it was bucketed on.
@@ -215,7 +222,7 @@ const routeLayer = (input: {
       id: "route-profile-seeded",
       userId: input.claimedHandle.userId,
       handle: input.claimedHandle.handle,
-      visibility: "private",
+      visibility: input.profileVisibility ?? "private",
       createdAt: now,
       updatedAt: now,
     })
@@ -366,6 +373,9 @@ const routeLayer = (input: {
           return Option.some(profile)
         }),
     } as never)),
+    Layer.succeed(PublicProfileCachePurger, PublicProfileCachePurger.of({
+      purge: (handle: string) => Effect.sync(() => input.onCachePurge?.(handle)),
+    })),
     Layer.succeed(PublicProfileRepository, PublicProfileRepository.of({
       findPublicByHandle: (handle: string) =>
         Effect.sync(() => {
@@ -444,7 +454,12 @@ const routeLayer = (input: {
         }),
     })),
     Layer.succeed(SavedItemRepository, SavedItemRepository.of({
-      findByUserAndId: () => Effect.succeed(Option.none()),
+      findByUserAndId: (requestedUserId: UserId, id: SavedItemId) =>
+        Effect.succeed(
+          input.savedItemsPage && requestedUserId === userId && id === savedItemId
+            ? Option.some(makeSavedItem(userId))
+            : Option.none(),
+        ),
       listByUser: (requestedUserId: UserId) =>
         Effect.succeed(
           requestedUserId === userId
@@ -468,6 +483,15 @@ const routeLayer = (input: {
             : { items: [], nextCursor: null }
         }),
       setReadState: () => Effect.succeed(Option.none()),
+      setFolder: (requestedUserId: UserId, id: SavedItemId, folderId: string | null) =>
+        Effect.succeed(
+          input.savedItemsPage && requestedUserId === userId && id === savedItemId
+            ? Option.some({
+                ...makeSavedItem(userId),
+                savedItem: { ...makeSavedItem(userId).savedItem, folderId: folderId ?? undefined },
+              })
+            : Option.none(),
+        ),
       deleteByUserAndId: () => ({
         execute: () => Promise.resolve({}),
         comment: () => undefined,
@@ -1531,6 +1555,29 @@ describe("HttpApp", () => {
       })
     }),
   )
+
+  it.effect("purges the owner's Public Profile after moving a Saved Item to No Folder", () => {
+    let purgedHandle: string | undefined
+
+    return Effect.gen(function* () {
+      const response = yield* jsonRequest("PUT", `/v1/saved-items/${savedItemId}/folder`, {
+        folderId: null,
+      }).pipe(
+        Effect.provide(routeLayer({
+          sessionUserId: userId,
+          savedItemsPage: true,
+          claimedHandle: { userId, handle: "onno" },
+          profileVisibility: "public",
+          onCachePurge: (handle) => {
+            purgedHandle = handle
+          },
+        })),
+      )
+
+      expect(response.status).toBe(200)
+      expect(purgedHandle).toBe("onno")
+    })
+  })
 
   it.effect("publishes a Folder through the widened update", () =>
     Effect.gen(function* () {

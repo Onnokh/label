@@ -81,9 +81,10 @@ export const displayProfileUrl = (handle: string): string =>
 const profileQueryKey = ["profile"] as const
 
 // The Profile of the signed-in Account, or null when it has no Handle yet.
-export function useProfile() {
+export function useProfile(enabled = true) {
   const query = useQuery({
     queryKey: profileQueryKey,
+    enabled,
     queryFn: async (): Promise<Profile | null> => {
       try {
         return await apiFetch<Profile>("/v1/profile")

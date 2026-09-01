@@ -1,4 +1,5 @@
 import type { PublicSavedItem } from "../../sleevy/public-profile"
+import { RemoveFromProfileButton } from "./remove-from-profile-button"
 import { SaveToLibraryButton } from "./save-to-library-button"
 import styles from "./saved-item-card.module.scss"
 
@@ -66,9 +67,20 @@ const Cover = ({ item, label }: { readonly item: PublicSavedItem; readonly label
 // the profile. The button attaches in the browser only, so the cached
 // server-rendered HTML stays the same for every viewer — and an empty slot in
 // that HTML costs a signed-out reader nothing.
-const SaveSlot = ({ url, name }: { readonly url: string; readonly name: string }) => (
+const SaveSlot = ({
+  handle,
+  url,
+  name,
+  onRemoved,
+}: {
+  readonly handle: string
+  readonly url: string
+  readonly name: string
+  readonly onRemoved: () => void
+}) => (
   <div className={styles.saveSlot}>
     <SaveToLibraryButton url={url} name={name} />
+    <RemoveFromProfileButton handle={handle} url={url} name={name} onRemoved={onRemoved} />
   </div>
 )
 
@@ -83,9 +95,17 @@ const Tags = ({ tags }: { readonly tags: ReadonlyArray<string> }) =>
 // than a headline for them, so it is set at reading size with its line breaks
 // kept, under the Link Author who wrote it — and never as a headline, which is what
 // made one long tweet shout down every other card on the page.
-const PostCard = ({ item }: { readonly item: PublicSavedItem }) => {
-  const handle = item.authorHandle ?? null
-  const name = item.authorName ?? handle ?? bareHost(item.host)
+const PostCard = ({
+  item,
+  handle,
+  onRemoved,
+}: {
+  readonly item: PublicSavedItem
+  readonly handle: string
+  readonly onRemoved: () => void
+}) => {
+  const authorHandle = item.authorHandle ?? null
+  const name = item.authorName ?? authorHandle ?? bareHost(item.host)
   const label = `Post by ${name}`
 
   return (
@@ -97,7 +117,7 @@ const PostCard = ({ item }: { readonly item: PublicSavedItem }) => {
             : <span className={styles.avatarFallback} aria-hidden="true">{initialOf(name)}</span>}
           <div className={styles.authorNames}>
             <span className={styles.authorName}>{name}</span>
-            {handle ? <span className={styles.authorHandle}>{handle}</span> : null}
+            {authorHandle ? <span className={styles.authorHandle}>{authorHandle}</span> : null}
           </div>
           <XGlyph />
         </header>
@@ -119,14 +139,22 @@ const PostCard = ({ item }: { readonly item: PublicSavedItem }) => {
         : null}
 
       <Cover item={item} label={label} />
-      <SaveSlot url={item.originalUrl} name={label} />
+      <SaveSlot handle={handle} url={item.originalUrl} name={label} onRemoved={onRemoved} />
     </article>
   )
 }
 
 // Every other Type: the title is a headline for something else, so it leads, with
 // the Preview Summary under it and the cover image beside it.
-const LinkCard = ({ item }: { readonly item: PublicSavedItem }) => {
+const LinkCard = ({
+  item,
+  handle,
+  onRemoved,
+}: {
+  readonly item: PublicSavedItem
+  readonly handle: string
+  readonly onRemoved: () => void
+}) => {
   const title = item.title ?? item.originalUrl
 
   return (
@@ -150,13 +178,23 @@ const LinkCard = ({ item }: { readonly item: PublicSavedItem }) => {
         : null}
 
       <Cover item={item} label={title} />
-      <SaveSlot url={item.originalUrl} name={title} />
+      <SaveSlot handle={handle} url={item.originalUrl} name={title} onRemoved={onRemoved} />
     </article>
   )
 }
 
-export const SavedItemCard = ({ item }: { readonly item: PublicSavedItem }) => (
+export const SavedItemCard = ({
+  item,
+  handle,
+  onRemoved,
+}: {
+  readonly item: PublicSavedItem
+  readonly handle: string
+  readonly onRemoved: () => void
+}) => (
   <li className={styles.item}>
-    {item.type === "post" ? <PostCard item={item} /> : <LinkCard item={item} />}
+    {item.type === "post"
+      ? <PostCard item={item} handle={handle} onRemoved={onRemoved} />
+      : <LinkCard item={item} handle={handle} onRemoved={onRemoved} />}
   </li>
 )

@@ -45,6 +45,8 @@
 // picks one. The card is clipped, so it arrives rather than hangs over the edge.
 .saveSlot {
   position: absolute;
+  display: flex;
+  gap: 0.35rem;
   top: 0.7rem;
   right: 0.75rem;
   // Above the cover link of a post, so the Save button stays its own target.
