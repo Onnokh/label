@@ -1,5 +1,5 @@
 import { BookmarkMinus, LoaderCircle, RotateCcw } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useSyncExternalStore } from "react"
 
 import { authClient } from "../../auth"
 import { useMoveSavedItemToFolder } from "../../sleevy/folders"
@@ -28,6 +28,10 @@ type Props = {
   readonly onRemoved: () => void
 }
 
+const subscribe = () => () => {}
+const getClientSnapshot = () => true
+const getServerSnapshot = () => false
+
 /**
  * This is deliberately a client-only owner shortcut. Public Saved Item DTOs do
  * not expose IDs, so the signed-in Library supplies the matching Saved Item and
@@ -35,7 +39,7 @@ type Props = {
  */
 export function RemoveFromProfileButton({ handle, url, name, onRemoved }: Props) {
   const { data: session, isPending: isSessionPending } = authClient.useSession()
-  const [isAttached, setIsAttached] = useState(false)
+  const isAttached = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot)
   const { profile, isLoading: isProfileLoading } = useProfile(isAttached && !!session)
   const { data: savedItems, isLoading: areSavedItemsLoading } = useSavedItems(
     "newest",
@@ -43,10 +47,6 @@ export function RemoveFromProfileButton({ handle, url, name, onRemoved }: Props)
     isAttached && !!session,
   )
   const moveMutation = useMoveSavedItemToFolder()
-
-  useEffect(() => {
-    setIsAttached(true)
-  }, [])
 
   if (
     !isAttached ||

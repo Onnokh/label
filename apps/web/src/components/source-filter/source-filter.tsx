@@ -1,8 +1,9 @@
 import { createContext, use, useMemo, useState, type DragEvent, type ReactNode } from "react"
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { ChevronRight, Inbox, Keyboard, Library, Hash, MoreVertical, Settings, SquarePlus } from "lucide-react"
+import { ChevronRight, Globe2, Hash, Inbox, Keyboard, Library, MoreVertical, Settings, SquarePlus } from "lucide-react"
 
 import { useKeyboardNav } from "../../contexts/keyboard-nav-context"
+import { useProfile } from "../../sleevy/profile"
 import { useSidebarSheet } from "../app-layout/sidebar-sheet"
 import { useMoveItemsToSource, useSavedItems, type Topic } from "../../sleevy/saved-items"
 import { SAVED_ITEM_DRAG_TYPE, useMoveSavedItemToFolder } from "../../sleevy/folders"
@@ -209,8 +210,21 @@ function SidebarSection({ heading, items, activeValue, onSelect, collapsible = f
 }
 
 export function SidebarActions() {
-  const navigate = useNavigate()
+  const { profile } = useProfile()
   const { openCaptureDialog, setHelpOpen } = useKeyboardNav()
+  const profileAction = profile?.visibility === "public" && profile.handle
+    ? {
+        key: "public-profile",
+        label: "Public profile",
+        icon: <Globe2 size={14} />,
+        to: `/u/${profile.handle}`,
+      }
+    : {
+        key: "claim-handle",
+        label: "Claim handle",
+        icon: <Globe2 size={14} />,
+        to: "/settings",
+      }
 
   return (
     <SidebarSection
@@ -227,6 +241,7 @@ export function SidebarActions() {
           icon: <Settings size={14} />,
           to: "/settings",
         },
+        profileAction,
         {
           key: "shortcuts",
           label: "Keyboard shortcuts",
