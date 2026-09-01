@@ -137,6 +137,7 @@
 
 .content {
   flex: 1;
+  container: dashboard-content / inline-size;
   /* One source of truth for the content inset. Anything that has to bleed
      past it — the Inbox header card, the collapsing title bar — reads this
      rather than repeating the number and drifting from it. */
@@ -446,7 +447,7 @@
   /* Stacked, so the heading and the page toolbar read top to bottom rather
      than across. */
   .page-header {
-    align-items: flex-start;
+    align-items: stretch;
     flex-direction: column;
   }
 
@@ -472,5 +473,23 @@
     grid-template-columns: 1fr;
     max-width: none;
     margin-left: 0;
+  }
+}
+
+/* The sidebar makes the usable page width much smaller than the viewport. A
+   viewport breakpoint therefore misses medium windows: the heading can be
+   squeezed to a few words while the toolbar keeps its single-row width. Use
+   the content container so the header stacks at the width it actually has. */
+@container dashboard-content (max-width: 48rem) {
+  .page-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .page-heading {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: calc(11rem - var(--content-padding) * 2);
   }
 }

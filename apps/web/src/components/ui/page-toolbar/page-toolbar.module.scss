@@ -3,6 +3,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
   flex-shrink: 0;
 }
 
@@ -11,6 +12,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 /* Actions read as a separate group: they change a thing, the controls only
@@ -23,6 +25,20 @@
 }
 
 @media (max-width: 44rem) {
+  .actions {
+    margin-left: 0;
+  }
+}
+
+@container dashboard-content (max-width: 48rem) {
+  .toolbar {
+    width: 100%;
+  }
+
+  .controls {
+    flex: 1 1 100%;
+  }
+
   .actions {
     margin-left: 0;
   }
