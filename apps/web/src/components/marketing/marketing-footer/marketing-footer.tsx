@@ -32,16 +32,17 @@ export function MarketingFooter() {
           <Link to="/articles">Articles</Link>
           <Link to="/docs/$" params={{ _splat: "" }}>Sleevy API documentation</Link>
           <a href="https://github.com/Onnokh/sleevy" target="_blank" rel="noopener noreferrer">GitHub</a>
-          <a
-            className={styles.smallLink}
-            href="https://indiehunt.io/project/sleevy"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Featured on IndieHunt
-          </a>
           <Link to="/support">Support</Link>
           <Link to="/privacy">Privacy</Link>
+        </nav>
+
+        {/* Directory listings. These links must stay in the server-rendered HTML:
+            the directories re-fetch this page to keep their outbound link dofollow. */}
+        <nav className={styles.col} aria-label="Featured on">
+          <span className={styles.colTitle}>Featured on</span>
+          <a href="https://www.producthunt.com/products/sleevy" target="_blank" rel="noopener noreferrer">Product Hunt</a>
+          <a href="https://indiehunt.io/project/sleevy" target="_blank" rel="noopener noreferrer">IndieHunt</a>
+          <a href="https://www.scrolllaunch.com/products/sleevy?ref=badge" target="_blank" rel="noopener noreferrer">ScrollLaunch</a>
         </nav>
       </div>
     </footer>

@@ -15,7 +15,7 @@
 
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.83fr) minmax(0, 0.5fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 0.55fr) minmax(0, 0.45fr);
   gap: 3rem;
   padding: 4.1875rem 0 2.75rem;
 
@@ -77,15 +77,6 @@
     &:hover {
       color: #fff;
     }
-  }
-}
-
-.col a.smallLink {
-  color: rgba(255, 255, 255, 0.58);
-  font-size: 0.875rem;
-
-  &:hover {
-    color: rgba(255, 255, 255, 0.85);
   }
 }
 
