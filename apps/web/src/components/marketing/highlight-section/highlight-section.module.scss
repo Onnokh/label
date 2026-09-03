@@ -109,12 +109,15 @@
   height: auto;
 }
 
+/* The radius matches the sheet's own corner baked into the export (a 64px
+   continuous corner in the 750px-wide asset, so 2.1875rem at this width) —
+   otherwise the box-shadow traces a squarer path than the artwork. */
 .shotShare {
   top: 10rem;
   left: 50%;
   width: 23.4375rem;
   transform: translateX(-50%);
-  border-radius: 0.75rem;
+  border-radius: 2.1875rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 

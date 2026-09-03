@@ -241,6 +241,13 @@
 .proofCardPortrait .proofVisual {
   top: 14rem;
   width: min(66%, 20rem);
+
+  /* The portrait proof is the iOS share sheet, whose own corner is baked into
+     the artwork. Stated as a percentage so it tracks the fluid width; the two
+     values keep the arc circular against the 1.208 aspect ratio. */
+  img {
+    border-radius: 9.33% / 7.72%;
+  }
 }
 
 @media (max-width: 768px) {
