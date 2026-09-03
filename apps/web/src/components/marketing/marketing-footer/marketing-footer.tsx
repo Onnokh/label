@@ -43,6 +43,7 @@ export function MarketingFooter() {
           <a href="https://www.producthunt.com/products/sleevy" target="_blank" rel="noopener noreferrer">Product Hunt</a>
           <a href="https://indiehunt.io/project/sleevy" target="_blank" rel="noopener noreferrer">IndieHunt</a>
           <a href="https://www.scrolllaunch.com/products/sleevy?ref=badge" target="_blank" rel="noopener noreferrer">ScrollLaunch</a>
+          <a href="https://buildlist.io" target="_blank" rel="noopener noreferrer">Buildlist</a>
         </nav>
       </div>
     </footer>
